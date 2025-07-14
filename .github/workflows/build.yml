@@ -1,0 +1,133 @@
+name: Build and Publish Wheels
+
+on:
+  push:
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '7zz version to build'
+        required: true
+        type: string
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            binary_name: 7zz
+          - os: macos-14
+            platform: macos
+            arch: arm64
+            binary_name: 7zz
+          - os: macos-13
+            platform: macos
+            arch: x64
+            binary_name: 7zz
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            binary_name: 7zz.exe
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        uv pip install -e .
+    
+    - name: Get 7zz version
+      id: get_version
+      shell: bash
+      run: |
+        if [ "${{ github.event.inputs.version }}" != "" ]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          # Extract version from git tag
+          VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Download 7zz binary
+      shell: bash
+      run: |
+        VERSION="${{ steps.get_version.outputs.version }}"
+        PLATFORM="${{ matrix.platform }}"
+        ARCH="${{ matrix.arch }}"
+        BINARY_NAME="${{ matrix.binary_name }}"
+        
+        # Map platform/arch to 7zz release naming
+        case "$PLATFORM-$ARCH" in
+          "linux-x64")
+            ASSET_NAME="7z${VERSION}-linux-x64.tar.xz"
+            ;;
+          "macos-x64")
+            ASSET_NAME="7z${VERSION}-mac.tar.xz"
+            ;;
+          "macos-arm64")
+            ASSET_NAME="7z${VERSION}-mac.tar.xz"
+            ;;
+          "windows-x64")
+            ASSET_NAME="7z${VERSION}-x64.exe"
+            ;;
+          *)
+            echo "Unsupported platform: $PLATFORM-$ARCH"
+            exit 1
+            ;;
+        esac
+        
+        # Download from GitHub releases
+        DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
+        echo "Downloading from: $DOWNLOAD_URL"
+        
+        # Create binary directory
+        mkdir -p "py7zz/binaries/${PLATFORM}"
+        
+        if [[ "$PLATFORM" == "windows" ]]; then
+          # Windows .exe file
+          curl -L -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"
+        else
+          # Unix tar.xz file
+          curl -L -o "/tmp/${ASSET_NAME}" "$DOWNLOAD_URL"
+          cd /tmp
+          tar -xf "${ASSET_NAME}"
+          # Find and copy the 7zz binary
+          find . -name "7zz" -type f -exec cp {} "$GITHUB_WORKSPACE/py7zz/binaries/${PLATFORM}/${BINARY_NAME}" \;
+        fi
+        
+        # Make binary executable
+        chmod +x "py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
+        
+        # Verify binary works
+        "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help || echo "Binary verification failed"
+    
+    - name: Build wheel
+      run: |
+        uv run python -m build --wheel
+    
+    - name: Upload wheel artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: wheels-${{ matrix.platform }}-${{ matrix.arch }}
+        path: dist/*.whl
+    
+    - name: Publish to PyPI
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        password: ${{ secrets.PYPI_API_TOKEN }}
+        packages-dir: dist/

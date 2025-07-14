@@ -13,6 +13,7 @@ py7zz is a Python package that wraps the official 7zz CLI tool, providing a cons
 ### Environment Setup
 ```bash
 uv venv                    # Create virtual environment
+source .venv/bin/activate  # Activate virtual environment (required for direct tool usage)
 ```
 
 ### Dependency Management
@@ -28,10 +29,12 @@ uv add --dev pytest ruff mypy
 
 ### Core Development Loop
 ```bash
-ruff check . --fix         # Style check and auto-fix
-pytest -q                  # Run unit tests
-mypy .                     # Type checking
+ruff check . --fix         # Style check and auto-fix (or uv run ruff check . --fix)
+pytest -q                  # Run unit tests (or uv run pytest -q)
+mypy .                     # Type checking (or uv run mypy .)
 ```
+
+**Note**: Commands can be run directly if virtual environment is activated (`source .venv/bin/activate`), or prefixed with `uv run` if not activated.
 
 ### Code Formatting
 ```bash

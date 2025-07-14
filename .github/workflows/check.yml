@@ -1,0 +1,39 @@
+name: Check Code Quality
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        uv pip install -e .
+    
+    - name: Run ruff check
+      run: uv run ruff check . --fix
+    
+    - name: Run ruff format check
+      run: uv run ruff format --check .
+    
+    - name: Run pytest
+      run: uv run pytest -q
+    
+    - name: Run mypy
+      run: uv run mypy .
