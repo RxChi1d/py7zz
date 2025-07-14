@@ -9,12 +9,18 @@ from unittest.mock import Mock, patch
 import pytest
 
 from py7zz.core import SevenZipFile, find_7z_binary, get_version
+from py7zz.exceptions import FileNotFoundError
 
 
 def test_get_version():
     """Test version retrieval."""
     version = get_version()
-    assert version == "0.1.0"
+    assert version == "1.0.0+7zz24.07"
+    
+    # Test version format
+    assert "+7zz" in version
+    assert "1.0.0" in version
+    assert "24.07" in version
 
 
 def test_find_7z_binary_env_var():
@@ -26,11 +32,10 @@ def test_find_7z_binary_env_var():
 
 
 def test_find_7z_binary_system_path():
-    """Test binary detection from system PATH."""
-    with patch.dict(os.environ, {}, clear=True):
-        with patch("shutil.which", return_value="/usr/bin/7zz"):
-            binary = find_7z_binary()
-            assert binary == "/usr/bin/7zz"
+    """Test binary detection from system PATH - now removed from design."""
+    # This test is no longer valid since we removed system PATH detection
+    # py7zz now only uses bundled binaries for version consistency
+    pass
 
 
 def test_find_7z_binary_bundled():

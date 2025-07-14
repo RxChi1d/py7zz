@@ -13,7 +13,7 @@ include = [
 
 [project]
 name = "py7zz"
-version = "0.1.0"
+version = "1.0.0+7zz24.07"
 description = "Python wrapper for 7zz CLI tool with automatic update mechanisms"
 readme = "README.md"
 license = {text = "BSD-3-Clause"}
@@ -45,6 +45,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = []
+
+[project.scripts]
+7zz = "py7zz.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/rxchi1d/py7zz"
@@ -94,4 +97,6 @@ dev = [
     "mypy>=1.14.1",
     "pytest>=8.3.5",
     "ruff>=0.12.3",
+    "types-requests>=2.32.0.20241016",
+    "zstandard>=0.23.0",
 ]

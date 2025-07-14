@@ -1,0 +1,149 @@
+name: Watch 7zz Releases and Build Nightly
+
+on:
+  schedule:
+    - cron: "0 3 * * *"  # Daily at 03:00 UTC
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Install uv
+      uses: astral-sh/setup-uv@v3
+      with:
+        version: "latest"
+    
+    - name: Set up Python
+      run: uv python install 3.11
+    
+    - name: Get latest 7zz release
+      id: get_7zz_version
+      run: |
+        LATEST_7ZZ=$(curl -s https://api.github.com/repos/ip7z/7zip/releases/latest | jq -r .tag_name)
+        echo "version=$LATEST_7ZZ" >> $GITHUB_OUTPUT
+        echo "Latest 7zz version: $LATEST_7ZZ"
+    
+    - name: Get current py7zz version
+      id: get_py7zz_version
+      run: |
+        # Get version from pyproject.toml
+        CURRENT_PY7ZZ=$(grep 'version = ' pyproject.toml | cut -d '"' -f 2)
+        echo "current=$CURRENT_PY7ZZ" >> $GITHUB_OUTPUT
+        echo "Current py7zz version: $CURRENT_PY7ZZ"
+        
+        # Extract py7zz semantic version (before +7zz)
+        PY7ZZ_SEMANTIC=$(echo "$CURRENT_PY7ZZ" | cut -d '+' -f 1)
+        echo "semantic=$PY7ZZ_SEMANTIC" >> $GITHUB_OUTPUT
+        echo "py7zz semantic version: $PY7ZZ_SEMANTIC"
+    
+    - name: Compare versions and generate nightly version
+      id: compare
+      run: |
+        LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        CURRENT_PY7ZZ="${{ steps.get_py7zz_version.outputs.current }}"
+        PY7ZZ_SEMANTIC="${{ steps.get_py7zz_version.outputs.semantic }}"
+        
+        echo "Comparing 7zz $LATEST_7ZZ with py7zz $CURRENT_PY7ZZ"
+        
+        # Check if the 7zz version is already embedded in the py7zz version string
+        if [[ "$CURRENT_PY7ZZ" == *"7zz$LATEST_7ZZ"* ]]; then
+          echo "update_needed=false" >> $GITHUB_OUTPUT
+          echo "No update needed - 7zz $LATEST_7ZZ already included in py7zz $CURRENT_PY7ZZ"
+        else
+          echo "update_needed=true" >> $GITHUB_OUTPUT
+          echo "Update needed - 7zz $LATEST_7ZZ not found in py7zz $CURRENT_PY7ZZ"
+          
+          # Generate auto version using new format: {semantic}.auto+7zz{7zz_version}
+          AUTO_VERSION="${PY7ZZ_SEMANTIC}.auto+7zz${LATEST_7ZZ}"
+          echo "auto_version=$AUTO_VERSION" >> $GITHUB_OUTPUT
+          echo "Generated auto version: $AUTO_VERSION"
+        fi
+    
+    - name: Update version for auto build
+      if: steps.compare.outputs.update_needed == 'true'
+      run: |
+        AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
+        
+        # Update pyproject.toml with auto version
+        sed -i "s/version = \".*\"/version = \"$AUTO_VERSION\"/" pyproject.toml
+        
+        # Verify the change
+        echo "Updated version to: $(grep 'version = ' pyproject.toml | cut -d '"' -f 2)"
+    
+    - name: Trigger auto build
+      if: steps.compare.outputs.update_needed == 'true'
+      run: |
+        # Create a temporary tag for the auto build
+        AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
+        LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        
+        # Commit the version change
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add pyproject.toml
+        git commit -m "chore: auto build for 7zz $LATEST_7ZZ"
+        
+        # Create and push tag to trigger build workflow
+        git tag "auto-$AUTO_VERSION"
+        git push origin "auto-$AUTO_VERSION"
+        
+        echo "Created auto tag: auto-$AUTO_VERSION"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create GitHub Release (Auto)
+      if: steps.compare.outputs.update_needed == 'true'
+      run: |
+        AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
+        LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        
+        # Create GitHub release
+        gh release create "auto-$AUTO_VERSION" \
+          --title "🟡 Auto Build: py7zz $AUTO_VERSION" \
+          --notes "🟡 **Auto Build - 7zz Update**
+
+This is an automated build that includes the latest 7zz release. The py7zz code is unchanged.
+
+### Changes
+- Updated to 7zz version: **$LATEST_7ZZ**
+- py7zz version: **$AUTO_VERSION**
+
+### Stability
+- **🟡 Basic Stable**: Only 7zz binary updated, py7zz code unchanged
+- **Recommended for**: Users who need latest 7zz features
+- **Not recommended for**: Critical production systems (use release version)
+
+### Installation
+\`\`\`bash
+pip install py7zz==$AUTO_VERSION
+\`\`\`
+
+### Release Notes
+See the [7zz release notes](https://github.com/ip7z/7zip/releases/tag/$LATEST_7ZZ) for details.
+
+ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version." \
+          --prerelease
+        
+        echo "Created auto release: auto-$AUTO_VERSION"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Post status to summary
+      run: |
+        echo "## 7zz Release Check Results" >> $GITHUB_STEP_SUMMARY
+        echo "- **Latest 7zz version**: ${{ steps.get_7zz_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Current py7zz version**: ${{ steps.get_py7zz_version.outputs.current }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Update needed**: ${{ steps.compare.outputs.update_needed }}" >> $GITHUB_STEP_SUMMARY
+        
+        if [[ "${{ steps.compare.outputs.update_needed }}" == "true" ]]; then
+          echo "- **Action**: Created auto build ${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: auto-${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "- **Action**: No update required" >> $GITHUB_STEP_SUMMARY
+        fi
