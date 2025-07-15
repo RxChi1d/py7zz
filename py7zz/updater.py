@@ -65,13 +65,17 @@ def get_asset_name(version: str, platform: str, arch: str) -> str:
     """Generate the correct asset name for a given version and platform.
     
     Args:
-        version: 7zz version string (e.g., "2408")
+        version: 7zz version string (e.g., "24.07" or "2408")
         platform: Platform name ("mac", "linux", "windows")
         arch: Architecture ("x64", "arm64")
     
     Returns:
         Asset filename for downloading from GitHub releases.
     """
+    # Convert version format if needed (24.07 -> 2407)
+    if "." in version:
+        version = version.replace(".", "")
+    
     if platform == "windows":
         return f"7z{version}-x64.exe"
     elif platform == "mac":

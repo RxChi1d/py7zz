@@ -25,18 +25,19 @@ def get_version() -> str:
 def find_7z_binary() -> str:
     """
     Find 7zz binary in order of preference:
-    1. Environment variable PY7ZZ_BINARY
+    1. Environment variable PY7ZZ_BINARY (development/testing only)
     2. Bundled binary (wheel package)
+    3. Auto-downloaded binary (source installs)
     
-    Note: py7zz only uses the bundled binary to ensure version consistency.
-    Each py7zz version is paired with a specific 7zz version.
+    Note: py7zz ensures version consistency by never using system 7zz.
+    Each py7zz version is paired with a specific 7zz version for isolation and reliability.
     """
-    # Check environment variable first (for development/testing)
+    # Check environment variable first (for development/testing only)
     env_binary = os.environ.get("PY7ZZ_BINARY")
     if env_binary and Path(env_binary).exists():
         return env_binary
     
-    # Use bundled binary
+    # Use bundled binary (preferred for wheel packages)
     current_dir = Path(__file__).parent
     binaries_dir = current_dir / "binaries"
     
@@ -53,8 +54,25 @@ def find_7z_binary() -> str:
     if binary_path.exists():
         return str(binary_path)
     
+    # Auto-download binary for source installs
+    try:
+        from .updater import get_cached_binary
+        from .version import get_7zz_version
+        
+        seven_zz_version = get_7zz_version()
+        cached_binary = get_cached_binary(seven_zz_version, auto_update=True)
+        if cached_binary and cached_binary.exists():
+            return str(cached_binary)
+    except ImportError:
+        pass  # updater module not available
+    except Exception:
+        pass  # Auto-download failed, continue to error
+    
     raise RuntimeError(
-        "7zz binary not found in wheel package. Please reinstall py7zz or set PY7ZZ_BINARY environment variable."
+        "7zz binary not found. Please either:\n"
+        "1. Install py7zz from PyPI (pip install py7zz) to get bundled binary\n"
+        "2. Ensure internet connection for auto-download (source installs)\n"
+        "3. Set PY7ZZ_BINARY environment variable to point to your 7zz binary"
     )
 
 

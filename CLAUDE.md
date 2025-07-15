@@ -15,11 +15,57 @@ py7zz is a Python package that wraps the official 7zz CLI tool, providing a cons
 uv venv                    # Create virtual environment
 source .venv/bin/activate  # Activate virtual environment (required for direct tool usage)
 
-# Set development binary path (required for development)
+# Set development binary path (optional for development)
 export PY7ZZ_BINARY=/opt/homebrew/bin/7zz  # macOS with Homebrew
 # export PY7ZZ_BINARY=/usr/bin/7zz         # Linux systems
 # export PY7ZZ_BINARY=/path/to/7zz.exe     # Windows systems
 ```
+
+### Installation Methods
+
+py7zz supports multiple installation methods to accommodate different use cases:
+
+#### 1. Production Installation (Recommended)
+```bash
+pip install py7zz
+```
+- Includes bundled 7zz binary for version consistency
+- No additional setup required
+- Automatic binary detection and version pairing
+
+#### 2. Development Installation (From Source)
+```bash
+# Clone repository and install in editable mode
+git clone https://github.com/rxchi1d/py7zz.git
+cd py7zz
+pip install -e .
+```
+- Auto-downloads correct 7zz binary on first use
+- Cached in ~/.cache/py7zz/ for offline use
+- Ensures version consistency without system dependency
+
+#### 3. Direct GitHub Installation
+```bash
+# Install latest development version
+pip install git+https://github.com/rxchi1d/py7zz.git
+```
+- Installs directly from GitHub repository
+- Auto-downloads correct 7zz binary on first use
+- No need for local git clone or system 7zz
+
+#### Binary Discovery Order (Hybrid Approach)
+py7zz finds 7zz binary in this order:
+1. **PY7ZZ_BINARY** environment variable (development/testing only)
+2. **Bundled binary** (PyPI wheel packages)
+3. **Auto-downloaded binary** (source installs - cached in ~/.cache/py7zz/)
+
+**Key Features:**
+- **Isolation**: Never uses system 7zz to avoid conflicts
+- **Version consistency**: Each py7zz version paired with specific 7zz version
+- **Automatic**: Source installs auto-download correct binary on first use
+- **Caching**: Downloaded binaries cached for offline use
+
+This ensures reliability, isolation, and version consistency across all installation methods.
 
 ### Dependency Management
 **IMPORTANT**: All dependencies must be managed through `uv add` commands. Never manually edit `pyproject.toml` or use `uv pip install` directly.
@@ -57,7 +103,7 @@ py7zz/
 │   ├── macos/7zz         # macOS binary
 │   ├── linux/7zz         # Linux binary  
 │   └── windows/7zz.exe   # Windows binary
-├── updater.py             # GitHub API integration (used by CI only)
+├── updater.py             # GitHub API integration & auto-download for source installs
 ├── pyproject.toml         # build-system = "hatchling"
 ├── README.md
 └── .github/workflows/
@@ -69,7 +115,7 @@ py7zz/
 ### Key Components
 - **SevenZipFile**: Main API class similar to zipfile interface
 - **core.run_7z()**: Subprocess wrapper for 7zz CLI execution
-- **Binary resolution**: 1) `PY7ZZ_BINARY` env var → 2) bundled binary (wheel package)
+- **Binary resolution**: Hybrid approach with isolation and version consistency
 - **Version consistency**: Each py7zz version is paired with a specific 7zz version for stability
 - **Three-tier versioning**: Release (stable), Auto (basic stable), Dev (unstable)
 
@@ -205,3 +251,113 @@ The project follows a structured development plan:
   - Prepare for PyPI release
 
 **Total estimated time: 15 working days**
+
+## Binary Management & Installation Strategy
+
+### Hybrid Binary Distribution Approach
+
+py7zz implements a hybrid approach to ensure **isolation** and **version consistency**:
+
+#### Design Principles
+1. **Never use system 7zz** - Avoids version conflicts and ensures reproducible behavior
+2. **Version pairing** - Each py7zz version is paired with a specific 7zz version
+3. **Automatic handling** - Users don't need to manually install or configure 7zz
+4. **Offline capability** - Downloaded binaries are cached for offline use
+
+#### Implementation Strategy
+
+**PyPI Wheel Distribution (Production)**:
+- Uses GitHub Actions to download 7zz binaries from https://github.com/ip7z/7zip/releases
+- Embeds platform-specific binaries in wheel packages
+- Users get bundled binary with `pip install py7zz`
+- No internet connection required after installation
+
+**Source Installation (Development)**:
+- Empty `py7zz/binaries/` directory in git repository
+- Auto-downloads correct 7zz binary on first use via `updater.py`
+- Caches in `~/.cache/py7zz/{version}/` directory
+- Requires internet connection for first use only
+
+#### Binary Discovery Priority
+```python
+def find_7z_binary() -> str:
+    # 1. Environment variable (development/testing only)
+    if PY7ZZ_BINARY and exists: return PY7ZZ_BINARY
+    
+    # 2. Bundled binary (PyPI wheel packages)
+    if bundled_binary and exists: return bundled_binary
+    
+    # 3. Auto-downloaded binary (source installs)
+    if auto_download_successful: return cached_binary
+    
+    # 4. Error - no system fallback
+    raise RuntimeError("7zz binary not found")
+```
+
+#### Version Consistency Mechanism
+- `version.py` defines: `PY7ZZ_VERSION = "1.0.0"` and `SEVEN_ZZ_VERSION = "24.07"`
+- Full version: `1.0.0+7zz24.07`
+- Auto-download uses `get_7zz_version()` to ensure correct binary version
+- Asset naming: `24.07` → `2407` for GitHub release URLs
+
+#### Cache Management
+- Location: `~/.cache/py7zz/{version}/7zz[.exe]`
+- Automatic cleanup via `updater.cleanup_old_versions()`
+- Preserved across py7zz reinstalls
+- Platform-specific binary extraction from tar.xz/exe files
+
+### Configuration Requirements
+
+#### pyproject.toml Binary Inclusion
+```toml
+[tool.hatch.build.targets.wheel]
+packages = ["py7zz"]
+include = [
+    "py7zz/binaries/**/*",
+]
+
+[tool.hatch.build.targets.wheel.force-include]
+"py7zz/binaries" = "py7zz/binaries"
+```
+
+#### GitHub Actions Binary Download
+```yaml
+# .github/workflows/build.yml
+- name: Download 7zz binary
+  run: |
+    VERSION="${{ steps.get_version.outputs.version }}"
+    DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/7z${VERSION}-${PLATFORM}.tar.xz"
+    mkdir -p "py7zz/binaries/${PLATFORM}"
+    curl -L -o "/tmp/asset.tar.xz" "$DOWNLOAD_URL"
+    tar -xf "/tmp/asset.tar.xz" -C "/tmp"
+    find /tmp -name "7zz" -exec cp {} "py7zz/binaries/${PLATFORM}/" \;
+    chmod +x "py7zz/binaries/${PLATFORM}/7zz"
+```
+
+#### Error Handling & Fallbacks
+```python
+# core.py - No system fallback
+raise RuntimeError(
+    "7zz binary not found. Please either:\n"
+    "1. Install py7zz from PyPI (pip install py7zz) to get bundled binary\n"
+    "2. Ensure internet connection for auto-download (source installs)\n"
+    "3. Set PY7ZZ_BINARY environment variable to point to your 7zz binary"
+)
+```
+
+### Testing Requirements
+
+#### Installation Method Testing
+- Test PyPI wheel installation with bundled binary
+- Test source installation with auto-download
+- Test environment variable override
+- Test offline functionality after cache population
+- Test version consistency across installation methods
+
+#### Binary Verification
+- Verify binary executability: `7zz --help`
+- Verify version matching: parse output for version string
+- Verify platform compatibility: correct architecture
+- Verify cache persistence across sessions
+
+This hybrid approach ensures py7zz works reliably across all installation methods while maintaining strict version control and system isolation.
