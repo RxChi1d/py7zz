@@ -1,314 +1,261 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+此檔案提供 Claude Code (claude.ai/code) 在此儲存庫中工作時的指引。
 
-## Project Overview
+## 語言規則
 
-py7zz is a Python package that wraps the official 7zz CLI tool, providing a consistent OOP interface across platforms (macOS, Debian-family Linux, Windows x64) with automatic update mechanisms. The project follows a "Vibe Coding" workflow emphasizing rapid iteration, CI/CD integration, and enforced code formatting.
+**重要：請嚴格遵循以下語言規則**
 
-**Project Vision**: Enable users to "pip install py7zz" and immediately compress/decompress dozens of formats without pre-installing 7-Zip, with the wheel containing platform-specific 7zz binaries.
+1. **Claude.md 內容**：使用zh-tw
+2. **與 Claude 對話**：使用zh-tw
+3. **程式碼註解**：使用en
+4. **函數/變數命名**：使用en
+5. **Git commit 訊息**：使用en
+6. **文件字串 (docstrings)**：使用en
 
-## Development Commands
+## 專案概述
 
-### Environment Setup
+py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 工具，跨平台（macOS、Debian 系 Linux、Windows x64）提供一致的物件導向程式介面，並具備自動更新機制。專案遵循「Vibe Coding」工作流程，強調快速迭代、CI/CD 整合以及強制程式碼格式化。
+
+**專案願景**：讓使用者「pip install py7zz」後，立即能夠通過跨平台統一的Python API接口或7zz 原生Cli壓縮/解壓縮數十種格式，無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 二進位檔案。
+
+## 開發命令
+
+### 環境設定
 ```bash
-uv venv                    # Create virtual environment
-source .venv/bin/activate  # Activate virtual environment (required for direct tool usage)
+source .venv/bin/activate  # 啟動虛擬環境（直接使用工具時必須）
 
-# Set development binary path (optional for development)
+# 設定開發二進位檔案路徑（開發用，可選）
 export PY7ZZ_BINARY=/opt/homebrew/bin/7zz  # macOS with Homebrew
 # export PY7ZZ_BINARY=/usr/bin/7zz         # Linux systems
 # export PY7ZZ_BINARY=/path/to/7zz.exe     # Windows systems
 ```
 
-### Installation Methods
+### 安裝方法
 
-py7zz supports multiple installation methods to accommodate different use cases:
+py7zz 支援多種安裝方法以滿足不同使用情境：
 
-#### 1. Production Installation (Recommended)
+#### 1. 正式版安裝（推薦）
 ```bash
 pip install py7zz
 ```
-- Includes bundled 7zz binary for version consistency
-- No additional setup required
-- Automatic binary detection and version pairing
+- 包含綁定的 7zz 二進位檔案以確保版本一致性
+- 無需額外設定
+- 自動二進位檔案偵測和版本配對
 
-#### 2. Development Installation (From Source)
+#### 2. 開發版安裝（從原始碼）
 ```bash
-# Clone repository and install in editable mode
+# 複製儲存庫並以可編輯模式安裝
 git clone https://github.com/rxchi1d/py7zz.git
 cd py7zz
 pip install -e .
 ```
-- Auto-downloads correct 7zz binary on first use
-- Cached in ~/.cache/py7zz/ for offline use
-- Ensures version consistency without system dependency
+- 首次使用時自動下載正確的 7zz 二進位檔案
+- 快取於 ~/.cache/py7zz/ 以供離線使用
+- 確保版本一致性而不依賴系統
 
-#### 3. Direct GitHub Installation
+#### 3. 直接 GitHub 安裝
 ```bash
-# Install latest development version
+# 安裝最新開發版本
 pip install git+https://github.com/rxchi1d/py7zz.git
 ```
-- Installs directly from GitHub repository
-- Auto-downloads correct 7zz binary on first use
-- No need for local git clone or system 7zz
+- 直接從 GitHub 儲存庫安裝
+- 首次使用時自動下載正確的 7zz 二進位檔案
+- 無需本地 git 複製或系統 7zz
 
-#### Binary Discovery Order (Hybrid Approach)
-py7zz finds 7zz binary in this order:
-1. **PY7ZZ_BINARY** environment variable (development/testing only)
-2. **Bundled binary** (PyPI wheel packages)
-3. **Auto-downloaded binary** (source installs - cached in ~/.cache/py7zz/)
+#### 二進位檔案發現順序（混合方法）
+py7zz 依下列順序尋找 7zz 二進位檔案：
+1. **PY7ZZ_BINARY** 環境變數（僅開發/測試用）
+2. **綁定二進位檔案**（PyPI wheel 套件）
+3. **自動下載二進位檔案**（原始碼安裝 - 快取於 ~/.cache/py7zz/）
 
-**Key Features:**
-- **Isolation**: Never uses system 7zz to avoid conflicts
-- **Version consistency**: Each py7zz version paired with specific 7zz version
-- **Automatic**: Source installs auto-download correct binary on first use
-- **Caching**: Downloaded binaries cached for offline use
+**主要特色：**
+- **隔離性**：永不使用系統 7zz 以避免衝突
+- **版本一致性**：每個 py7zz 版本都與特定 7zz 版本配對
+- **自動化**：原始碼安裝首次使用時自動下載正確二進位檔案
+- **快取**：下載的二進位檔案快取以供離線使用
 
-This ensures reliability, isolation, and version consistency across all installation methods.
+這確保了所有安裝方法的可靠性、隔離性和版本一致性。
 
-### Dependency Management
-**IMPORTANT**: All dependencies must be managed through `uv add` commands. Never manually edit `pyproject.toml` or use `uv pip install` directly.
+### 依賴管理
+**重要**：所有依賴必須透過 `uv add` 命令管理。禁止手動編輯 `pyproject.toml` 或使用 `uv pip install`。
 
 ```bash
-# Runtime dependencies
+# 執行期依賴
 uv add requests rich typer packaging
 
-# Development dependencies  
+# 開發依賴
 uv add --dev pytest ruff mypy
 ```
 
-### Core Development Loop
+### 核心開發循環
 ```bash
-ruff check . --fix         # Style check and auto-fix (or uv run ruff check . --fix)
-pytest -q                  # Run unit tests (or uv run pytest -q)
-mypy .                     # Type checking (or uv run mypy .)
+ruff check . --fix         # 風格檢查並自動修正
+pytest -q                  # 執行單元測試
+mypy .                     # 類型檢查
 ```
 
-**Note**: Commands can be run directly if virtual environment is activated (`source .venv/bin/activate`), or prefixed with `uv run` if not activated.
+**注意**：需要啟動虛擬環境（`source .venv/bin/activate`）後執行命令，或使用 `uv run` 前綴。
 
-### Code Formatting
+### 程式碼格式化
 ```bash
-uv run ruff format .       # Format code (use as pre-commit hook)
+uv run ruff format .       # 格式化程式碼（用作 pre-commit hook）
 ```
 
-## Architecture
+## 架構
 
-### Project Structure
+### 專案結構
 ```
 py7zz/
-├── __init__.py            # exports SevenZipFile, get_version
-├── core.py                # subprocess glue, banner parsing
-├── binaries/              # platform-specific 7zz binaries
-│   ├── macos/7zz         # macOS binary
-│   ├── linux/7zz         # Linux binary  
-│   └── windows/7zz.exe   # Windows binary
-├── updater.py             # GitHub API integration & auto-download for source installs
+├── __init__.py            # 匯出 SevenZipFile, get_version
+├── core.py                # subprocess 膠合、banner 解析
+├── binaries/              # 平台特定 7zz 二進位檔案
+│   ├── macos/7zz         # macOS 二進位檔案
+│   ├── linux/7zz         # Linux 二進位檔案
+│   └── windows/7zz.exe   # Windows 二進位檔案
+├── updater.py             # GitHub API 整合及原始碼安裝的自動下載
 ├── pyproject.toml         # build-system = "hatchling"
 ├── README.md
 └── .github/workflows/
-    ├── check.yml          # lint+test on push/PR
-    ├── build.yml          # wheel matrix & publish on tag
-    └── watch_release.yml  # nightly build automation
+    ├── check.yml          # push/PR 時的 lint+test
+    ├── build.yml          # tag push 時的 wheel 矩陣建置
+    └── watch_release.yml  # 夜間建置自動化
 ```
 
-### Key Components
-- **SevenZipFile**: Main API class similar to zipfile interface
-- **core.run_7z()**: Subprocess wrapper for 7zz CLI execution
-- **Binary resolution**: Hybrid approach with isolation and version consistency
-- **Version consistency**: Each py7zz version is paired with a specific 7zz version for stability
-- **Three-tier versioning**: Release (stable), Auto (basic stable), Dev (unstable)
+### 核心元件
+- **SevenZipFile**：主要 API 類別，類似 zipfile 介面
+- **core.run_7z()**：7zz CLI 執行的 subprocess 包裝器
+- **二進位檔案解析**：具隔離性和版本一致性的混合方法
+- **版本一致性**：每個 py7zz 版本都與特定 7zz 版本配對以確保穩定性
+- **三層版本控制**：Release（穩定）、Auto（基本穩定）、Dev（不穩定）
 
-### API Design
+### API 設計
 
-py7zz follows a **layered API design** to serve different user needs and skill levels:
+py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準：
 
-#### Layer 1: Simple Function API (80% of use cases)
-```python
-import py7zz
+1. **簡單函數 API**：一行解決方案（80% 使用情境）
+2. **相容性 API**：類似 zipfile.ZipFile 介面（遷移使用者）
+3. **進階控制 API**：細粒度控制與自訂組態（進階使用者）
+4. **原生 7zz API**：直接 7zz 命令存取（專家使用者）
 
-# Simplest usage - one-line solutions
-py7zz.create_archive("archive.7z", ["file1.txt", "folder/"])
-py7zz.extract_archive("archive.7z", "output/")
-py7zz.list_archive("archive.7z")
+#### 設計原則
+1. **漸進複雜性**：簡單 → 標準 → 進階 → 專家
+2. **智慧預設值**：根據使用模式自動最佳設定
+3. **格式透明性**：從檔案副檔名自動偵測格式
+4. **遷移友善**：從 zipfile/tarfile 最少程式碼變更
+5. **錯誤處理**：清晰、可執行的錯誤訊息
 
-# Single data compression
-compressed = py7zz.compress("Hello, World!")
-decompressed = py7zz.decompress(compressed)
-```
+## CI/CD 流水線
 
-#### Layer 2: Compatibility API (Migration users)
-```python
-from py7zz import SevenZipFile
+### GitHub Actions 工作流程
+1. **check.yml**：push/PR 時執行 - 執行 ruff、pytest、mypy（PR 閘道）
+2. **build.yml**：tag push 時觸發 - 使用矩陣建置為所有平台建置 wheel
+3. **watch_release.yml**：每日檢查（cron: "0 3 * * *"）新 7zz 發布，為測試建立自動建置
 
-# Fully compatible with zipfile.ZipFile API
-with SevenZipFile("archive.7z", "w") as sz:
-    sz.add("file.txt")
-    sz.writestr("data.txt", "content")
+### 三層版本系統
+- **🟢 Release**（`1.0.0+7zz24.07`）：穩定、手動發布、生產就緒
+- **🟡 Auto**（`1.0.0.auto+7zz24.08`）：基本穩定、7zz 更新時自動發布
+- **🔴 Dev**（`1.1.0-dev.1+7zz24.07`）：不穩定、手動發布以測試新功能
 
-with SevenZipFile("archive.7z", "r") as sz:
-    files = sz.namelist()
-    content = sz.read("file.txt")
-    sz.extractall("output/")
-```
+### 程式碼品質要求
+- **Ruff**：強制程式碼風格，line-length=120、select=["E", "F", "I", "UP", "B"]
+- **MyPy**：所有程式碼都需要類型檢查
+- **Pytest**：合併前單元測試必須通過
+- PR 合併前 CI 中所有檢查必須通過
 
-#### Layer 3: Advanced Control API (Power users)
-```python
-from py7zz import SevenZipFile
+## 開發注意事項
 
-# Fine-grained control with presets
-with SevenZipFile("archive.7z", "w", preset="ultra") as sz:
-    sz.add("file.txt")
+- **依賴管理**：專用 `uv` 進行依賴管理和虛擬環境
+- **二進位檔案發布**：包含從 GitHub 發布下載的平台特定 7zz 執行檔
+- **自動建置**：偵測到新 7zz 發布時自動建立夜間建置
+- **跨平台相容性**：macOS、Debian 系 Linux、Windows x64
+- **授權條款**：BSD-3 + LGPL 2.1（保留 7-Zip 授權條款）
 
-# Custom configuration
-config = py7zz.Config(
-    compression="lzma2",
-    level=9,
-    solid=True,
-    threads=4,
-    password="secret"
-)
-py7zz.create_archive("archive.7z", files, config=config)
-```
+## 建置系統
 
-#### Layer 4: Native 7zz API (Expert users)
-```python
-from py7zz import run_7z
+### 二進位檔案發布
+- CI 下載平台特定資產（`7z{ver}-{os}-{arch}.tar.xz`）
+- 驗證 SHA256 校驗和
+- 解壓縮至 `binaries/<platform>/7zz[.exe]`
+- 打包於 wheel 中發布
 
-# Direct 7zz command access
-result = run_7z(["a", "-mx9", "-mhe", "archive.7z", "file.txt"])
+### 版本管理
+- 每個 py7zz 版本都與特定 7zz 版本配對以確保一致性
+- 無執行時自動更新 - 使用者必須升級整個 py7zz 套件
+- 夜間建置可用於在正式發布前測試新 7zz 發布
+- 正式發布需要手動測試和核准
 
-# Or use CLI: 7zz a -mx9 -mhe archive.7z file.txt
-```
+## 里程碑
 
-#### Design Principles
-1. **Progressive Complexity**: Simple → Standard → Advanced → Expert
-2. **Smart Defaults**: Automatic optimal settings based on usage patterns
-3. **Format Transparency**: Auto-detect format from file extension
-4. **Migration Friendly**: Minimal code changes from zipfile/tarfile
-5. **Error Handling**: Clear, actionable error messages
+專案遵循結構化開發計劃：
+- **M1** ✅：儲存庫設定、基本 API、手動二進位檔案下載
+- **M2** ✅：跨平台 wheel 建置、CI 設定
+- **M3** ✅：GitHub API 整合、夜間建置自動化
+- **M4** ⏳：非同步操作、進度報告
+- **M5** ⏳：文件、類型提示、PyPI 發布
+  - [ ] 為 zipfile/tarfile 使用者建立 MIGRATION.md
+  - [ ] 將遷移指南連結加入 README.md
+  - [ ] 完成 API 文件和範例
+  - [ ] 完成類型提示和文件字串
+  - [ ] 準備 PyPI 發布
 
-#### Preset Configurations
-```python
-# Built-in presets for common scenarios
-py7zz.create_archive("backup.7z", files, preset="backup")      # High compression, solid
-py7zz.create_archive("temp.7z", files, preset="fast")          # Fast compression
-py7zz.create_archive("distribution.7z", files, preset="balanced") # Balanced speed/size
-```
+## 二進位檔案管理與安裝策略
 
-## CI/CD Pipeline
+### 混合二進位檔案發布方法
 
-### GitHub Actions Workflows
-1. **check.yml**: Runs on push/PR - executes ruff, pytest, mypy (PR gate)
-2. **build.yml**: Triggered on tag push - builds wheels for all platforms with matrix builds
-3. **watch_release.yml**: Daily check (cron: "0 3 * * *") for new 7zz releases, creates auto builds for testing
+py7zz 實作混合方法以確保**隔離性**和**版本一致性**：
 
-### Three-Tier Version System
-- **🟢 Release** (`1.0.0+7zz24.07`): Stable, manually released, production-ready
-- **🟡 Auto** (`1.0.0.auto+7zz24.08`): Basic stable, auto-released when 7zz updates
-- **🔴 Dev** (`1.1.0-dev.1+7zz24.07`): Unstable, manually released for testing new features
+#### 設計原則
+1. **永不使用系統 7zz** - 避免版本衝突並確保可重現行為
+2. **版本配對** - 每個 py7zz 版本都與特定 7zz 版本配對
+3. **自動處理** - 使用者無需手動安裝或設定 7zz
+4. **離線能力** - 下載的二進位檔案快取以供離線使用
 
-### Code Quality Requirements
-- **Ruff**: Enforced code style with line-length=120, select=["E", "F", "I", "UP", "B"]
-- **MyPy**: Type checking required for all code
-- **Pytest**: Unit tests must pass before merge
-- All checks must pass in CI before PR merge
+#### 實作策略
 
-## Development Notes
+**PyPI Wheel 發布（生產環境）**：
+- 使用 GitHub Actions 從 https://github.com/ip7z/7zip/releases 下載 7zz 二進位檔案
+- 將平台特定二進位檔案嵌入 wheel 套件
+- 使用者透過 `pip install py7zz` 取得綁定二進位檔案
+- 安裝後無需網路連線
 
-- Project uses `uv` for dependency management exclusively
-- Binary distribution includes platform-specific 7zz executables downloaded from GitHub releases
-- Nightly builds automatically created when new 7zz releases are detected
-- Cross-platform compatibility: macOS, Debian-family Linux, Windows x64
-- License: BSD-3 + LGPL 2.1 (preserving 7-Zip license)
+**原始碼安裝（開發環境）**：
+- git 儲存庫中 `py7zz/binaries/` 目錄為空
+- 透過 `updater.py` 首次使用時自動下載正確 7zz 二進位檔案
+- 快取於 `~/.cache/py7zz/{version}/` 目錄
+- 僅首次使用時需要網路連線
 
-## Build System
-
-### Binary Distribution
-- CI downloads platform-specific assets (`7z{ver}-{os}-{arch}.tar.xz`)
-- Verifies SHA256 checksums
-- Extracts to `binaries/<platform>/7zz[.exe]`
-- Packages in wheel for distribution
-
-### Version Management
-- Each py7zz version is paired with a specific 7zz version for consistency
-- No runtime auto-updates - users must upgrade the entire py7zz package
-- Nightly builds available for testing new 7zz releases before official release
-- Official releases require manual testing and approval
-
-## Milestones
-
-The project follows a structured development plan:
-- **M1**: Repository setup, basic API, manual binary download (3 days)
-- **M2**: Cross-platform wheel builds, CI setup (4 days)
-- **M3**: GitHub API integration, nightly build automation (3 days)
-- **M4**: Async operations, progress reporting (3 days)
-- **M5**: Documentation, type hints, PyPI release (2 days)
-  - Create MIGRATION.md for zipfile/tarfile users
-  - Add migration guide link to README.md
-  - Complete API documentation and examples
-  - Finalize type hints and docstrings
-  - Prepare for PyPI release
-
-**Total estimated time: 15 working days**
-
-## Binary Management & Installation Strategy
-
-### Hybrid Binary Distribution Approach
-
-py7zz implements a hybrid approach to ensure **isolation** and **version consistency**:
-
-#### Design Principles
-1. **Never use system 7zz** - Avoids version conflicts and ensures reproducible behavior
-2. **Version pairing** - Each py7zz version is paired with a specific 7zz version
-3. **Automatic handling** - Users don't need to manually install or configure 7zz
-4. **Offline capability** - Downloaded binaries are cached for offline use
-
-#### Implementation Strategy
-
-**PyPI Wheel Distribution (Production)**:
-- Uses GitHub Actions to download 7zz binaries from https://github.com/ip7z/7zip/releases
-- Embeds platform-specific binaries in wheel packages
-- Users get bundled binary with `pip install py7zz`
-- No internet connection required after installation
-
-**Source Installation (Development)**:
-- Empty `py7zz/binaries/` directory in git repository
-- Auto-downloads correct 7zz binary on first use via `updater.py`
-- Caches in `~/.cache/py7zz/{version}/` directory
-- Requires internet connection for first use only
-
-#### Binary Discovery Priority
+#### 二進位檔案發現優先順序
 ```python
 def find_7z_binary() -> str:
-    # 1. Environment variable (development/testing only)
+    # 1. 環境變數（僅開發/測試用）
     if PY7ZZ_BINARY and exists: return PY7ZZ_BINARY
     
-    # 2. Bundled binary (PyPI wheel packages)
+    # 2. 綁定二進位檔案（PyPI wheel 套件）
     if bundled_binary and exists: return bundled_binary
     
-    # 3. Auto-downloaded binary (source installs)
+    # 3. 自動下載二進位檔案（原始碼安裝）
     if auto_download_successful: return cached_binary
     
-    # 4. Error - no system fallback
+    # 4. 錯誤 - 無系統備援
     raise RuntimeError("7zz binary not found")
 ```
 
-#### Version Consistency Mechanism
-- `version.py` defines: `PY7ZZ_VERSION = "1.0.0"` and `SEVEN_ZZ_VERSION = "24.07"`
-- Full version: `1.0.0+7zz24.07`
-- Auto-download uses `get_7zz_version()` to ensure correct binary version
-- Asset naming: `24.07` → `2407` for GitHub release URLs
+#### 版本一致性機制
+- `version.py` 定義：`PY7ZZ_VERSION = "1.0.0"` 和 `SEVEN_ZZ_VERSION = "24.07"`
+- 完整版本：`1.0.0+7zz24.07`
+- 自動下載使用 `get_7zz_version()` 確保正確二進位檔案版本
+- 資產命名：`24.07` → `2407` 用於 GitHub 發布 URL
 
-#### Cache Management
-- Location: `~/.cache/py7zz/{version}/7zz[.exe]`
-- Automatic cleanup via `updater.cleanup_old_versions()`
-- Preserved across py7zz reinstalls
-- Platform-specific binary extraction from tar.xz/exe files
+#### 快取管理
+- 位置：`~/.cache/py7zz/{version}/7zz[.exe]`
+- 透過 `updater.cleanup_old_versions()` 自動清理
+- 跨 py7zz 重新安裝保留
+- 從 tar.xz/exe 檔案進行平台特定二進位檔案解壓縮
 
-### Configuration Requirements
+### 設定要求
 
-#### pyproject.toml Binary Inclusion
+#### pyproject.toml 二進位檔案包含
 ```toml
 [tool.hatch.build.targets.wheel]
 packages = ["py7zz"]
@@ -320,44 +267,29 @@ include = [
 "py7zz/binaries" = "py7zz/binaries"
 ```
 
-#### GitHub Actions Binary Download
-```yaml
-# .github/workflows/build.yml
-- name: Download 7zz binary
-  run: |
-    VERSION="${{ steps.get_version.outputs.version }}"
-    DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/7z${VERSION}-${PLATFORM}.tar.xz"
-    mkdir -p "py7zz/binaries/${PLATFORM}"
-    curl -L -o "/tmp/asset.tar.xz" "$DOWNLOAD_URL"
-    tar -xf "/tmp/asset.tar.xz" -C "/tmp"
-    find /tmp -name "7zz" -exec cp {} "py7zz/binaries/${PLATFORM}/" \;
-    chmod +x "py7zz/binaries/${PLATFORM}/7zz"
-```
+#### GitHub Actions 二進位檔案下載
+- 從 GitHub 發布下載平台特定 7zz 二進位檔案
+- 支援 Linux、macOS（x64/arm64）、Windows 平台
+- 驗證二進位檔案可執行性
 
-#### Error Handling & Fallbacks
-```python
-# core.py - No system fallback
-raise RuntimeError(
-    "7zz binary not found. Please either:\n"
-    "1. Install py7zz from PyPI (pip install py7zz) to get bundled binary\n"
-    "2. Ensure internet connection for auto-download (source installs)\n"
-    "3. Set PY7ZZ_BINARY environment variable to point to your 7zz binary"
-)
-```
+#### 錯誤處理與備援
+- 無系統 7zz 備援，確保版本一致性
+- 提供清晰的錯誤訊息和解決方案
+- 支援環境變數覆蓋（開發用）
 
-### Testing Requirements
+### 測試要求
 
-#### Installation Method Testing
-- Test PyPI wheel installation with bundled binary
-- Test source installation with auto-download
-- Test environment variable override
-- Test offline functionality after cache population
-- Test version consistency across installation methods
+#### 安裝方法測試
+- 測試使用綁定二進位檔案的 PyPI wheel 安裝
+- 測試使用自動下載的原始碼安裝
+- 測試環境變數覆蓋
+- 測試快取填充後的離線功能
+- 測試跨安裝方法的版本一致性
 
-#### Binary Verification
-- Verify binary executability: `7zz --help`
-- Verify version matching: parse output for version string
-- Verify platform compatibility: correct architecture
-- Verify cache persistence across sessions
+#### 二進位檔案驗證
+- 驗證二進位檔案可執行性：`7zz --help`
+- 驗證版本匹配：解析輸出的版本字串
+- 驗證平台相容性：正確架構
+- 驗證跨會話快取持久性
 
-This hybrid approach ensures py7zz works reliably across all installation methods while maintaining strict version control and system isolation.
+此混合方法確保 py7zz 在所有安裝方法中都能可靠運作，同時維護嚴格的版本控制和系統隔離。
