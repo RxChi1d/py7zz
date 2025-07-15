@@ -162,3 +162,6 @@ py7zz/binaries/macos/7zz
 py7zz/binaries/linux/7zz
 py7zz/binaries/windows/7zz.exe
 ~/.cache/py7zz/
+
+# Development planning documents (not for distribution)
+py_7_zz_vibe_coding_plan.md

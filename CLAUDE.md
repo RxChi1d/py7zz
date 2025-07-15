@@ -192,12 +192,12 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 - **M2** ✅：跨平台 wheel 建置、CI 設定
 - **M3** ✅：GitHub API 整合、夜間建置自動化
 - **M4** ✅：非同步操作、進度報告
-- **M5** ⏳：文件、類型提示、PyPI 發布
-  - [ ] 為 zipfile/tarfile 使用者建立 MIGRATION.md
-  - [ ] 將遷移指南連結加入 README.md
-  - [ ] 完成 API 文件和範例
-  - [ ] 完成類型提示和文件字串
-  - [ ] 準備 PyPI 發布
+- **M5** ✅：文件、類型提示、PyPI 發布
+  - [x] 為 zipfile/tarfile 使用者建立 MIGRATION.md
+  - [x] 將遷移指南連結加入 README.md
+  - [x] 完成 API 文件和範例
+  - [x] 完成類型提示和文件字串
+  - [x] 準備 PyPI 發布
 
 ## 二進位檔案管理與安裝策略
 

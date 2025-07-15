@@ -16,7 +16,7 @@ def test_get_version():
     """Test version retrieval."""
     version = get_version()
     assert version == "1.0.0+7zz24.07"
-    
+
     # Test version format
     assert "+7zz" in version
     assert "1.0.0" in version
@@ -87,11 +87,11 @@ def test_sevenzipfile_context_manager():
 def test_sevenzipfile_add(mock_run_7z):
     """Test adding files to archive."""
     mock_run_7z.return_value = Mock()
-    
+
     with patch("pathlib.Path.exists", return_value=True):
         sz = SevenZipFile("test.7z", "w", "normal")
         sz.add("test.txt")
-        
+
         mock_run_7z.assert_called_once()
         args = mock_run_7z.call_args[0][0]
         assert "a" in args
@@ -119,12 +119,12 @@ def test_sevenzipfile_add_missing_file():
 def test_sevenzipfile_extract(mock_run_7z):
     """Test extracting archive."""
     mock_run_7z.return_value = Mock()
-    
+
     with patch("pathlib.Path.exists", return_value=True):
         with patch("pathlib.Path.mkdir"):
             sz = SevenZipFile("test.7z", "r")
             sz.extract("./output", overwrite=True)
-            
+
             mock_run_7z.assert_called_once()
             args = mock_run_7z.call_args[0][0]
             assert "x" in args
@@ -151,7 +151,8 @@ def test_sevenzipfile_extract_missing_archive():
 @patch("py7zz.core.run_7z")
 def test_sevenzipfile_list_contents(mock_run_7z):
     """Test listing archive contents."""
-    mock_run_7z.return_value = Mock(stdout="""\
+    mock_run_7z.return_value = Mock(
+        stdout="""\
 7-Zip 24.00 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-05-26
 
 Scanning the drive:
@@ -174,12 +175,13 @@ Blocks = 1
 2024-01-01 12:00:00 D....            0            0  folder
 ------------------- ----- ------------ ------------  ------------------------
                                   1024          358  2 files, 1 folders
-""")
-    
+"""
+    )
+
     with patch("pathlib.Path.exists", return_value=True):
         sz = SevenZipFile("test.7z", "r")
         contents = sz.list_contents()
-        
+
         assert "test.txt" in contents
         assert "folder" in contents
         assert len(contents) >= 2

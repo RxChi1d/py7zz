@@ -1,8 +1,8 @@
 """
-命令行接口模块
+Command Line Interface Module
 
-直接透传给官方 7zz 二进制文件，确保用户获得完整的官方 7-Zip 功能。
-py7zz 的价值在于自动管理二进制文件和提供 Python API。
+Directly passes through to the official 7zz binary, ensuring users get complete official 7-Zip functionality.
+py7zz's value is in automatic binary management and providing Python API.
 """
 
 import os
@@ -14,29 +14,29 @@ from .core import find_7z_binary
 
 def main() -> None:
     """
-    主入口点：直接透传所有参数给官方 7zz
-    
-    这样可以确保：
-    1. 用户获得完整的官方 7zz 功能
-    2. 不需要维护参数映射和功能同步
-    3. py7zz 专注于 Python API 和二进制文件管理
+    Main entry point: directly pass through all arguments to official 7zz
+
+    This ensures:
+    1. Users get complete official 7zz functionality
+    2. No need to maintain parameter mapping and feature synchronization
+    3. py7zz focuses on Python API and binary management
     """
     try:
-        # 获取 py7zz 管理的 7zz 二进制文件
+        # Get py7zz-managed 7zz binary
         binary_path = find_7z_binary()
-        
-        # 直接透传所有命令行参数
+
+        # Direct pass-through of all command line arguments
         cmd = [binary_path] + sys.argv[1:]
-        
-        # 使用 exec 替换当前进程，确保信号处理等行为与原生 7zz 一致
-        if os.name == 'nt':  # Windows
-            # Windows 下使用 subprocess 并等待结果
+
+        # Use exec to replace current process, ensuring signal handling behavior is consistent with native 7zz
+        if os.name == "nt":  # Windows
+            # Use subprocess on Windows and wait for result
             result = subprocess.run(cmd)
             sys.exit(result.returncode)
         else:  # Unix-like systems
-            # Unix 下使用 execv 替换进程
+            # Use execv to replace process on Unix
             os.execv(binary_path, cmd)
-            
+
     except Exception as e:
         print(f"py7zz error: {e}", file=sys.stderr)
         sys.exit(1)

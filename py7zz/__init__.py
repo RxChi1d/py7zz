@@ -61,6 +61,7 @@ try:
         create_archive_async,  # noqa: F401
         extract_archive_async,  # noqa: F401
     )
+
     _simple_async_available = True
 except ImportError:
     _simple_async_available = False
@@ -77,6 +78,7 @@ try:
         lzma2_compress,  # noqa: F401
         lzma2_decompress,  # noqa: F401
     )
+
     _compression_available = True
 except ImportError:
     _compression_available = False
@@ -91,6 +93,7 @@ try:
         compress_async,  # noqa: F401
         extract_async,  # noqa: F401
     )
+
     _async_available = True
 except ImportError:
     _async_available = False
@@ -98,46 +101,80 @@ except ImportError:
 # Build __all__ list based on available modules
 __all__ = [
     # Core API (Layer 2)
-    "SevenZipFile", "run_7z",
-    
+    "SevenZipFile",
+    "run_7z",
     # Version information
-    "get_version", "get_py7zz_version", "get_7zz_version", "get_version_info",
-    "parse_version", "generate_auto_version", "generate_dev_version", "get_version_type",
-    "is_release_version", "is_auto_version", "is_dev_version", "VersionType",
-    
+    "get_version",
+    "get_py7zz_version",
+    "get_7zz_version",
+    "get_version_info",
+    "parse_version",
+    "generate_auto_version",
+    "generate_dev_version",
+    "get_version_type",
+    "is_release_version",
+    "is_auto_version",
+    "is_dev_version",
+    "VersionType",
     # Simple API (Layer 1)
-    "create_archive", "extract_archive", "list_archive",
-    "compress_file", "compress_directory", "get_archive_info", "test_archive",
-    
+    "create_archive",
+    "extract_archive",
+    "list_archive",
+    "compress_file",
+    "compress_directory",
+    "get_archive_info",
+    "test_archive",
     # Configuration
-    "Config", "Presets", "create_custom_config", "get_recommended_preset",
-    
+    "Config",
+    "Presets",
+    "create_custom_config",
+    "get_recommended_preset",
     # Exceptions
-    "Py7zzError", "FileNotFoundError", "ArchiveNotFoundError",
-    "CompressionError", "ExtractionError", "CorruptedArchiveError",
-    "UnsupportedFormatError", "PasswordRequiredError", "InvalidPasswordError",
-    "BinaryNotFoundError", "InsufficientSpaceError", "ConfigurationError",
+    "Py7zzError",
+    "FileNotFoundError",
+    "ArchiveNotFoundError",
+    "CompressionError",
+    "ExtractionError",
+    "CorruptedArchiveError",
+    "UnsupportedFormatError",
+    "PasswordRequiredError",
+    "InvalidPasswordError",
+    "BinaryNotFoundError",
+    "InsufficientSpaceError",
+    "ConfigurationError",
     "OperationTimeoutError",
 ]
 
 # Add compression API if available
 if _compression_available:
-    __all__.extend([
-        "compress", "decompress", "Compressor", "Decompressor",
-        "lzma2_compress", "lzma2_decompress", "bzip2_compress", "bzip2_decompress"
-    ])
+    __all__.extend(
+        [
+            "compress",
+            "decompress",
+            "Compressor",
+            "Decompressor",
+            "lzma2_compress",
+            "lzma2_decompress",
+            "bzip2_compress",
+            "bzip2_decompress",
+        ]
+    )
 
 # Add async API if available
 if _async_available:
-    __all__.extend([
-        "AsyncSevenZipFile", "ProgressInfo", "compress_async", "extract_async",
-        "batch_compress_async", "batch_extract_async"
-    ])
+    __all__.extend(
+        [
+            "AsyncSevenZipFile",
+            "ProgressInfo",
+            "compress_async",
+            "extract_async",
+            "batch_compress_async",
+            "batch_extract_async",
+        ]
+    )
 
 # Add async simple API if available
 if _simple_async_available:
-    __all__.extend([
-        "create_archive_async", "extract_archive_async", "compress_file_async", "compress_directory_async"
-    ])
+    __all__.extend(["create_archive_async", "extract_archive_async", "compress_file_async", "compress_directory_async"])
 
 __version__ = "1.0.0+7zz24.07"

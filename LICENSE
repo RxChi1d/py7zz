@@ -1,0 +1,52 @@
+BSD 3-Clause License
+
+Copyright (c) 2024, py7zz contributors
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+1. Redistributions of source code must retain the above copyright notice, this
+   list of conditions and the following disclaimer.
+
+2. Redistributions in binary form must reproduce the above copyright notice,
+   this list of conditions and the following disclaimer in the documentation
+   and/or other materials provided with the distribution.
+
+3. Neither the name of the copyright holder nor the names of its
+   contributors may be used to endorse or promote products derived from
+   this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+================================================================================
+
+THIRD-PARTY COMPONENTS
+
+This package includes the 7zz binary from the 7-Zip project, which is 
+distributed under the GNU Lesser General Public License (LGPL) version 2.1.
+
+7-Zip License Information:
+- 7-Zip is developed by Igor Pavlov
+- Official website: https://www.7-zip.org/
+- Source code: https://github.com/ip7z/7zip
+- License: GNU LGPL v2.1
+
+The 7zz binary is dynamically linked and used as a separate executable.
+Users of this library are bound by the terms of both the BSD-3-Clause license
+for the py7zz Python code and the LGPL-2.1 license for the 7zz binary.
+
+For the complete text of the GNU LGPL v2.1 license, see:
+https://www.gnu.org/licenses/old-licenses/lgpl-2.1.html
+
+For 7-Zip source code and license information, see:
+https://github.com/ip7z/7zip/blob/main/DOC/License.txt
