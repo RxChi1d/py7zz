@@ -7,8 +7,8 @@ This module manages the three-tier version system for py7zz:
 - Dev (unstable): {major}.{minor}.{patch}-dev.{build}+7zz{7zz_version}
 """
 
-from typing import Dict, Literal, Tuple, Union
 from enum import Enum
+from typing import Dict, Union
 
 # py7zz semantic version
 PY7ZZ_VERSION = "1.0.0"
