@@ -95,8 +95,60 @@ jobs:
         
         # If 7zz version is "latest", get the latest release
         if [ "$SEVEN_ZZ_VERSION" = "latest" ]; then
-          SEVEN_ZZ_VERSION=$(curl -s https://api.github.com/repos/ip7z/7zip/releases/latest | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
-          echo "Latest 7zz version: $SEVEN_ZZ_VERSION"
+          echo "Fetching latest 7zz version..."
+          
+          # Check available tools
+          echo "Available tools:"
+          command -v curl && echo "- curl: available" || echo "- curl: not available"
+          command -v wget && echo "- wget: available" || echo "- wget: not available"
+          command -v jq && echo "- jq: available" || echo "- jq: not available"
+          
+          # Try different methods to get latest version
+          SEVEN_ZZ_VERSION=""
+          
+          # Method 1: curl + jq
+          if command -v curl >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+            echo "Trying curl + jq method..."
+            LATEST_RESPONSE=$(curl -s https://api.github.com/repos/ip7z/7zip/releases/latest)
+            if [ $? -eq 0 ] && [ -n "$LATEST_RESPONSE" ]; then
+              SEVEN_ZZ_VERSION=$(echo "$LATEST_RESPONSE" | jq -r '.tag_name' 2>/dev/null)
+            fi
+          fi
+          
+          # Method 2: curl + grep (if jq failed)
+          if [ -z "$SEVEN_ZZ_VERSION" ] || [ "$SEVEN_ZZ_VERSION" = "null" ]; then
+            if command -v curl >/dev/null 2>&1; then
+              echo "Trying curl + grep method..."
+              SEVEN_ZZ_VERSION=$(curl -s https://api.github.com/repos/ip7z/7zip/releases/latest | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4 2>/dev/null)
+            fi
+          fi
+          
+          # Method 3: wget + jq
+          if [ -z "$SEVEN_ZZ_VERSION" ] || [ "$SEVEN_ZZ_VERSION" = "null" ]; then
+            if command -v wget >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+              echo "Trying wget + jq method..."
+              LATEST_RESPONSE=$(wget -qO- https://api.github.com/repos/ip7z/7zip/releases/latest 2>/dev/null)
+              if [ $? -eq 0 ] && [ -n "$LATEST_RESPONSE" ]; then
+                SEVEN_ZZ_VERSION=$(echo "$LATEST_RESPONSE" | jq -r '.tag_name' 2>/dev/null)
+              fi
+            fi
+          fi
+          
+          # Method 4: wget + grep
+          if [ -z "$SEVEN_ZZ_VERSION" ] || [ "$SEVEN_ZZ_VERSION" = "null" ]; then
+            if command -v wget >/dev/null 2>&1; then
+              echo "Trying wget + grep method..."
+              SEVEN_ZZ_VERSION=$(wget -qO- https://api.github.com/repos/ip7z/7zip/releases/latest 2>/dev/null | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4 2>/dev/null)
+            fi
+          fi
+          
+          # Fallback to known version
+          if [ -z "$SEVEN_ZZ_VERSION" ] || [ "$SEVEN_ZZ_VERSION" = "null" ]; then
+            echo "All methods failed, using fallback version"
+            SEVEN_ZZ_VERSION="25.00"
+          fi
+          
+          echo "Using 7zz version: $SEVEN_ZZ_VERSION"
         fi
         
         # Set outputs
