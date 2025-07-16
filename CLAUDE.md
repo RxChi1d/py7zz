@@ -90,17 +90,21 @@ uv add --dev pytest ruff mypy
 
 ### 核心開發循環
 ```bash
-ruff check . --fix         # 風格檢查並自動修正
-pytest -q                  # 執行單元測試
-mypy .                     # 類型檢查
+# 快速檢查（開發時使用）
+uv run py7zz-lint           # 風格檢查並自動修正
+uv run py7zz-format         # 格式化程式碼
+uv run py7zz-type-check     # 類型檢查
+uv run py7zz-test           # 執行單元測試
+
+# 或使用傳統命令（需要啟動虛擬環境）
+source .venv/bin/activate
+py7zz-lint
+py7zz-format
+py7zz-type-check
+py7zz-test
 ```
 
-**注意**：需要啟動虛擬環境（`source .venv/bin/activate`）後執行命令，或使用 `uv run` 前綴。
-
-### 程式碼格式化
-```bash
-uv run ruff format .       # 格式化程式碼（用作 pre-commit hook）
-```
+**注意**：完整的程式碼品質檢查會在 GitHub Actions 中執行，確保 PR 合併前的程式碼品質。
 
 ## 架構
 

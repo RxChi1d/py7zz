@@ -103,31 +103,34 @@ jobs:
         AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
         
+        # Create release notes
+        RELEASE_NOTES="🟡 **Auto Build - 7zz Update**
+
+        This is an automated build that includes the latest 7zz release. The py7zz code is unchanged.
+
+        ### Changes
+        - Updated to 7zz version: **$LATEST_7ZZ**
+        - py7zz version: **$AUTO_VERSION**
+
+        ### Stability
+        - **🟡 Basic Stable**: Only 7zz binary updated, py7zz code unchanged
+        - **Recommended for**: Users who need latest 7zz features
+        - **Not recommended for**: Critical production systems (use release version)
+
+        ### Installation
+        \`\`\`bash
+        pip install py7zz==$AUTO_VERSION
+        \`\`\`
+
+        ### Release Notes
+        See the [7zz release notes](https://github.com/ip7z/7zip/releases/tag/$LATEST_7ZZ) for details.
+
+        ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version."
+        
         # Create GitHub release
         gh release create "auto-$AUTO_VERSION" \
           --title "🟡 Auto Build: py7zz $AUTO_VERSION" \
-          --notes "🟡 **Auto Build - 7zz Update**
-
-This is an automated build that includes the latest 7zz release. The py7zz code is unchanged.
-
-### Changes
-- Updated to 7zz version: **$LATEST_7ZZ**
-- py7zz version: **$AUTO_VERSION**
-
-### Stability
-- **🟡 Basic Stable**: Only 7zz binary updated, py7zz code unchanged
-- **Recommended for**: Users who need latest 7zz features
-- **Not recommended for**: Critical production systems (use release version)
-
-### Installation
-\`\`\`bash
-pip install py7zz==$AUTO_VERSION
-\`\`\`
-
-### Release Notes
-See the [7zz release notes](https://github.com/ip7z/7zip/releases/tag/$LATEST_7ZZ) for details.
-
-ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version." \
+          --notes "$RELEASE_NOTES" \
           --prerelease
         
         echo "Created auto release: auto-$AUTO_VERSION"
