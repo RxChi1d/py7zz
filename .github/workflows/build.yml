@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g., v0.1.0, v0.1.0-dev.1, v0.1.0-auto)'
+        description: 'Tag to build (e.g., v0.1.0, v0.1.0a1, v0.2.0.dev1)'
         required: true
         type: string
 
@@ -67,34 +67,34 @@ jobs:
         # Remove 'v' prefix if present
         TAG_NO_V=$(echo $TAG | sed 's/^v//')
         
-        # Parse version components using regex
-        if [[ $TAG_NO_V =~ ^(.+)-dev\.([0-9]+)(\+7zz(.+))?$ ]]; then
-          # Dev version: 0.1.0-dev.1 or 0.1.0-dev.1+7zz24.07
+        # Parse version components using PEP 440 format
+        if [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.dev([0-9]+)$ ]]; then
+          # Dev version: 0.2.0.dev1
           VERSION_TYPE="dev"
           PY7ZZ_VERSION="${BASH_REMATCH[1]}"
           BUILD_NUMBER="${BASH_REMATCH[2]}"
-          SEVEN_ZZ_VERSION="${BASH_REMATCH[4]:-latest}"
-          echo "Parsed dev version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER, 7zz=$SEVEN_ZZ_VERSION"
-        elif [[ $TAG_NO_V =~ ^(.+)-auto(\+7zz(.+))?$ ]]; then
-          # Auto version: 0.1.0-auto or 0.1.0-auto+7zz24.08
+          SEVEN_ZZ_VERSION="latest"
+          echo "Parsed dev version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER"
+        elif [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)a([0-9]+)$ ]]; then
+          # Auto version: 0.1.0a1
           VERSION_TYPE="auto"
           PY7ZZ_VERSION="${BASH_REMATCH[1]}"
-          BUILD_NUMBER=""
-          SEVEN_ZZ_VERSION="${BASH_REMATCH[3]:-latest}"
-          echo "Parsed auto version: py7zz=$PY7ZZ_VERSION, 7zz=$SEVEN_ZZ_VERSION"
-        elif [[ $TAG_NO_V =~ ^([^+]+)(\+7zz(.+))?$ ]]; then
-          # Release version: 0.1.0 or 0.1.0+7zz24.07
-          VERSION_TYPE="release"
+          BUILD_NUMBER="${BASH_REMATCH[2]}"
+          SEVEN_ZZ_VERSION="latest"
+          echo "Parsed auto version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER"
+        elif [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
+          # Release version: 0.1.0
+          VERSION_TYPE="stable"
           PY7ZZ_VERSION="${BASH_REMATCH[1]}"
           BUILD_NUMBER=""
-          SEVEN_ZZ_VERSION="${BASH_REMATCH[3]:-latest}"
-          echo "Parsed release version: py7zz=$PY7ZZ_VERSION, 7zz=$SEVEN_ZZ_VERSION"
+          SEVEN_ZZ_VERSION="latest"
+          echo "Parsed release version: py7zz=$PY7ZZ_VERSION"
         else
-          echo "Error: Invalid tag format: $TAG"
+          echo "Error: Invalid tag format: $TAG (expected PEP 440 format)"
           exit 1
         fi
         
-        # If 7zz version is "latest", get the latest release
+        # Get the latest 7zz version
         if [ "$SEVEN_ZZ_VERSION" = "latest" ]; then
           echo "Fetching latest 7zz version..."
           

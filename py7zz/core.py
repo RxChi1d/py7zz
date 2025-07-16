@@ -58,9 +58,9 @@ def find_7z_binary() -> str:
     # Auto-download binary for source installs
     try:
         from .updater import get_cached_binary
-        from .version import get_7zz_version
+        from .bundled_info import get_bundled_7zz_version
 
-        seven_zz_version = get_7zz_version()
+        seven_zz_version = get_bundled_7zz_version()
         cached_binary = get_cached_binary(seven_zz_version, auto_update=True)
         if cached_binary and cached_binary.exists():
             return str(cached_binary)

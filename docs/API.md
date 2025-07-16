@@ -456,45 +456,33 @@ await py7zz.create_archive_async(
 
 ### `get_version()`
 
-Get the full version string including py7zz and 7zz versions.
+Get the current py7zz version in PEP 440 format.
 
-**Returns:** str - Full version string
+**Returns:** str - Current py7zz version
 
 **Example:**
 ```python
 version = py7zz.get_version()
-print(version)  # "1.0.0+7zz24.07"
-```
-
-### `get_py7zz_version()`
-
-Get only the py7zz version.
-
-**Returns:** str - py7zz version
-
-**Example:**
-```python
-version = py7zz.get_py7zz_version()
 print(version)  # "1.0.0"
 ```
 
-### `get_7zz_version()`
+### `get_bundled_7zz_version()`
 
-Get only the 7zz version.
+Get the bundled 7zz version for the current py7zz version.
 
-**Returns:** str - 7zz version
+**Returns:** str - Bundled 7zz version
 
 **Example:**
 ```python
-version = py7zz.get_7zz_version()
+version = py7zz.get_bundled_7zz_version()
 print(version)  # "24.07"
 ```
 
 ### `get_version_info()`
 
-Get detailed version information.
+Get comprehensive version information including release details.
 
-**Returns:** Dict[str, str] - Version information dictionary
+**Returns:** Dict[str, str] - Complete version information dictionary
 
 **Example:**
 ```python
@@ -502,9 +490,141 @@ info = py7zz.get_version_info()
 print(info)
 # {
 #     'py7zz_version': '1.0.0',
-#     '7zz_version': '24.07',
-#     'full_version': '1.0.0+7zz24.07'
+#     'bundled_7zz_version': '24.07',
+#     'release_type': 'stable',
+#     'release_date': '2024-07-15',
+#     'github_tag': 'v1.0.0',
+#     'changelog_url': 'https://github.com/rxchi1d/py7zz/releases/tag/v1.0.0'
 # }
+```
+
+### `get_release_type()`
+
+Get the release type of the current version.
+
+**Returns:** str - Release type ('stable', 'auto', or 'dev')
+
+**Example:**
+```python
+release_type = py7zz.get_release_type()
+print(release_type)  # "stable"
+```
+
+### Version Type Checking Functions
+
+#### `is_stable_version(version_string=None)`
+
+Check if a version is a stable release.
+
+**Parameters:**
+- `version_string` (str, optional): Version to check (defaults to current version)
+
+**Returns:** bool - True if stable version
+
+**Example:**
+```python
+print(py7zz.is_stable_version())        # True for "1.0.0"
+print(py7zz.is_stable_version("1.0.0a1"))  # False
+```
+
+#### `is_auto_version(version_string=None)`
+
+Check if a version is an auto release (alpha).
+
+**Parameters:**
+- `version_string` (str, optional): Version to check (defaults to current version)
+
+**Returns:** bool - True if auto version
+
+**Example:**
+```python
+print(py7zz.is_auto_version("1.0.0a1"))  # True
+print(py7zz.is_auto_version("1.0.0"))    # False
+```
+
+#### `is_dev_version(version_string=None)`
+
+Check if a version is a dev release.
+
+**Parameters:**
+- `version_string` (str, optional): Version to check (defaults to current version)
+
+**Returns:** bool - True if dev version
+
+**Example:**
+```python
+print(py7zz.is_dev_version("1.1.0.dev1"))  # True
+print(py7zz.is_dev_version("1.0.0"))       # False
+```
+
+### Version Generation Functions
+
+#### `generate_auto_version(base_version, build_number=1)`
+
+Generate an auto (alpha) version string.
+
+**Parameters:**
+- `base_version` (str): Base version (e.g., "1.0.0")
+- `build_number` (int): Alpha build number (default: 1)
+
+**Returns:** str - Auto version string
+
+**Example:**
+```python
+version = py7zz.generate_auto_version("1.0.0", 1)
+print(version)  # "1.0.0a1"
+```
+
+#### `generate_dev_version(base_version, build_number=1)`
+
+Generate a dev version string.
+
+**Parameters:**
+- `base_version` (str): Base version (e.g., "1.1.0")
+- `build_number` (int): Dev build number (default: 1)
+
+**Returns:** str - Dev version string
+
+**Example:**
+```python
+version = py7zz.generate_dev_version("1.1.0", 1)
+print(version)  # "1.1.0.dev1"
+```
+
+### Legacy Compatibility Functions
+
+#### `get_legacy_version_info()`
+
+Get version information in legacy format for backward compatibility.
+
+**Returns:** Dict[str, Union[str, int, None]] - Legacy version information
+
+**Example:**
+```python
+info = py7zz.get_legacy_version_info()
+print(info)
+# {
+#     'py7zz_version': '1.0.0',
+#     'version_type': 'stable',
+#     'build_number': None,
+#     'base_version': '1.0.0'
+# }
+```
+
+## CLI Version Commands
+
+py7zz provides command-line tools for version information:
+
+```bash
+# Human-readable version information
+py7zz version
+
+# JSON format
+py7zz version --format json
+
+# Quick version check
+py7zz --py7zz-version
+py7zz -V
 ```
 
 ## Format Support

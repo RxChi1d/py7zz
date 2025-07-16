@@ -738,7 +738,7 @@ wheels = [
 
 [[package]]
 name = "py7zz"
-version = "1.0.0+7zz24.7"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "packaging" },

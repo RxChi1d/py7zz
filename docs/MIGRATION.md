@@ -499,8 +499,14 @@ asyncio.run(process_large_archive())
 
 2. **"Unsupported format"**
    ```python
-   # Check supported formats
-   print(py7zz.get_version())  # Shows supported formats
+   # Check version information
+   print(py7zz.get_version())                    # Current py7zz version
+   print(py7zz.get_bundled_7zz_version())        # Bundled 7zz version
+   print(py7zz.get_version_info())               # Complete version details
+   
+   # Or use CLI for detailed version information
+   # py7zz version
+   # py7zz version --format json
    ```
 
 3. **Permission errors**

@@ -283,9 +283,14 @@ await py7zz.create_archive_async(
 ```python
 import py7zz
 
-print(py7zz.get_version())          # py7zz version
-print(py7zz.get_py7zz_version())    # py7zz version only
-print(py7zz.get_7zz_version())      # bundled 7zz version
+# Get version information
+print(py7zz.get_version())                    # Current py7zz version
+print(py7zz.get_bundled_7zz_version())        # Bundled 7zz version
+print(py7zz.get_version_info())               # Complete version details
+
+# CLI version commands
+# py7zz version                    # Human-readable format
+# py7zz version --format json     # JSON format
 ```
 
 ## Development
@@ -301,17 +306,30 @@ pip install -e .
 
 ### Run Tests
 ```bash
-pytest -q                  # Run tests
-ruff check . --fix         # Lint and fix
+# Using uv (recommended)
+uv run pytest              # Run tests
+uv run ruff check --fix .  # Lint and fix
+uv run mypy .              # Type checking
+
+# Traditional commands
+source .venv/bin/activate
+pytest                     # Run tests
+ruff check --fix .        # Lint and fix
 mypy .                     # Type checking
 ```
 
 ### Code Quality
 ```bash
+# Using uv (recommended)
+uv run ruff format .       # Format code
+uv run ruff check .        # Check style
+uv run mypy .              # Type checking
+
+# Traditional commands
+source .venv/bin/activate
 ruff format .              # Format code
 ruff check .               # Check style
 mypy .                     # Type checking
-pytest --cov=py7zz         # Test coverage
 ```
 
 ## Contributing

@@ -1,152 +1,41 @@
 """
 Version information for py7zz package.
 
-This module manages the three-tier version system for py7zz:
-- Release (stable): {major}.{minor}.{patch}+7zz{7zz_version}
-- Auto (basic stable): {major}.{minor}.{patch}.auto+7zz{7zz_version}
-- Dev (unstable): {major}.{minor}.{patch}-dev.{build}+7zz{7zz_version}
+This module manages the PEP 440 compliant version system for py7zz:
+- Release (stable): {major}.{minor}.{patch}
+- Auto (basic stable): {major}.{minor}.{patch}a{N}
+- Dev (unstable): {major}.{minor}.{patch}.dev{N}
+
+The version is unified with GitHub releases and PyPI to avoid version conflicts.
 """
 
-import os
-from enum import Enum
-from typing import Dict, Union
+import re
+from typing import Dict, Optional, Union
 
-# py7zz semantic version (can be overridden by environment)
-PY7ZZ_VERSION = os.getenv("PY7ZZ_VERSION", "0.1.0")
-
-# 7zz binary version (follows upstream, can be overridden by environment)
-SEVEN_ZZ_VERSION = os.getenv("SEVEN_ZZ_VERSION", "24.07")
-
-
-# Version type
-class VersionType(Enum):
-    """Version type enumeration."""
-
-    RELEASE = "release"
-    AUTO = "auto"
-    DEV = "dev"
-
-
-# Current version type (can be overridden by environment)
-_version_type_str = os.getenv("VERSION_TYPE", "release")
-VERSION_TYPE = VersionType(_version_type_str)
-
-# Build number for dev versions (can be overridden by environment)
-DEV_BUILD_NUMBER = int(os.getenv("DEV_BUILD_NUMBER", "1")) if os.getenv("DEV_BUILD_NUMBER") else 1
-
-# Full version combining both
-FULL_VERSION = f"{PY7ZZ_VERSION}+7zz{SEVEN_ZZ_VERSION}"
+# py7zz version following PEP 440 specification
+__version__ = "0.1.0"
 
 
 def get_version() -> str:
     """
-    Get the full version string based on current version type.
+    Get the current py7zz version.
 
     Returns:
-        Full version string in appropriate format
+        Current version string in PEP 440 format
 
     Example:
-        >>> get_version()  # Release version
-        '1.0.0+7zz24.07'
-        >>> get_version()  # Auto version
-        '1.0.0.auto+7zz24.08'
-        >>> get_version()  # Dev version
-        '1.1.0-dev.1+7zz24.07'
+        >>> get_version()
+        '0.1.0'
     """
-    return build_version(PY7ZZ_VERSION, SEVEN_ZZ_VERSION, VERSION_TYPE, DEV_BUILD_NUMBER)
-
-
-def build_version(py7zz_version: str, seven_zz_version: str, version_type: VersionType, build_number: int = 1) -> str:
-    """
-    Build a version string based on type.
-
-    Args:
-        py7zz_version: py7zz semantic version
-        seven_zz_version: 7zz version
-        version_type: Version type (release, auto, dev)
-        build_number: Build number for dev versions
-
-    Returns:
-        Formatted version string
-
-    Example:
-        >>> build_version("1.0.0", "24.07", VersionType.RELEASE)
-        '1.0.0+7zz24.07'
-        >>> build_version("1.0.0", "24.08", VersionType.AUTO)
-        '1.0.0.auto+7zz24.08'
-        >>> build_version("1.1.0", "24.07", VersionType.DEV, 2)
-        '1.1.0-dev.2+7zz24.07'
-    """
-    if version_type == VersionType.RELEASE:
-        return f"{py7zz_version}+7zz{seven_zz_version}"
-    elif version_type == VersionType.AUTO:
-        return f"{py7zz_version}.auto+7zz{seven_zz_version}"
-    elif version_type == VersionType.DEV:
-        return f"{py7zz_version}-dev.{build_number}+7zz{seven_zz_version}"
-    else:
-        raise ValueError(f"Unknown version type: {version_type}")
-
-
-def get_py7zz_version() -> str:
-    """
-    Get only the py7zz version.
-
-    Returns:
-        py7zz semantic version string
-
-    Example:
-        >>> get_py7zz_version()
-        '1.0.0'
-    """
-    return PY7ZZ_VERSION
-
-
-def get_7zz_version() -> str:
-    """
-    Get only the 7zz version.
-
-    Returns:
-        7zz version string
-
-    Example:
-        >>> get_7zz_version()
-        '24.07'
-    """
-    return SEVEN_ZZ_VERSION
-
-
-def get_version_info() -> Dict[str, Union[str, int, None]]:
-    """
-    Get detailed version information.
-
-    Returns:
-        Dictionary containing version information
-
-    Example:
-        >>> get_version_info()
-        {
-            'py7zz_version': '1.0.0',
-            '7zz_version': '24.07',
-            'version_type': 'release',
-            'build_number': None,
-            'full_version': '1.0.0+7zz24.07'
-        }
-    """
-    return {
-        "py7zz_version": PY7ZZ_VERSION,
-        "7zz_version": SEVEN_ZZ_VERSION,
-        "version_type": VERSION_TYPE.value,
-        "build_number": DEV_BUILD_NUMBER if VERSION_TYPE == VersionType.DEV else None,
-        "full_version": get_version(),
-    }
+    return __version__
 
 
 def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
     """
-    Parse a full version string into components.
+    Parse a PEP 440 version string into components.
 
     Args:
-        version_string: Full version string in any supported format
+        version_string: Version string in PEP 440 format
 
     Returns:
         Dictionary containing parsed version components
@@ -155,117 +44,191 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         ValueError: If version string format is invalid
 
     Example:
-        >>> parse_version('1.0.0+7zz24.07')
-        {'py7zz_version': '1.0.0', '7zz_version': '24.07', 'version_type': 'release', 'build_number': None}
-        >>> parse_version('1.0.0.auto+7zz24.08')
-        {'py7zz_version': '1.0.0', '7zz_version': '24.08', 'version_type': 'auto', 'build_number': None}
-        >>> parse_version('1.1.0-dev.2+7zz24.07')
-        {'py7zz_version': '1.1.0', '7zz_version': '24.07', 'version_type': 'dev', 'build_number': 2}
+        >>> parse_version('1.0.0')
+        {'major': 1, 'minor': 0, 'patch': 0, 'version_type': 'stable', 'build_number': None}
+        >>> parse_version('1.0.0a1')
+        {'major': 1, 'minor': 0, 'patch': 0, 'version_type': 'auto', 'build_number': 1}
+        >>> parse_version('1.1.0.dev1')
+        {'major': 1, 'minor': 1, 'patch': 0, 'version_type': 'dev', 'build_number': 1}
     """
-    if "+7zz" not in version_string:
-        raise ValueError(f"Invalid version format: {version_string}")
-
-    parts = version_string.split("+7zz")
-    if len(parts) != 2:
-        raise ValueError(f"Invalid version format: {version_string}")
-
-    py7zz_part, seven_zz_version = parts
-
-    # Determine version type and extract components
-    if "-dev." in py7zz_part:
-        # Dev version: 1.1.0-dev.2
-        version_type = "dev"
-        base_version, dev_part = py7zz_part.split("-dev.")
-        build_number = int(dev_part)
-        py7zz_version = base_version
-    elif ".auto" in py7zz_part:
-        # Auto version: 1.0.0.auto
-        version_type = "auto"
-        py7zz_version = py7zz_part.replace(".auto", "")
-        build_number = None
-    else:
+    # Pattern for PEP 440 version formats
+    patterns = [
+        # Dev version: 1.1.0.dev1
+        (r"^(\d+)\.(\d+)\.(\d+)\.dev(\d+)$", "dev"),
+        # Alpha version (auto): 1.0.0a1
+        (r"^(\d+)\.(\d+)\.(\d+)a(\d+)$", "auto"),
         # Release version: 1.0.0
-        version_type = "release"
-        py7zz_version = py7zz_part
-        build_number = None
+        (r"^(\d+)\.(\d+)\.(\d+)$", "stable"),
+    ]
 
-    return {
-        "py7zz_version": py7zz_version,
-        "7zz_version": seven_zz_version,
-        "version_type": version_type,
-        "build_number": build_number,
-    }
+    for pattern, version_type in patterns:
+        match = re.match(pattern, version_string)
+        if match:
+            groups = match.groups()
+            major, minor, patch = int(groups[0]), int(groups[1]), int(groups[2])
+            build_number = int(groups[3]) if len(groups) > 3 else None
 
+            return {
+                "major": major,
+                "minor": minor,
+                "patch": patch,
+                "version_type": version_type,
+                "build_number": build_number,
+                "base_version": f"{major}.{minor}.{patch}",
+            }
 
-def generate_auto_version(base_version: str, new_7zz_version: str) -> str:
-    """
-    Generate an auto version string for 7zz updates.
-
-    Args:
-        base_version: Base py7zz version (e.g., "1.0.0")
-        new_7zz_version: New 7zz version (e.g., "24.08")
-
-    Returns:
-        Auto version string in format: {base_version}.auto+7zz{new_7zz_version}
-
-    Example:
-        >>> generate_auto_version("1.0.0", "24.08")
-        '1.0.0.auto+7zz24.08'
-    """
-    return build_version(base_version, new_7zz_version, VersionType.AUTO)
+    raise ValueError(f"Invalid version format: {version_string}")
 
 
-def generate_dev_version(base_version: str, seven_zz_version: str, build_number: int) -> str:
-    """
-    Generate a dev version string for development builds.
-
-    Args:
-        base_version: Base py7zz version (e.g., "1.1.0")
-        seven_zz_version: 7zz version (e.g., "24.07")
-        build_number: Build number (e.g., 2)
-
-    Returns:
-        Dev version string in format: {base_version}-dev.{build_number}+7zz{seven_zz_version}
-
-    Example:
-        >>> generate_dev_version("1.1.0", "24.07", 2)
-        '1.1.0-dev.2+7zz24.07'
-    """
-    return build_version(base_version, seven_zz_version, VersionType.DEV, build_number)
-
-
-def get_version_type(version_string: str) -> str:
+def get_version_type(version_string: Optional[str] = None) -> str:
     """
     Get the version type from a version string.
 
     Args:
-        version_string: Version string to check
+        version_string: Version string to check (defaults to current version)
 
     Returns:
-        Version type: 'release', 'auto', or 'dev'
+        Version type: 'stable', 'auto', or 'dev'
 
     Example:
-        >>> get_version_type('1.0.0+7zz24.07')
-        'release'
-        >>> get_version_type('1.0.0.auto+7zz24.08')
+        >>> get_version_type('1.0.0')
+        'stable'
+        >>> get_version_type('1.0.0a1')
         'auto'
-        >>> get_version_type('1.1.0-dev.2+7zz24.07')
+        >>> get_version_type('1.1.0.dev1')
         'dev'
     """
+    if version_string is None:
+        version_string = __version__
+
     parsed = parse_version(version_string)
     return str(parsed["version_type"])
 
 
-def is_release_version(version_string: str) -> bool:
-    """Check if a version string is a release version."""
-    return get_version_type(version_string) == "release"
+def is_stable_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is a stable release version."""
+    return get_version_type(version_string) == "stable"
 
 
-def is_auto_version(version_string: str) -> bool:
-    """Check if a version string is an auto version."""
+def is_auto_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is an auto release version."""
     return get_version_type(version_string) == "auto"
 
 
-def is_dev_version(version_string: str) -> bool:
-    """Check if a version string is a dev version."""
+def is_dev_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is a dev release version."""
     return get_version_type(version_string) == "dev"
+
+
+def generate_auto_version(base_version: str, build_number: int = 1) -> str:
+    """
+    Generate an auto version string for 7zz updates.
+
+    Args:
+        base_version: Base version (e.g., "1.0.0")
+        build_number: Auto build number (e.g., 1)
+
+    Returns:
+        Auto version string in format: {base_version}a{build_number}
+
+    Example:
+        >>> generate_auto_version("1.0.0", 1)
+        '1.0.0a1'
+    """
+    return f"{base_version}a{build_number}"
+
+
+def generate_dev_version(base_version: str, build_number: int = 1) -> str:
+    """
+    Generate a dev version string for development builds.
+
+    Args:
+        base_version: Base version (e.g., "1.1.0")
+        build_number: Dev build number (e.g., 1)
+
+    Returns:
+        Dev version string in format: {base_version}.dev{build_number}
+
+    Example:
+        >>> generate_dev_version("1.1.0", 1)
+        '1.1.0.dev1'
+    """
+    return f"{base_version}.dev{build_number}"
+
+
+def get_base_version(version_string: Optional[str] = None) -> str:
+    """
+    Get the base version (major.minor.patch) from a version string.
+
+    Args:
+        version_string: Version string to parse (defaults to current version)
+
+    Returns:
+        Base version string
+
+    Example:
+        >>> get_base_version('1.0.0a1')
+        '1.0.0'
+        >>> get_base_version('1.1.0.dev1')
+        '1.1.0'
+    """
+    if version_string is None:
+        version_string = __version__
+
+    parsed = parse_version(version_string)
+    return str(parsed["base_version"])
+
+
+def get_build_number(version_string: Optional[str] = None) -> Optional[int]:
+    """
+    Get the build number from a version string.
+
+    Args:
+        version_string: Version string to parse (defaults to current version)
+
+    Returns:
+        Build number or None for stable versions
+
+    Example:
+        >>> get_build_number('1.0.0a1')
+        1
+        >>> get_build_number('1.0.0')
+        None
+    """
+    if version_string is None:
+        version_string = __version__
+
+    parsed = parse_version(version_string)
+    build_number = parsed["build_number"]
+    return build_number if isinstance(build_number, int) else None
+
+
+# Legacy compatibility functions for backward compatibility
+def get_py7zz_version() -> str:
+    """Get the current py7zz version (legacy compatibility)."""
+    return __version__
+
+
+def get_version_info() -> Dict[str, Union[str, int, None]]:
+    """
+    Get detailed version information (legacy compatibility).
+
+    Returns:
+        Dictionary containing version information
+
+    Example:
+        >>> get_version_info()
+        {
+            'py7zz_version': '0.1.0',
+            'version_type': 'stable',
+            'build_number': None,
+            'base_version': '0.1.0'
+        }
+    """
+    parsed = parse_version(__version__)
+    return {
+        "py7zz_version": __version__,
+        "version_type": parsed["version_type"],
+        "build_number": parsed["build_number"],
+        "base_version": parsed["base_version"],
+    }

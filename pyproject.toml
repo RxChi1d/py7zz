@@ -13,7 +13,7 @@ include = [
 
 [project]
 name = "py7zz"
-version = "1.0.0+7zz24.07"
+version = "0.1.0"
 description = "Python wrapper for 7zz CLI tool providing cross-platform compression with 50+ archive formats"
 readme = "README.md"
 license = {text = "BSD-3-Clause AND LGPL-2.1-only"}
@@ -48,7 +48,7 @@ dependencies = [
 dev = []
 
 [project.scripts]
-7zz = "py7zz.cli:main"
+py7zz = "py7zz.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/rxchi1d/py7zz"
