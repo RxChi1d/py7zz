@@ -3,11 +3,11 @@ name: Build and Publish Wheels
 on:
   push:
     tags:
-      - '*'
+      - 'v*'  # Only trigger on tags starting with 'v'
   workflow_dispatch:
     inputs:
-      version:
-        description: '7zz version to build'
+      tag:
+        description: 'Tag to build (e.g., v0.1.0, v0.1.0-dev.1, v0.1.0-auto)'
         required: true
         type: string
 
@@ -50,22 +50,68 @@ jobs:
         uv sync --dev
         uv pip install -e .
     
-    - name: Get 7zz version
-      id: get_version
+    - name: Parse version from tag
+      id: parse_version
       shell: bash
       run: |
-        if [ "${{ github.event.inputs.version }}" != "" ]; then
-          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        # Get tag from push event or workflow dispatch
+        if [ "${{ github.event.inputs.tag }}" != "" ]; then
+          TAG="${{ github.event.inputs.tag }}"
         else
-          # Extract version from git tag
-          VERSION=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
         fi
+        
+        echo "Original tag: $TAG"
+        
+        # Remove 'v' prefix if present
+        TAG_NO_V=$(echo $TAG | sed 's/^v//')
+        
+        # Parse version components using regex
+        if [[ $TAG_NO_V =~ ^(.+)-dev\.([0-9]+)(\+7zz(.+))?$ ]]; then
+          # Dev version: 0.1.0-dev.1 or 0.1.0-dev.1+7zz24.07
+          VERSION_TYPE="dev"
+          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
+          BUILD_NUMBER="${BASH_REMATCH[2]}"
+          SEVEN_ZZ_VERSION="${BASH_REMATCH[4]:-latest}"
+          echo "Parsed dev version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER, 7zz=$SEVEN_ZZ_VERSION"
+        elif [[ $TAG_NO_V =~ ^(.+)-auto(\+7zz(.+))?$ ]]; then
+          # Auto version: 0.1.0-auto or 0.1.0-auto+7zz24.08
+          VERSION_TYPE="auto"
+          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
+          BUILD_NUMBER=""
+          SEVEN_ZZ_VERSION="${BASH_REMATCH[3]:-latest}"
+          echo "Parsed auto version: py7zz=$PY7ZZ_VERSION, 7zz=$SEVEN_ZZ_VERSION"
+        elif [[ $TAG_NO_V =~ ^([^+]+)(\+7zz(.+))?$ ]]; then
+          # Release version: 0.1.0 or 0.1.0+7zz24.07
+          VERSION_TYPE="release"
+          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
+          BUILD_NUMBER=""
+          SEVEN_ZZ_VERSION="${BASH_REMATCH[3]:-latest}"
+          echo "Parsed release version: py7zz=$PY7ZZ_VERSION, 7zz=$SEVEN_ZZ_VERSION"
+        else
+          echo "Error: Invalid tag format: $TAG"
+          exit 1
+        fi
+        
+        # If 7zz version is "latest", get the latest release
+        if [ "$SEVEN_ZZ_VERSION" = "latest" ]; then
+          SEVEN_ZZ_VERSION=$(curl -s https://api.github.com/repos/ip7z/7zip/releases/latest | grep -o '"tag_name": "[^"]*' | cut -d'"' -f4)
+          echo "Latest 7zz version: $SEVEN_ZZ_VERSION"
+        fi
+        
+        # Set outputs
+        echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
+        echo "py7zz_version=$PY7ZZ_VERSION" >> $GITHUB_OUTPUT
+        echo "seven_zz_version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
+        echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
+        
+        # For compatibility with existing steps
+        echo "version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
     
     - name: Download 7zz binary
       shell: bash
       run: |
-        VERSION="${{ steps.get_version.outputs.version }}"
+        VERSION="${{ steps.parse_version.outputs.version }}"
         PLATFORM="${{ matrix.platform }}"
         ARCH="${{ matrix.arch }}"
         BINARY_NAME="${{ matrix.binary_name }}"
@@ -114,6 +160,14 @@ jobs:
         
         # Verify binary works
         "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help || echo "Binary verification failed"
+    
+    - name: Set version environment variables
+      shell: bash
+      run: |
+        echo "PY7ZZ_VERSION=${{ steps.parse_version.outputs.py7zz_version }}" >> $GITHUB_ENV
+        echo "SEVEN_ZZ_VERSION=${{ steps.parse_version.outputs.seven_zz_version }}" >> $GITHUB_ENV
+        echo "VERSION_TYPE=${{ steps.parse_version.outputs.version_type }}" >> $GITHUB_ENV
+        echo "DEV_BUILD_NUMBER=${{ steps.parse_version.outputs.build_number }}" >> $GITHUB_ENV
     
     - name: Build wheel
       run: |

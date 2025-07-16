@@ -7,14 +7,15 @@ This module manages the three-tier version system for py7zz:
 - Dev (unstable): {major}.{minor}.{patch}-dev.{build}+7zz{7zz_version}
 """
 
+import os
 from enum import Enum
 from typing import Dict, Union
 
-# py7zz semantic version
-PY7ZZ_VERSION = "1.0.0"
+# py7zz semantic version (can be overridden by environment)
+PY7ZZ_VERSION = os.getenv("PY7ZZ_VERSION", "0.1.0")
 
-# 7zz binary version (follows upstream)
-SEVEN_ZZ_VERSION = "24.07"
+# 7zz binary version (follows upstream, can be overridden by environment)
+SEVEN_ZZ_VERSION = os.getenv("SEVEN_ZZ_VERSION", "24.07")
 
 
 # Version type
@@ -26,11 +27,12 @@ class VersionType(Enum):
     DEV = "dev"
 
 
-# Current version type (default to release)
-VERSION_TYPE = VersionType.RELEASE
+# Current version type (can be overridden by environment)
+_version_type_str = os.getenv("VERSION_TYPE", "release")
+VERSION_TYPE = VersionType(_version_type_str)
 
-# Build number for dev versions
-DEV_BUILD_NUMBER = 1
+# Build number for dev versions (can be overridden by environment)
+DEV_BUILD_NUMBER = int(os.getenv("DEV_BUILD_NUMBER", "1")) if os.getenv("DEV_BUILD_NUMBER") else 1
 
 # Full version combining both
 FULL_VERSION = f"{PY7ZZ_VERSION}+7zz{SEVEN_ZZ_VERSION}"

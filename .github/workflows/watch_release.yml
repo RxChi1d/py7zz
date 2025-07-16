@@ -82,6 +82,7 @@ jobs:
         # Create a temporary tag for the auto build
         AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        PY7ZZ_SEMANTIC="${{ steps.get_py7zz_version.outputs.semantic }}"
         
         # Commit the version change
         git config --local user.email "action@github.com"
@@ -89,11 +90,12 @@ jobs:
         git add pyproject.toml
         git commit -m "chore: auto build for 7zz $LATEST_7ZZ"
         
-        # Create and push tag to trigger build workflow
-        git tag "auto-$AUTO_VERSION"
-        git push origin "auto-$AUTO_VERSION"
+        # Create and push tag to trigger build workflow using new format
+        AUTO_TAG="v${PY7ZZ_SEMANTIC}-auto+7zz${LATEST_7ZZ}"
+        git tag "$AUTO_TAG"
+        git push origin "$AUTO_TAG"
         
-        echo "Created auto tag: auto-$AUTO_VERSION"
+        echo "Created auto tag: $AUTO_TAG"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
@@ -102,6 +104,8 @@ jobs:
       run: |
         AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        PY7ZZ_SEMANTIC="${{ steps.get_py7zz_version.outputs.semantic }}"
+        AUTO_TAG="v${PY7ZZ_SEMANTIC}-auto+7zz${LATEST_7ZZ}"
         
         # Create release notes
         RELEASE_NOTES="🟡 **Auto Build - 7zz Update**
@@ -128,12 +132,12 @@ jobs:
         ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version."
         
         # Create GitHub release
-        gh release create "auto-$AUTO_VERSION" \
+        gh release create "$AUTO_TAG" \
           --title "🟡 Auto Build: py7zz $AUTO_VERSION" \
           --notes "$RELEASE_NOTES" \
           --prerelease
         
-        echo "Created auto release: auto-$AUTO_VERSION"
+        echo "Created auto release: $AUTO_TAG"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
@@ -145,8 +149,11 @@ jobs:
         echo "- **Update needed**: ${{ steps.compare.outputs.update_needed }}" >> $GITHUB_STEP_SUMMARY
         
         if [[ "${{ steps.compare.outputs.update_needed }}" == "true" ]]; then
+          PY7ZZ_SEMANTIC="${{ steps.get_py7zz_version.outputs.semantic }}"
+          LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+          AUTO_TAG="v${PY7ZZ_SEMANTIC}-auto+7zz${LATEST_7ZZ}"
           echo "- **Action**: Created auto build ${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: auto-${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: $AUTO_TAG" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **Action**: No update required" >> $GITHUB_STEP_SUMMARY
         fi

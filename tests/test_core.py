@@ -15,11 +15,11 @@ from py7zz.exceptions import FileNotFoundError
 def test_get_version():
     """Test version retrieval."""
     version = get_version()
-    assert version == "1.0.0+7zz24.07"
+    assert version == "0.1.0+7zz24.07"
 
     # Test version format
     assert "+7zz" in version
-    assert "1.0.0" in version
+    assert "0.1.0" in version
     assert "24.07" in version
 
 
