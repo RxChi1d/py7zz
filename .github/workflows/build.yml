@@ -152,8 +152,15 @@ jobs:
         mkdir -p "py7zz/binaries/${PLATFORM}"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows .exe file
-          curl -L -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"
+          # Windows .exe file - add timeout and better error handling
+          echo "Downloading Windows executable..."
+          if ! curl -L --max-time 300 --retry 3 --retry-delay 10 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+            echo "Error: Failed to download Windows executable"
+            echo "URL: $DOWNLOAD_URL"
+            echo "Retrying with verbose output..."
+            curl -L -v --max-time 300 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
+          fi
+          echo "Windows executable downloaded successfully"
         else
           # Unix tar.xz file
           TEMP_DIR=$(mktemp -d)
