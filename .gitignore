@@ -165,3 +165,6 @@ py7zz/binaries/windows/7zz.exe
 
 # Development planning documents (not for distribution)
 py_7_zz_vibe_coding_plan.md
+
+# PyPI configuration (contains API tokens)
+.pypirc
