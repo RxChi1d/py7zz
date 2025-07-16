@@ -29,10 +29,11 @@ jobs:
             platform: macos
             arch: x64
             binary_name: 7zz
-          - os: windows-latest
-            platform: windows
-            arch: x64
-            binary_name: 7zz.exe
+          # TODO: Re-enable Windows build after fixing download timeout issues
+          # - os: windows-latest
+          #   platform: windows
+          #   arch: x64
+          #   binary_name: 7zz.exe
     
     steps:
     - uses: actions/checkout@v4
