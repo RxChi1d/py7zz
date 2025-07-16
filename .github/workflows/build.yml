@@ -168,19 +168,24 @@ jobs:
         ARCH="${{ matrix.arch }}"
         BINARY_NAME="${{ matrix.binary_name }}"
         
+        # Convert version format (25.00 -> 2500)
+        VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')
+        echo "Original version: $VERSION"
+        echo "Asset version: $VERSION_FOR_ASSET"
+        
         # Map platform/arch to 7zz release naming
         case "$PLATFORM-$ARCH" in
           "linux-x64")
-            ASSET_NAME="7z${VERSION}-linux-x64.tar.xz"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-linux-x64.tar.xz"
             ;;
           "macos-x64")
-            ASSET_NAME="7z${VERSION}-mac.tar.xz"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
             ;;
           "macos-arm64")
-            ASSET_NAME="7z${VERSION}-mac.tar.xz"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
             ;;
           "windows-x64")
-            ASSET_NAME="7z${VERSION}-x64.exe"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
             ;;
           *)
             echo "Unsupported platform: $PLATFORM-$ARCH"
