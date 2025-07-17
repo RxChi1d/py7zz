@@ -23,11 +23,7 @@ jobs:
             binary_name: 7zz
           - os: macos-14
             platform: macos
-            arch: arm64
-            binary_name: 7zz
-          - os: macos-13
-            platform: macos
-            arch: x64
+            arch: universal
             binary_name: 7zz
           - os: windows-latest
             platform: windows
@@ -102,10 +98,7 @@ jobs:
           "linux-x64")
             ASSET_NAME="7z${VERSION_FOR_ASSET}-linux-x64.tar.xz"
             ;;
-          "macos-x64")
-            ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
-            ;;
-          "macos-arm64")
+          "macos-universal")
             ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
             ;;
           "windows-x64")
@@ -275,10 +268,8 @@ jobs:
           NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-win_amd64/')
         elif [[ "${{ matrix.platform }}" == "linux" ]]; then
           NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-manylinux1_x86_64/')
-        elif [[ "${{ matrix.platform }}" == "macos" && "${{ matrix.arch }}" == "arm64" ]]; then
-          NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-macosx_11_0_arm64/')
-        elif [[ "${{ matrix.platform }}" == "macos" && "${{ matrix.arch }}" == "x64" ]]; then
-          NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-macosx_10_9_x86_64/')
+        elif [[ "${{ matrix.platform }}" == "macos" ]]; then
+          NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-macosx_10_9_universal2/')
         else
           echo "Unsupported platform: ${{ matrix.platform }}-${{ matrix.arch }}"
           exit 1
