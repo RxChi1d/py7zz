@@ -201,7 +201,7 @@ jobs:
     
     - name: Build wheel
       run: |
-        uv run python -m build --wheel
+        uv build --wheel
     
     - name: Verify wheel version consistency
       shell: bash
