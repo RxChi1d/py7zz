@@ -163,7 +163,8 @@ class TestVersionConsistency:
                     "run",
                     "python",
                     "-c",
-                    "from hatchling.metadata.core import ProjectMetadata; print(ProjectMetadata.from_file('.').version)",
+                    "from hatchling.metadata.core import ProjectMetadata; "
+                    "print(ProjectMetadata.from_file('.').version)",
                 ],
                 cwd=tmpdir / "py7zz",
                 capture_output=True,
