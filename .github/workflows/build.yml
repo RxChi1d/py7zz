@@ -175,8 +175,8 @@ jobs:
         # Test that hatch-vcs can generate version from git tag
         echo "Testing dynamic version generation..."
         
-        # Use hatchling through build backend
-        GENERATED_VERSION=$(uv run python -c "
+        # Use hatchling through build backend (avoid uv run to skip lock file)
+        GENERATED_VERSION=$(source .venv/bin/activate && python -c "
         import subprocess
         import sys
         try:
@@ -224,7 +224,7 @@ jobs:
     
     - name: Build wheel
       run: |
-        uv run python -m build --wheel
+        source .venv/bin/activate && python -m build --wheel
     
     - name: Verify wheel version consistency
       shell: bash
@@ -248,7 +248,7 @@ jobs:
         # Test install and version check
         echo "Testing wheel installation and version verification..."
         uv pip install dist/*.whl --force-reinstall
-        INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
+        INSTALLED_VERSION=$(source .venv/bin/activate && python -c "import py7zz; print(py7zz.get_version())")
         echo "Installed version: $INSTALLED_VERSION"
         
         if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
