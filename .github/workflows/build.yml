@@ -50,6 +50,8 @@ jobs:
     - name: Install dependencies
       timeout-minutes: 5  # Add timeout for dependency installation
       run: |
+        # Create virtual environment first
+        uv venv
         # Skip uv.lock to avoid editable package version issues in CI
         uv pip install -e .
         # Install dev dependencies manually
