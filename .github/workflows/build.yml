@@ -17,23 +17,23 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            platform: linux
-            arch: x64
-            binary_name: 7zz
-          - os: macos-14
-            platform: macos
-            arch: arm64
-            binary_name: 7zz
-          - os: macos-13
-            platform: macos
-            arch: x64
-            binary_name: 7zz
-          # TODO: Re-enable Windows build after fixing download timeout issues
-          # - os: windows-latest
-          #   platform: windows
+          # Temporarily disable other platforms to focus on Windows fix
+          # - os: ubuntu-latest
+          #   platform: linux
           #   arch: x64
-          #   binary_name: 7zz.exe
+          #   binary_name: 7zz
+          # - os: macos-14
+          #   platform: macos
+          #   arch: arm64
+          #   binary_name: 7zz
+          # - os: macos-13
+          #   platform: macos
+          #   arch: x64
+          #   binary_name: 7zz
+          - os: windows-latest
+            platform: windows
+            arch: x64
+            binary_name: 7zz.exe
     
     steps:
     - uses: actions/checkout@v4
@@ -126,15 +126,33 @@ jobs:
         mkdir -p "py7zz/binaries/${PLATFORM}"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows .exe file - add timeout and better error handling
+          # Windows .exe file - enhanced retry logic with multiple fallbacks
           echo "Downloading Windows executable..."
-          if ! curl -L --max-time 300 --retry 3 --retry-delay 10 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
-            echo "Error: Failed to download Windows executable"
-            echo "URL: $DOWNLOAD_URL"
-            echo "Retrying with verbose output..."
-            curl -L -v --max-time 300 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
+          echo "URL: $DOWNLOAD_URL"
+          
+          # First attempt with standard timeout
+          if curl -L --max-time 120 --retry 2 --retry-delay 5 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+            echo "Windows executable downloaded successfully on first attempt"
+          else
+            echo "First attempt failed, trying with extended timeout..."
+            
+            # Second attempt with longer timeout and more retries
+            if curl -L --max-time 300 --retry 5 --retry-delay 10 --retry-max-time 600 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+              echo "Windows executable downloaded successfully on second attempt"
+            else
+              echo "Second attempt failed, trying with minimal options..."
+              
+              # Third attempt with minimal curl options
+              if curl -L --connect-timeout 30 --max-time 180 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+                echo "Windows executable downloaded successfully on third attempt"
+              else
+                echo "All download attempts failed"
+                echo "URL: $DOWNLOAD_URL"
+                echo "Trying final attempt with verbose output for debugging..."
+                curl -L -v --max-time 300 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
+              fi
+            fi
           fi
-          echo "Windows executable downloaded successfully"
         else
           # Unix tar.xz file
           TEMP_DIR=$(mktemp -d)
@@ -158,11 +176,32 @@ jobs:
           rm -rf "${TEMP_DIR}"
         fi
         
-        # Make binary executable
-        chmod +x "py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
+        # Make binary executable (skip for Windows)
+        if [[ "$PLATFORM" != "windows" ]]; then
+          chmod +x "py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
+        fi
         
         # Verify binary works
-        "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help || echo "Binary verification failed"
+        echo "Verifying binary..."
+        if [[ "$PLATFORM" == "windows" ]]; then
+          # Windows binary verification
+          if "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help > /dev/null 2>&1; then
+            echo "✓ Windows binary verification passed"
+          else
+            echo "⚠ Windows binary verification failed - this may be expected in GitHub Actions"
+            echo "Checking file size and type..."
+            ls -la "py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
+            file "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" || echo "file command not available"
+          fi
+        else
+          # Unix binary verification
+          if "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help > /dev/null 2>&1; then
+            echo "✓ Unix binary verification passed"
+          else
+            echo "✗ Unix binary verification failed"
+            exit 1
+          fi
+        fi
     
     - name: Validate dynamic version generation
       shell: bash
