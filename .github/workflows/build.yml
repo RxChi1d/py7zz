@@ -121,8 +121,9 @@ jobs:
         DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
         echo "Downloading from: $DOWNLOAD_URL"
         
-        # Create platform-specific binary directory
-        echo "Creating platform-specific binary directory: py7zz/binaries/${PLATFORM}"
+        # Clean up all binary directories and create only the current platform's directory
+        echo "Cleaning up all binary directories and creating platform-specific directory"
+        rm -rf "py7zz/binaries"
         mkdir -p "py7zz/binaries/${PLATFORM}"
         
         if [[ "$PLATFORM" == "windows" ]]; then
