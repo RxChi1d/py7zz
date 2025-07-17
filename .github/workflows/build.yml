@@ -17,19 +17,18 @@ jobs:
     strategy:
       matrix:
         include:
-          # Temporarily disable other platforms to focus on Windows fix
-          # - os: ubuntu-latest
-          #   platform: linux
-          #   arch: x64
-          #   binary_name: 7zz
-          # - os: macos-14
-          #   platform: macos
-          #   arch: arm64
-          #   binary_name: 7zz
-          # - os: macos-13
-          #   platform: macos
-          #   arch: x64
-          #   binary_name: 7zz
+          - os: ubuntu-latest
+            platform: linux
+            arch: x64
+            binary_name: 7zz
+          - os: macos-14
+            platform: macos
+            arch: arm64
+            binary_name: 7zz
+          - os: macos-13
+            platform: macos
+            arch: x64
+            binary_name: 7zz
           - os: windows-latest
             platform: windows
             arch: x64
@@ -122,39 +121,45 @@ jobs:
         DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
         echo "Downloading from: $DOWNLOAD_URL"
         
-        # Create binary directory
-        mkdir -p "py7zz/binaries/${PLATFORM}"
+        # Create unified binary directory
+        echo "Creating unified binary directory"
+        mkdir -p "py7zz/binaries"
         
         if [[ "$PLATFORM" == "windows" ]]; then
           # Windows .exe file - enhanced retry logic with multiple fallbacks
           echo "Downloading Windows executable..."
           echo "URL: $DOWNLOAD_URL"
+          echo "Target path: py7zz/binaries/${BINARY_NAME}"
           
           # First attempt with standard timeout
-          if curl -L --max-time 120 --retry 2 --retry-delay 5 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+          if curl -L --max-time 120 --retry 2 --retry-delay 5 -o "py7zz/binaries/${BINARY_NAME}" "$DOWNLOAD_URL"; then
             echo "Windows executable downloaded successfully on first attempt"
           else
             echo "First attempt failed, trying with extended timeout..."
             
             # Second attempt with longer timeout and more retries
-            if curl -L --max-time 300 --retry 5 --retry-delay 10 --retry-max-time 600 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+            if curl -L --max-time 300 --retry 5 --retry-delay 10 --retry-max-time 600 -o "py7zz/binaries/${BINARY_NAME}" "$DOWNLOAD_URL"; then
               echo "Windows executable downloaded successfully on second attempt"
             else
               echo "Second attempt failed, trying with minimal options..."
               
               # Third attempt with minimal curl options
-              if curl -L --connect-timeout 30 --max-time 180 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL"; then
+              if curl -L --connect-timeout 30 --max-time 180 -o "py7zz/binaries/${BINARY_NAME}" "$DOWNLOAD_URL"; then
                 echo "Windows executable downloaded successfully on third attempt"
               else
                 echo "All download attempts failed"
                 echo "URL: $DOWNLOAD_URL"
                 echo "Trying final attempt with verbose output for debugging..."
-                curl -L -v --max-time 300 -o "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
+                curl -L -v --max-time 300 -o "py7zz/binaries/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
               fi
             fi
           fi
         else
           # Unix tar.xz file
+          echo "Downloading and extracting Unix binary..."
+          echo "URL: $DOWNLOAD_URL"
+          echo "Target path: py7zz/binaries/${BINARY_NAME}"
+          
           TEMP_DIR=$(mktemp -d)
           curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
           cd "${TEMP_DIR}"
@@ -163,10 +168,11 @@ jobs:
           # Find and copy the 7zz binary (search only in current extraction directory)
           BINARY_PATH=$(find . -name "7zz" -type f | head -1)
           if [ -n "$BINARY_PATH" ]; then
-            cp "$BINARY_PATH" "$GITHUB_WORKSPACE/py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
-            echo "Binary found and copied: $BINARY_PATH"
+            cp "$BINARY_PATH" "$GITHUB_WORKSPACE/py7zz/binaries/${BINARY_NAME}"
+            echo "Binary found and copied: $BINARY_PATH -> py7zz/binaries/${BINARY_NAME}"
           else
             echo "Error: 7zz binary not found in extracted files"
+            echo "Contents of extracted directory:"
             ls -la .
             exit 1
           fi
@@ -178,15 +184,29 @@ jobs:
         
         # Make binary executable (skip for Windows)
         if [[ "$PLATFORM" != "windows" ]]; then
-          chmod +x "py7zz/binaries/${PLATFORM}/${BINARY_NAME}"
+          chmod +x "py7zz/binaries/${BINARY_NAME}"
+        fi
+        
+        # Verify the binary was placed correctly
+        echo "Verifying binary placement..."
+        if [[ -f "py7zz/binaries/${BINARY_NAME}" ]]; then
+          echo "✓ Binary correctly placed at: py7zz/binaries/${BINARY_NAME}"
+          ls -la "py7zz/binaries/"
+        else
+          echo "✗ Binary not found at expected location: py7zz/binaries/${BINARY_NAME}"
+          echo "Contents of py7zz/binaries/:"
+          find py7zz/binaries/ -type f -ls || echo "No files found"
+          exit 1
         fi
         
         # Verify binary works
-        echo "Verifying binary..."
+        echo "Verifying binary functionality..."
+        BINARY_PATH="py7zz/binaries/${BINARY_NAME}"
+        
         if [[ "$PLATFORM" == "windows" ]]; then
           # Windows binary verification - just check file exists and has correct size
-          if [[ -f "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" ]]; then
-            FILE_SIZE=$(stat -c%s "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" 2>/dev/null || stat -f%z "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" 2>/dev/null || echo "0")
+          if [[ -f "$BINARY_PATH" ]]; then
+            FILE_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "0")
             if [[ "$FILE_SIZE" -gt 1000000 ]]; then
               echo "✓ Windows binary verification passed (file size: $FILE_SIZE bytes)"
             else
@@ -194,15 +214,15 @@ jobs:
               exit 1
             fi
           else
-            echo "✗ Windows binary file not found"
+            echo "✗ Windows binary file not found at: $BINARY_PATH"
             exit 1
           fi
         else
           # Unix binary verification
-          if "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help > /dev/null 2>&1; then
+          if "$BINARY_PATH" --help > /dev/null 2>&1; then
             echo "✓ Unix binary verification passed"
           else
-            echo "✗ Unix binary verification failed"
+            echo "✗ Unix binary verification failed for: $BINARY_PATH"
             exit 1
           fi
         fi
