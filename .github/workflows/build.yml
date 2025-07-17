@@ -41,7 +41,7 @@ jobs:
     - name: Install uv
       uses: astral-sh/setup-uv@v3
       with:
-        version: "0.5.5"  # Use stable version to avoid timeout issues
+        version: "latest"  # Use latest version for better lock file support
       timeout-minutes: 3  # Add timeout to prevent hanging
     
     - name: Set up Python
@@ -50,14 +50,9 @@ jobs:
     - name: Install dependencies
       timeout-minutes: 5  # Add timeout for dependency installation
       run: |
-        # Create virtual environment first
-        uv venv
-        # Skip uv.lock to avoid editable package version issues in CI
+        # Use uv sync for proper dependency management
+        uv sync --dev
         uv pip install -e .
-        # Install dev dependencies manually
-        uv pip install pytest mypy ruff build twine hatch-vcs hatchling
-        # Install all runtime dependencies
-        uv pip install packaging requests rich typer
     
     - name: Validate tag format and get 7zz version
       id: validate_tag
@@ -175,26 +170,8 @@ jobs:
         # Test that hatch-vcs can generate version from git tag
         echo "Testing dynamic version generation..."
         
-        # Use hatchling through build backend (avoid uv run to skip lock file)
-        GENERATED_VERSION=$(source .venv/bin/activate && python -c "
-        import subprocess
-        import sys
-        try:
-            from hatchling.metadata.core import ProjectMetadata
-            metadata = ProjectMetadata.from_file('.')
-            print(metadata.version)
-        except Exception as e:
-            print(f'Error: {e}', file=sys.stderr)
-            # Fallback to git describe
-            result = subprocess.run(['git', 'describe', '--tags', '--match=v*'], 
-                                  capture_output=True, text=True)
-            if result.returncode == 0:
-                tag = result.stdout.strip()
-                version = tag[1:] if tag.startswith('v') else tag
-                print(version)
-            else:
-                print('0.0.0')
-        ")
+        # Use git describe to get version (no need for hatchling at runtime)
+        GENERATED_VERSION=$(git describe --tags --match='v*' | sed 's/^v//')
         
         echo "Generated version: $GENERATED_VERSION"
         
@@ -224,7 +201,7 @@ jobs:
     
     - name: Build wheel
       run: |
-        source .venv/bin/activate && python -m build --wheel
+        uv run python -m build --wheel
     
     - name: Verify wheel version consistency
       shell: bash
@@ -248,7 +225,7 @@ jobs:
         # Test install and version check
         echo "Testing wheel installation and version verification..."
         uv pip install dist/*.whl --force-reinstall
-        INSTALLED_VERSION=$(source .venv/bin/activate && python -c "import py7zz; print(py7zz.get_version())")
+        INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
         echo "Installed version: $INSTALLED_VERSION"
         
         if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
