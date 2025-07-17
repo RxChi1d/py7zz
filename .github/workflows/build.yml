@@ -269,12 +269,12 @@ jobs:
         # Build platform-specific wheel by renaming after build
         uv build --wheel
         
-        # Rename wheel to include platform tag
+        # Rename wheel to include platform tag (using PyPI-compatible tags)
         WHEEL_FILE=$(ls dist/*.whl)
         if [[ "${{ matrix.platform }}" == "windows" ]]; then
           NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-win_amd64/')
         elif [[ "${{ matrix.platform }}" == "linux" ]]; then
-          NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-linux_x86_64/')
+          NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-manylinux1_x86_64/')
         elif [[ "${{ matrix.platform }}" == "macos" && "${{ matrix.arch }}" == "arm64" ]]; then
           NEW_NAME=$(echo "$WHEEL_FILE" | sed 's/py3-none-any/py3-none-macosx_11_0_arm64/')
         elif [[ "${{ matrix.platform }}" == "macos" && "${{ matrix.arch }}" == "x64" ]]; then
