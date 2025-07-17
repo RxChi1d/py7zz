@@ -50,10 +50,12 @@ jobs:
     - name: Install dependencies
       timeout-minutes: 5  # Add timeout for dependency installation
       run: |
-        uv sync --dev
+        # Skip uv.lock to avoid editable package version issues in CI
         uv pip install -e .
-        # Install build dependencies for dynamic version generation
-        uv pip install hatchling hatch-vcs
+        # Install dev dependencies manually
+        uv pip install pytest mypy ruff build twine hatch-vcs hatchling
+        # Install all runtime dependencies
+        uv pip install packaging requests rich typer
     
     - name: Validate tag format and get 7zz version
       id: validate_tag
