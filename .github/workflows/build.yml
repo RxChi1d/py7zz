@@ -51,8 +51,8 @@ jobs:
         uv sync --dev
         uv pip install -e .
     
-    - name: Parse version from tag
-      id: parse_version
+    - name: Validate tag format and get 7zz version
+      id: validate_tag
       shell: bash
       run: |
         # Get tag from push event or workflow dispatch
@@ -62,60 +62,30 @@ jobs:
           TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
         fi
         
-        echo "Original tag: $TAG"
+        echo "Git tag: $TAG"
         
-        # Remove 'v' prefix if present
-        TAG_NO_V=$(echo $TAG | sed 's/^v//')
-        
-        # Parse version components using PEP 440 format
-        if [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)\.dev([0-9]+)$ ]]; then
-          # Dev version: 0.2.0.dev1
-          VERSION_TYPE="dev"
-          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
-          BUILD_NUMBER="${BASH_REMATCH[2]}"
-          SEVEN_ZZ_VERSION="latest"
-          echo "Parsed dev version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER"
-        elif [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)a([0-9]+)$ ]]; then
-          # Auto version: 0.1.0a1
-          VERSION_TYPE="auto"
-          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
-          BUILD_NUMBER="${BASH_REMATCH[2]}"
-          SEVEN_ZZ_VERSION="latest"
-          echo "Parsed auto version: py7zz=$PY7ZZ_VERSION, build=$BUILD_NUMBER"
-        elif [[ $TAG_NO_V =~ ^([0-9]+\.[0-9]+\.[0-9]+)$ ]]; then
-          # Release version: 0.1.0
-          VERSION_TYPE="stable"
-          PY7ZZ_VERSION="${BASH_REMATCH[1]}"
-          BUILD_NUMBER=""
-          SEVEN_ZZ_VERSION="latest"
-          echo "Parsed release version: py7zz=$PY7ZZ_VERSION"
+        # Validate tag format (PEP 440 compliant)
+        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$ ]]; then
+          echo "✓ Tag format is valid: $TAG"
         else
-          echo "Error: Invalid tag format: $TAG (expected PEP 440 format)"
+          echo "✗ Invalid tag format: $TAG"
+          echo "Expected format: v{major}.{minor}.{patch}[.dev{N}|a{N}]"
+          echo "Examples: v1.0.0, v1.0.0a1, v1.0.0.dev1"
           exit 1
         fi
         
-        # Get the latest 7zz version
-        if [ "$SEVEN_ZZ_VERSION" = "latest" ]; then
-          echo "Fetching latest 7zz version..."
-          
-          # Use hardcoded version for now to avoid API issues
-          SEVEN_ZZ_VERSION="25.00"
-          echo "Using hardcoded 7zz version: $SEVEN_ZZ_VERSION"
-        fi
+        # Get 7zz version (hardcoded for stability)
+        SEVEN_ZZ_VERSION="25.00"
+        echo "Using 7zz version: $SEVEN_ZZ_VERSION"
         
         # Set outputs
-        echo "version_type=$VERSION_TYPE" >> $GITHUB_OUTPUT
-        echo "py7zz_version=$PY7ZZ_VERSION" >> $GITHUB_OUTPUT
+        echo "git_tag=$TAG" >> $GITHUB_OUTPUT
         echo "seven_zz_version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
-        echo "build_number=$BUILD_NUMBER" >> $GITHUB_OUTPUT
-        
-        # For compatibility with existing steps
-        echo "version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
     
     - name: Download 7zz binary
       shell: bash
       run: |
-        VERSION="${{ steps.parse_version.outputs.version }}"
+        VERSION="${{ steps.validate_tag.outputs.seven_zz_version }}"
         PLATFORM="${{ matrix.platform }}"
         ARCH="${{ matrix.arch }}"
         BINARY_NAME="${{ matrix.binary_name }}"
@@ -191,17 +161,67 @@ jobs:
         # Verify binary works
         "py7zz/binaries/${PLATFORM}/${BINARY_NAME}" --help || echo "Binary verification failed"
     
-    - name: Set version environment variables
+    - name: Validate dynamic version generation
       shell: bash
       run: |
-        echo "PY7ZZ_VERSION=${{ steps.parse_version.outputs.py7zz_version }}" >> $GITHUB_ENV
-        echo "SEVEN_ZZ_VERSION=${{ steps.parse_version.outputs.seven_zz_version }}" >> $GITHUB_ENV
-        echo "VERSION_TYPE=${{ steps.parse_version.outputs.version_type }}" >> $GITHUB_ENV
-        echo "DEV_BUILD_NUMBER=${{ steps.parse_version.outputs.build_number }}" >> $GITHUB_ENV
+        # Test that hatch-vcs can generate version from git tag
+        echo "Testing dynamic version generation..."
+        GENERATED_VERSION=$(uv run python -c "from hatchling.metadata.core import ProjectMetadata; print(ProjectMetadata.from_file('.').version)")
+        echo "Generated version: $GENERATED_VERSION"
+        
+        # Verify version format is PEP 440 compliant
+        if [[ $GENERATED_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$ ]]; then
+          echo "✓ Generated version is PEP 440 compliant: $GENERATED_VERSION"
+        else
+          echo "✗ Generated version is not PEP 440 compliant: $GENERATED_VERSION"
+          exit 1
+        fi
+        
+        # Verify version matches git tag (remove 'v' prefix from tag)
+        GIT_TAG="${{ steps.validate_tag.outputs.git_tag }}"
+        EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
+        if [ "$GENERATED_VERSION" = "$EXPECTED_VERSION" ]; then
+          echo "✓ Generated version matches git tag: $GENERATED_VERSION"
+        else
+          echo "✗ Version mismatch - Git tag: $GIT_TAG, Generated: $GENERATED_VERSION"
+          exit 1
+        fi
     
     - name: Build wheel
       run: |
         uv run python -m build --wheel
+    
+    - name: Verify wheel version consistency
+      shell: bash
+      run: |
+        # Extract version from built wheel filename
+        WHEEL_FILE=$(ls dist/*.whl | head -1)
+        WHEEL_VERSION=$(echo "$WHEEL_FILE" | sed -n 's/.*py7zz-\([^-]*\)-.*/\1/p')
+        echo "Wheel version: $WHEEL_VERSION"
+        
+        # Compare with expected version from git tag
+        GIT_TAG="${{ steps.validate_tag.outputs.git_tag }}"
+        EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
+        
+        if [ "$WHEEL_VERSION" = "$EXPECTED_VERSION" ]; then
+          echo "✓ Wheel version matches git tag: $WHEEL_VERSION"
+        else
+          echo "✗ Wheel version mismatch - Expected: $EXPECTED_VERSION, Got: $WHEEL_VERSION"
+          exit 1
+        fi
+        
+        # Test install and version check
+        echo "Testing wheel installation and version verification..."
+        uv pip install dist/*.whl --force-reinstall
+        INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
+        echo "Installed version: $INSTALLED_VERSION"
+        
+        if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
+          echo "✓ Installed version matches git tag: $INSTALLED_VERSION"
+        else
+          echo "✗ Installed version mismatch - Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
+          exit 1
+        fi
     
     - name: Upload wheel artifacts
       uses: actions/upload-artifact@v4
@@ -221,6 +241,38 @@ jobs:
         path: dist/
         pattern: wheels-*
         merge-multiple: true
+    
+    - name: Final version validation before PyPI publish
+      shell: bash
+      run: |
+        # Get git tag and expected version
+        GIT_TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
+        EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
+        echo "Git tag: $GIT_TAG"
+        echo "Expected PyPI version: $EXPECTED_VERSION"
+        
+        # Verify all wheels have consistent version
+        echo "Verifying wheel versions..."
+        for wheel in dist/*.whl; do
+          WHEEL_VERSION=$(echo "$wheel" | sed -n 's/.*py7zz-\([^-]*\)-.*/\1/p')
+          echo "  $wheel -> $WHEEL_VERSION"
+          
+          if [ "$WHEEL_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "✗ Wheel version mismatch: $wheel"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $WHEEL_VERSION"
+            exit 1
+          fi
+        done
+        
+        echo "✓ All wheels have consistent version: $EXPECTED_VERSION"
+        
+        # Final confirmation
+        echo "🚀 Ready to publish to PyPI:"
+        echo "  Git tag: $GIT_TAG"
+        echo "  PyPI version: $EXPECTED_VERSION"
+        echo "  Wheel count: $(ls dist/*.whl | wc -l)"
+        ls -la dist/
     
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
