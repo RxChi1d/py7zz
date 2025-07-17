@@ -137,10 +137,8 @@ git commit -m "feat: add new feature"
 py7zz/
 ├── __init__.py            # 匯出 SevenZipFile, get_version
 ├── core.py                # subprocess 膠合、banner 解析
-├── binaries/              # 平台特定 7zz 二進位檔案
-│   ├── macos/7zz         # macOS 二進位檔案
-│   ├── linux/7zz         # Linux 二進位檔案
-│   └── windows/7zz.exe   # Windows 二進位檔案
+├── bin/                   # 二進位檔案目錄
+│   └── 7zz[.exe]         # 平台特定二進位檔案（每個 wheel 只包含一個）
 ├── updater.py             # GitHub API 整合及原始碼安裝的自動下載
 ├── pyproject.toml         # build-system = "hatchling"
 ├── README.md
@@ -204,7 +202,7 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 ### 二進位檔案發布
 - CI 下載平台特定資產（`7z{ver}-{os}-{arch}.tar.xz`）
 - 驗證 SHA256 校驗和
-- 解壓縮至 `binaries/<platform>/7zz[.exe]`
+- 解壓縮至 `bin/7zz[.exe]`
 - 打包於 wheel 中發布
 
 ### 版本管理
@@ -250,7 +248,7 @@ py7zz 實作混合方法以確保**隔離性**和**版本一致性**：
 - 安裝後無需網路連線
 
 **原始碼安裝（開發環境）**：
-- git 儲存庫中 `py7zz/binaries/` 目錄為空
+- git 儲存庫中 `py7zz/bin/` 目錄為空
 - 透過 `updater.py` 首次使用時自動下載正確 7zz 二進位檔案
 - 快取於 `~/.cache/py7zz/{version}/` 目錄
 - 僅首次使用時需要網路連線
@@ -290,11 +288,11 @@ def find_7z_binary() -> str:
 [tool.hatch.build.targets.wheel]
 packages = ["py7zz"]
 include = [
-    "py7zz/binaries/**/*",
+    "py7zz/bin/**/*",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
-"py7zz/binaries" = "py7zz/binaries"
+"py7zz/bin" = "py7zz/bin"
 ```
 
 #### GitHub Actions 二進位檔案下載

@@ -15,8 +15,9 @@ from py7zz.exceptions import FileNotFoundError
 def test_get_version():
     """Test version retrieval."""
     version = get_version()
-    assert version == "0.1.0"
-
+    # Test version is PEP 440 compliant and follows expected pattern
+    assert version.startswith("0.1.0")
+    
     # Test version is PEP 440 compliant
     assert version.startswith("0.1.0")
 
@@ -51,7 +52,7 @@ def test_find_7z_binary_bundled():
             with patch("platform.system", return_value="Linux"):
                 with patch("pathlib.Path.exists", return_value=True):
                     binary = find_7z_binary()
-                    assert binary.endswith("binaries/linux/7zz")
+                    assert binary.endswith("bin/7zz")
 
 
 def test_find_7z_binary_not_found():

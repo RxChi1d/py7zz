@@ -38,20 +38,18 @@ def find_7z_binary() -> str:
     if env_binary and Path(env_binary).exists():
         return env_binary
 
-    # Use bundled binary (preferred for wheel packages) - platform-specific directories
+    # Use bundled binary (preferred for wheel packages) - unified directory
     current_dir = Path(__file__).parent
-    binaries_dir = current_dir / "binaries"
+    binaries_dir = current_dir / "bin"
 
-    # Platform-specific directory and binary name
+    # Platform-specific binary name but unified location
     system = platform.system().lower()
-    if system == "darwin":
-        binary_path = binaries_dir / "macos" / "7zz"
-    elif system == "linux":
-        binary_path = binaries_dir / "linux" / "7zz"
-    elif system == "windows":
-        binary_path = binaries_dir / "windows" / "7zz.exe"
+    if system == "windows":
+        binary_name = "7zz.exe"
     else:
-        raise RuntimeError(f"Unsupported platform: {system}")
+        binary_name = "7zz"
+
+    binary_path = binaries_dir / binary_name
 
     if binary_path.exists():
         return str(binary_path)
