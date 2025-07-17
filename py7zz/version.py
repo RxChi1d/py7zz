@@ -30,17 +30,19 @@ def get_version() -> str:
     # Try to get version from package metadata (for wheel installations)
     try:
         from importlib.metadata import version
+
         return version("py7zz")
     except ImportError:
         # Python < 3.8 fallback
         try:
             from importlib_metadata import version
+
             return version("py7zz")
         except ImportError:
             pass
     except Exception:
         pass
-    
+
     # Fallback to hardcoded version (for development/editable installs)
     return __version__
 
@@ -82,16 +84,16 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         if match:
             groups = match.groups()
             major, minor = int(groups[0]), int(groups[1])
-            
+
             # Handle different pattern lengths
             if len(groups) == 3:
                 # Format: 0.1.dev21
                 patch = 0
-                build_number = int(groups[2])
+                build_number: Optional[int] = int(groups[2])
             elif len(groups) == 4:
                 # Format: 1.1.0.dev1 or 1.0.0a1
                 patch = int(groups[2])
-                build_number = int(groups[3]) if groups[3] else None
+                build_number = int(groups[3]) if groups[3] is not None else None
             else:
                 # Format: 1.0.0
                 patch = int(groups[2])

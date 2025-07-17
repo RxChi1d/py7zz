@@ -498,118 +498,7 @@ print(info)
 # }
 ```
 
-### `get_release_type()`
-
-Get the release type of the current version.
-
-**Returns:** str - Release type ('stable', 'auto', or 'dev')
-
-**Example:**
-```python
-release_type = py7zz.get_release_type()
-print(release_type)  # "stable"
-```
-
-### Version Type Checking Functions
-
-#### `is_stable_version(version_string=None)`
-
-Check if a version is a stable release.
-
-**Parameters:**
-- `version_string` (str, optional): Version to check (defaults to current version)
-
-**Returns:** bool - True if stable version
-
-**Example:**
-```python
-print(py7zz.is_stable_version())        # True for "1.0.0"
-print(py7zz.is_stable_version("1.0.0a1"))  # False
-```
-
-#### `is_auto_version(version_string=None)`
-
-Check if a version is an auto release (alpha).
-
-**Parameters:**
-- `version_string` (str, optional): Version to check (defaults to current version)
-
-**Returns:** bool - True if auto version
-
-**Example:**
-```python
-print(py7zz.is_auto_version("1.0.0a1"))  # True
-print(py7zz.is_auto_version("1.0.0"))    # False
-```
-
-#### `is_dev_version(version_string=None)`
-
-Check if a version is a dev release.
-
-**Parameters:**
-- `version_string` (str, optional): Version to check (defaults to current version)
-
-**Returns:** bool - True if dev version
-
-**Example:**
-```python
-print(py7zz.is_dev_version("1.1.0.dev1"))  # True
-print(py7zz.is_dev_version("1.0.0"))       # False
-```
-
-### Version Generation Functions
-
-#### `generate_auto_version(base_version, build_number=1)`
-
-Generate an auto (alpha) version string.
-
-**Parameters:**
-- `base_version` (str): Base version (e.g., "1.0.0")
-- `build_number` (int): Alpha build number (default: 1)
-
-**Returns:** str - Auto version string
-
-**Example:**
-```python
-version = py7zz.generate_auto_version("1.0.0", 1)
-print(version)  # "1.0.0a1"
-```
-
-#### `generate_dev_version(base_version, build_number=1)`
-
-Generate a dev version string.
-
-**Parameters:**
-- `base_version` (str): Base version (e.g., "1.1.0")
-- `build_number` (int): Dev build number (default: 1)
-
-**Returns:** str - Dev version string
-
-**Example:**
-```python
-version = py7zz.generate_dev_version("1.1.0", 1)
-print(version)  # "1.1.0.dev1"
-```
-
-### Legacy Compatibility Functions
-
-#### `get_legacy_version_info()`
-
-Get version information in legacy format for backward compatibility.
-
-**Returns:** Dict[str, Union[str, int, None]] - Legacy version information
-
-**Example:**
-```python
-info = py7zz.get_legacy_version_info()
-print(info)
-# {
-#     'py7zz_version': '1.0.0',
-#     'version_type': 'stable',
-#     'build_number': None,
-#     'base_version': '1.0.0'
-# }
-```
+**Note:** Advanced version checking functions (get_release_type, is_stable_version, etc.) are planned for future releases. Current implementation provides basic version information through get_version_info().
 
 ## CLI Version Commands
 
@@ -772,23 +661,20 @@ with py7zz.SevenZipFile('archive.tar.gz', 'w') as sz:
 py7zz also provides a command-line interface:
 
 ```bash
-# Create archive
-7zz create backup.7z documents/ photos/
-
-# Extract archive
-7zz extract backup.7z extracted/
-
-# List archive contents
-7zz list backup.7z
-
-# Test archive
-7zz test backup.7z
-
 # Get version information
-7zz version
+py7zz version
+py7zz version --format json
+py7zz --py7zz-version
+py7zz -V
+
+# Direct 7zz operations (pass-through)
+py7zz a backup.7z documents/ photos/
+py7zz x backup.7z
+py7zz l backup.7z
+py7zz t backup.7z
 ```
 
 For more CLI options, run:
 ```bash
-7zz --help
+py7zz --help
 ```

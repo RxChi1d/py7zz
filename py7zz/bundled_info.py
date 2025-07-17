@@ -12,7 +12,7 @@ from .version import __version__
 # Version registry containing all version information
 VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
     "0.1.0": {
-        "7zz_version": "24.07",
+        "7zz_version": "25.00",
         "release_date": "2024-12-15",
         "release_type": "stable",
         "github_tag": "v0.1.0",
