@@ -264,6 +264,7 @@ jobs:
         fi
     
     - name: Build wheel
+      shell: bash
       run: |
         # Build platform-specific wheel with appropriate tags
         if [[ "${{ matrix.platform }}" == "windows" ]]; then
