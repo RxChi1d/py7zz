@@ -27,6 +27,21 @@ def get_version() -> str:
         >>> get_version()
         '0.1.0'
     """
+    # Try to get version from package metadata (for wheel installations)
+    try:
+        from importlib.metadata import version
+        return version("py7zz")
+    except ImportError:
+        # Python < 3.8 fallback
+        try:
+            from importlib_metadata import version
+            return version("py7zz")
+        except ImportError:
+            pass
+    except Exception:
+        pass
+    
+    # Fallback to hardcoded version (for development/editable installs)
     return __version__
 
 
@@ -53,8 +68,9 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
     """
     # Pattern for PEP 440 version formats
     patterns = [
-        # Dev version: 1.1.0.dev1
+        # Dev version: 1.1.0.dev1 or 0.1.dev21
         (r"^(\d+)\.(\d+)\.(\d+)\.dev(\d+)$", "dev"),
+        (r"^(\d+)\.(\d+)\.dev(\d+)$", "dev"),
         # Alpha version (auto): 1.0.0a1
         (r"^(\d+)\.(\d+)\.(\d+)a(\d+)$", "auto"),
         # Release version: 1.0.0
@@ -65,8 +81,21 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         match = re.match(pattern, version_string)
         if match:
             groups = match.groups()
-            major, minor, patch = int(groups[0]), int(groups[1]), int(groups[2])
-            build_number = int(groups[3]) if len(groups) > 3 else None
+            major, minor = int(groups[0]), int(groups[1])
+            
+            # Handle different pattern lengths
+            if len(groups) == 3:
+                # Format: 0.1.dev21
+                patch = 0
+                build_number = int(groups[2])
+            elif len(groups) == 4:
+                # Format: 1.1.0.dev1 or 1.0.0a1
+                patch = int(groups[2])
+                build_number = int(groups[3]) if groups[3] else None
+            else:
+                # Format: 1.0.0
+                patch = int(groups[2])
+                build_number = None
 
             return {
                 "major": major,
