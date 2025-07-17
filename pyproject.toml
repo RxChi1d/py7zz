@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
@@ -13,7 +13,7 @@ include = [
 
 [project]
 name = "py7zz"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Python wrapper for 7zz CLI tool providing cross-platform compression with 50+ archive formats"
 readme = "README.md"
 license = {text = "BSD-3-Clause AND LGPL-2.1-only"}
@@ -104,3 +104,10 @@ dev = [
     "types-requests>=2.32.0.20241016",
     "zstandard>=0.23.0",
 ]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+git_describe_command = "git describe --tags --match='v*'"
+local_scheme = "no-local-version"

@@ -19,9 +19,10 @@ def test_get_version():
 
     # Test version is PEP 440 compliant
     assert version.startswith("0.1.0")
-    
+
     # Test version format follows PEP 440
     import py7zz.version
+
     parsed = py7zz.version.parse_version(version)
     assert parsed["major"] == 0
     assert parsed["minor"] == 1
