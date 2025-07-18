@@ -102,7 +102,7 @@ jobs:
             ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
             ;;
           "windows-x64")
-            ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-extra.7z"
             ;;
           *)
             echo "Unsupported platform: $PLATFORM-$ARCH"
@@ -120,34 +120,30 @@ jobs:
         mkdir -p "py7zz/bin"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows .exe file - enhanced retry logic with multiple fallbacks
-          echo "Downloading Windows executable..."
+          # Windows extra.7z file - download and extract console version
+          echo "Downloading and extracting Windows console binary..."
           echo "URL: $DOWNLOAD_URL"
           echo "Target path: py7zz/bin/${BINARY_NAME}"
           
-          # First attempt with standard timeout
-          if curl -L --max-time 120 --retry 2 --retry-delay 5 -o "py7zz/bin/${BINARY_NAME}" "$DOWNLOAD_URL"; then
-            echo "Windows executable downloaded successfully on first attempt"
+          TEMP_DIR=$(mktemp -d)
+          curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
+          
+          # GitHub Runner has built-in 7z.exe for extraction
+          7z x "${TEMP_DIR}/${ASSET_NAME}" -o"${TEMP_DIR}/out" > /dev/null
+          
+          # Copy 7zz.exe to package directory
+          if [[ -f "${TEMP_DIR}/out/7zz.exe" ]]; then
+            cp "${TEMP_DIR}/out/7zz.exe" "py7zz/bin/${BINARY_NAME}"
+            echo "Windows console binary extracted and copied successfully"
           else
-            echo "First attempt failed, trying with extended timeout..."
-            
-            # Second attempt with longer timeout and more retries
-            if curl -L --max-time 300 --retry 5 --retry-delay 10 --retry-max-time 600 -o "py7zz/bin/${BINARY_NAME}" "$DOWNLOAD_URL"; then
-              echo "Windows executable downloaded successfully on second attempt"
-            else
-              echo "Second attempt failed, trying with minimal options..."
-              
-              # Third attempt with minimal curl options
-              if curl -L --connect-timeout 30 --max-time 180 -o "py7zz/bin/${BINARY_NAME}" "$DOWNLOAD_URL"; then
-                echo "Windows executable downloaded successfully on third attempt"
-              else
-                echo "All download attempts failed"
-                echo "URL: $DOWNLOAD_URL"
-                echo "Trying final attempt with verbose output for debugging..."
-                curl -L -v --max-time 300 -o "py7zz/bin/${BINARY_NAME}" "$DOWNLOAD_URL" || exit 1
-              fi
-            fi
+            echo "Error: 7zz.exe not found in extracted files"
+            echo "Contents of extracted directory:"
+            ls -la "${TEMP_DIR}/out/"
+            exit 1
           fi
+          
+          # Clean up temp directory
+          rm -rf "${TEMP_DIR}"
         else
           # Unix tar.xz file
           echo "Downloading and extracting Unix binary..."
@@ -198,17 +194,14 @@ jobs:
         BINARY_PATH="py7zz/bin/${BINARY_NAME}"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows binary verification - just check file exists and has correct size
-          if [[ -f "$BINARY_PATH" ]]; then
-            FILE_SIZE=$(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "0")
-            if [[ "$FILE_SIZE" -gt 1000000 ]]; then
-              echo "✓ Windows binary verification passed (file size: $FILE_SIZE bytes)"
-            else
-              echo "✗ Windows binary too small (file size: $FILE_SIZE bytes)"
-              exit 1
-            fi
+          # Windows binary verification - actually run the binary to verify it works
+          if "$BINARY_PATH" -h > /dev/null 2>&1; then
+            echo "✓ Windows binary verification passed"
           else
-            echo "✗ Windows binary file not found at: $BINARY_PATH"
+            echo "✗ Windows binary cannot run properly"
+            echo "Binary path: $BINARY_PATH"
+            echo "File exists: $(test -f "$BINARY_PATH" && echo "yes" || echo "no")"
+            echo "File size: $(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "unknown")"
             exit 1
           fi
         else
