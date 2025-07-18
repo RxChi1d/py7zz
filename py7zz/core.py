@@ -76,7 +76,9 @@ def find_7z_binary() -> str:
     )
 
 
-def run_7z(args: List[str], cwd: Optional[str] = None) -> subprocess.CompletedProcess[str]:
+def run_7z(
+    args: List[str], cwd: Optional[str] = None
+) -> subprocess.CompletedProcess[str]:
     """
     Execute 7zz command with given arguments.
 
@@ -95,10 +97,14 @@ def run_7z(args: List[str], cwd: Optional[str] = None) -> subprocess.CompletedPr
     cmd = [binary] + args
 
     try:
-        result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=True)
+        result = subprocess.run(
+            cmd, cwd=cwd, capture_output=True, text=True, check=True
+        )
         return result
     except subprocess.CalledProcessError as e:
-        raise subprocess.CalledProcessError(e.returncode, cmd, e.output, e.stderr) from e
+        raise subprocess.CalledProcessError(
+            e.returncode, cmd, e.output, e.stderr
+        ) from e
 
 
 class SevenZipFile:
@@ -166,7 +172,12 @@ class SevenZipFile:
         """Context manager entry."""
         return self
 
-    def __exit__(self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[object]) -> None:
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
         """Context manager exit."""
         _ = exc_type, exc_val, exc_tb  # Unused parameters
 
@@ -259,7 +270,9 @@ class SevenZipFile:
                     # Extract filename from the line (last column)
                     parts = line.split()
                     if len(parts) >= 6:  # Ensure we have enough columns
-                        filename = " ".join(parts[5:])  # Join in case filename has spaces
+                        filename = " ".join(
+                            parts[5:]
+                        )  # Join in case filename has spaces
                         files.append(filename)
 
             return files
@@ -282,7 +295,9 @@ class SevenZipFile:
         """
         return self.list_contents()
 
-    def extractall(self, path: Union[str, Path] = ".", members: Optional[List[str]] = None) -> None:
+    def extractall(
+        self, path: Union[str, Path] = ".", members: Optional[List[str]] = None
+    ) -> None:
         """
         Extract all members from the archive to the current working directory.
         Compatible with zipfile.ZipFile.extractall() and tarfile.TarFile.extractall().

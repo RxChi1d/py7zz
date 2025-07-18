@@ -42,7 +42,12 @@ def create_archive(
         >>> py7zz.create_archive("secure.7z", ["secret.txt"], password="mypass")
     """
     # Convert preset to compression level
-    preset_map = {"fast": "fastest", "balanced": "normal", "backup": "maximum", "ultra": "ultra"}
+    preset_map = {
+        "fast": "fastest",
+        "balanced": "normal",
+        "backup": "maximum",
+        "ultra": "ultra",
+    }
 
     level = preset_map.get(preset, "normal")
 
@@ -60,7 +65,11 @@ def create_archive(
                 raise FileNotFoundError(f"File or directory not found: {file_path}")
 
 
-def extract_archive(archive_path: Union[str, Path], output_dir: Union[str, Path] = ".", overwrite: bool = True) -> None:
+def extract_archive(
+    archive_path: Union[str, Path],
+    output_dir: Union[str, Path] = ".",
+    overwrite: bool = True,
+) -> None:
     """
     Extract all files from an archive.
 
@@ -102,7 +111,9 @@ def list_archive(archive_path: Union[str, Path]) -> List[str]:
 
 
 def compress_file(
-    input_path: Union[str, Path], output_path: Optional[Union[str, Path]] = None, preset: str = "balanced"
+    input_path: Union[str, Path],
+    output_path: Optional[Union[str, Path]] = None,
+    preset: str = "balanced",
 ) -> Path:
     """
     Compress a single file.
@@ -134,7 +145,9 @@ def compress_file(
 
 
 def compress_directory(
-    input_dir: Union[str, Path], output_path: Optional[Union[str, Path]] = None, preset: str = "balanced"
+    input_dir: Union[str, Path],
+    output_path: Optional[Union[str, Path]] = None,
+    preset: str = "balanced",
 ) -> Path:
     """
     Compress an entire directory.
@@ -315,7 +328,12 @@ if _async_available:
         else:
             output_path = Path(output_path)
 
-        await create_archive_async(output_path, [input_path], preset=preset, progress_callback=progress_callback)
+        await create_archive_async(
+            output_path,
+            [input_path],
+            preset=preset,
+            progress_callback=progress_callback,
+        )
         return output_path
 
     async def compress_directory_async(
@@ -353,5 +371,7 @@ if _async_available:
         else:
             output_path = Path(output_path)
 
-        await create_archive_async(output_path, [input_dir], preset=preset, progress_callback=progress_callback)
+        await create_archive_async(
+            output_path, [input_dir], preset=preset, progress_callback=progress_callback
+        )
         return output_path

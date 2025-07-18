@@ -74,13 +74,18 @@ class AsyncSevenZipFile:
         return self
 
     async def __aexit__(
-        self, exc_type: Optional[type], exc_val: Optional[BaseException], exc_tb: Optional[object]
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
     ) -> None:
         """Async context manager exit."""
         pass
 
     async def add_async(
-        self, name: Union[str, Path], progress_callback: Optional[Callable[[ProgressInfo], None]] = None
+        self,
+        name: Union[str, Path],
+        progress_callback: Optional[Callable[[ProgressInfo], None]] = None,
     ) -> None:
         """
         Add file or directory to archive asynchronously.
@@ -101,7 +106,9 @@ class AsyncSevenZipFile:
         args = [binary, "a", str(self.file), str(name)]
 
         try:
-            await self._run_with_progress(args, operation="compress", progress_callback=progress_callback)
+            await self._run_with_progress(
+                args, operation="compress", progress_callback=progress_callback
+            )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to add {name} to archive: {e.stderr}") from e
 
@@ -135,12 +142,17 @@ class AsyncSevenZipFile:
             args.append("-y")
 
         try:
-            await self._run_with_progress(args, operation="extract", progress_callback=progress_callback)
+            await self._run_with_progress(
+                args, operation="extract", progress_callback=progress_callback
+            )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to extract archive: {e.stderr}") from e
 
     async def _run_with_progress(
-        self, args: List[str], operation: str, progress_callback: Optional[Callable[[ProgressInfo], None]] = None
+        self,
+        args: List[str],
+        operation: str,
+        progress_callback: Optional[Callable[[ProgressInfo], None]] = None,
     ) -> None:
         """
         Run 7z command with progress monitoring.
@@ -157,7 +169,9 @@ class AsyncSevenZipFile:
         try:
             if progress_callback:
                 # Monitor progress in separate task
-                progress_task = asyncio.create_task(self._monitor_progress(process, operation, progress_callback))
+                progress_task = asyncio.create_task(
+                    self._monitor_progress(process, operation, progress_callback)
+                )
                 await progress_task
                 # Wait for process completion
                 await process.wait()
@@ -166,7 +180,9 @@ class AsyncSevenZipFile:
                 stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode or -1, args, stdout, stderr)
+                raise subprocess.CalledProcessError(
+                    process.returncode or -1, args, stdout, stderr
+                )
 
         except asyncio.CancelledError:
             if process.returncode is None:
@@ -175,7 +191,10 @@ class AsyncSevenZipFile:
             raise
 
     async def _monitor_progress(
-        self, process: asyncio.subprocess.Process, operation: str, progress_callback: Callable[[ProgressInfo], None]
+        self,
+        process: asyncio.subprocess.Process,
+        operation: str,
+        progress_callback: Callable[[ProgressInfo], None],
     ) -> None:
         """
         Monitor subprocess progress and call callback.
@@ -272,7 +291,8 @@ async def extract_async(
 
 
 async def batch_compress_async(
-    operations: List[tuple], progress_callback: Optional[Callable[[ProgressInfo], None]] = None
+    operations: List[tuple],
+    progress_callback: Optional[Callable[[ProgressInfo], None]] = None,
 ) -> None:
     """
     Perform multiple compression operations concurrently.
@@ -298,7 +318,8 @@ async def batch_compress_async(
 
 
 async def batch_extract_async(
-    operations: List[tuple], progress_callback: Optional[Callable[[ProgressInfo], None]] = None
+    operations: List[tuple],
+    progress_callback: Optional[Callable[[ProgressInfo], None]] = None,
 ) -> None:
     """
     Perform multiple extraction operations concurrently.
@@ -317,7 +338,9 @@ async def batch_extract_async(
     tasks = []
 
     for archive_path, output_dir in operations:
-        task = extract_async(archive_path, output_dir, progress_callback=progress_callback)
+        task = extract_async(
+            archive_path, output_dir, progress_callback=progress_callback
+        )
         tasks.append(task)
 
     await asyncio.gather(*tasks)

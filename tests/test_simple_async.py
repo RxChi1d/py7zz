@@ -93,10 +93,14 @@ class TestSimpleAsyncAPI:
             with patch("py7zz.simple._compress_async") as mock_compress:
                 mock_compress.return_value = None
 
-                await create_archive_async(archive_path, [test_file], progress_callback=progress_callback)
+                await create_archive_async(
+                    archive_path, [test_file], progress_callback=progress_callback
+                )
 
                 # Verify _compress_async was called with correct arguments
-                mock_compress.assert_called_once_with(archive_path, [test_file], progress_callback)
+                mock_compress.assert_called_once_with(
+                    archive_path, [test_file], progress_callback
+                )
 
     @pytest.mark.asyncio
     async def test_extract_archive_async_with_progress(self):
@@ -110,10 +114,14 @@ class TestSimpleAsyncAPI:
                 progress_calls.append(info)
                 assert isinstance(info, ProgressInfo)
 
-            with patch("py7zz.simple._extract_async") as mock_extract, patch("pathlib.Path.exists", return_value=True):
+            with patch("py7zz.simple._extract_async") as mock_extract, patch(
+                "pathlib.Path.exists", return_value=True
+            ):
                 mock_extract.return_value = None
 
-                await extract_archive_async(archive_path, tmpdir, progress_callback=progress_callback)
+                await extract_archive_async(
+                    archive_path, tmpdir, progress_callback=progress_callback
+                )
 
                 # Verify _extract_async was called with correct arguments
                 mock_extract.assert_called_once_with(
@@ -159,7 +167,9 @@ class TestSimpleAsyncAPI:
                 assert result == output_path
 
                 # Verify create_archive_async was called with correct arguments
-                mock_create.assert_called_once_with(output_path, [test_file], preset="balanced", progress_callback=None)
+                mock_create.assert_called_once_with(
+                    output_path, [test_file], preset="balanced", progress_callback=None
+                )
 
     @pytest.mark.asyncio
     async def test_compress_directory_async_with_auto_output(self):
@@ -199,7 +209,9 @@ class TestSimpleAsyncAPI:
                 assert result == output_path
 
                 # Verify create_archive_async was called with correct arguments
-                mock_create.assert_called_once_with(output_path, [test_dir], preset="balanced", progress_callback=None)
+                mock_create.assert_called_once_with(
+                    output_path, [test_dir], preset="balanced", progress_callback=None
+                )
 
     @pytest.mark.asyncio
     async def test_preset_handling(self):
@@ -225,7 +237,9 @@ class TestSimpleAsyncAPI:
         with tempfile.TemporaryDirectory() as tmpdir:
             archive_path = Path(tmpdir) / "test.7z"
 
-            with patch("py7zz.simple._extract_async") as mock_extract, patch("pathlib.Path.exists", return_value=True):
+            with patch("py7zz.simple._extract_async") as mock_extract, patch(
+                "pathlib.Path.exists", return_value=True
+            ):
                 mock_extract.return_value = None
 
                 # Test with overwrite=True (default)

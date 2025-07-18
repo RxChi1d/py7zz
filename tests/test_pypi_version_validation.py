@@ -148,7 +148,9 @@ class TestPyPIVersionValidation:
         """Set up a minimal test repository."""
         # Initialize git repo
         subprocess.run(["git", "init"], cwd=repo_path, check=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=repo_path
+        )
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path)
 
         # Create minimal pyproject.toml
@@ -210,7 +212,9 @@ local_scheme = "no-local-version"
         match = re.match(r"py7zz-([^-]+)-py3-none-any\.whl", wheel_filename)
         if match:
             return match.group(1)
-        raise ValueError(f"Could not extract version from wheel filename: {wheel_filename}")
+        raise ValueError(
+            f"Could not extract version from wheel filename: {wheel_filename}"
+        )
 
     def _validate_tag_format(self, tag: str) -> bool:
         """Validate Git tag format."""
@@ -258,13 +262,22 @@ class TestUserInstallationExperience:
         assert parsed["version_type"] in ["stable", "auto", "dev"]
 
         # Test version type functions
-        from py7zz.version import get_version_type, is_auto_version, is_dev_version, is_stable_version
+        from py7zz.version import (
+            get_version_type,
+            is_auto_version,
+            is_dev_version,
+            is_stable_version,
+        )
 
         version_type = get_version_type(version)
         assert version_type in ["stable", "auto", "dev"]
 
         # Test that exactly one version type function returns True
-        type_checks = [is_stable_version(version), is_auto_version(version), is_dev_version(version)]
+        type_checks = [
+            is_stable_version(version),
+            is_auto_version(version),
+            is_dev_version(version),
+        ]
         assert sum(type_checks) == 1, "Exactly one version type should be True"
 
     def test_cli_version_command(self):

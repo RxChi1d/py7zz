@@ -25,7 +25,11 @@ class TestProgressInfo:
     def test_progress_info_creation(self):
         """Test ProgressInfo object creation."""
         info = ProgressInfo(
-            operation="compress", current_file="test.txt", files_processed=1, total_files=5, percentage=20.0
+            operation="compress",
+            current_file="test.txt",
+            files_processed=1,
+            total_files=5,
+            percentage=20.0,
         )
 
         assert info.operation == "compress"
@@ -36,7 +40,9 @@ class TestProgressInfo:
 
     def test_progress_info_repr(self):
         """Test ProgressInfo string representation."""
-        info = ProgressInfo(operation="extract", current_file="doc.pdf", percentage=50.0)
+        info = ProgressInfo(
+            operation="extract", current_file="doc.pdf", percentage=50.0
+        )
         repr_str = repr(info)
 
         assert "ProgressInfo" in repr_str
@@ -100,7 +106,9 @@ class TestAsyncSevenZipFile:
             test_file.write_text("test content")
 
             async with AsyncSevenZipFile(archive_path, "r") as sz:
-                with pytest.raises(ValueError, match="Cannot add to archive opened in read mode"):
+                with pytest.raises(
+                    ValueError, match="Cannot add to archive opened in read mode"
+                ):
                     await sz.add_async(test_file)
 
     @pytest.mark.asyncio
@@ -110,7 +118,9 @@ class TestAsyncSevenZipFile:
             archive_path = Path(tmpdir) / "test.7z"
 
             async with AsyncSevenZipFile(archive_path, "w") as sz:
-                with pytest.raises(ValueError, match="Cannot extract from archive opened in write mode"):
+                with pytest.raises(
+                    ValueError, match="Cannot extract from archive opened in write mode"
+                ):
                     await sz.extract_async(tmpdir)
 
     @pytest.mark.asyncio
@@ -236,7 +246,9 @@ class TestAsyncSimpleFunctions:
                 mock_process.stdout.__aiter__.return_value = iter([])
                 mock_subprocess.return_value = mock_process
 
-                await extract_async(archive_path, tmpdir, progress_callback=progress_callback)
+                await extract_async(
+                    archive_path, tmpdir, progress_callback=progress_callback
+                )
 
                 # Verify subprocess was called
                 mock_subprocess.assert_called_once()
@@ -325,4 +337,6 @@ class TestProgressParsing:
 
                     # Verify progress callback was called
                     assert len(progress_calls) > 0
-                    assert all(isinstance(call, ProgressInfo) for call in progress_calls)
+                    assert all(
+                        isinstance(call, ProgressInfo) for call in progress_calls
+                    )

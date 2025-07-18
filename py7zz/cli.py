@@ -55,7 +55,10 @@ def main() -> None:
                     if len(sys.argv) > 3:
                         format_type = sys.argv[3]
                     else:
-                        print("Error: --format requires a value (human or json)", file=sys.stderr)
+                        print(
+                            "Error: --format requires a value (human or json)",
+                            file=sys.stderr,
+                        )
                         sys.exit(1)
 
                 print_version_info(format_type)

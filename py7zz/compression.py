@@ -12,7 +12,9 @@ from typing import Union
 from .core import run_7z
 
 
-def compress(data: Union[str, bytes], algorithm: str = "lzma2", level: int = 5) -> bytes:
+def compress(
+    data: Union[str, bytes], algorithm: str = "lzma2", level: int = 5
+) -> bytes:
     """
     Compress a single data block, similar to zstd.compress()
 

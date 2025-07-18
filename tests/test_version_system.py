@@ -47,7 +47,9 @@ class TestVersionSystem:
             r"(?:[-_\.]?dev[-_\.]?([0-9]+)?)?$"
         )
 
-        assert re.match(pep440_pattern, version, re.IGNORECASE), f"Version {version} is not PEP 440 compliant"
+        assert re.match(pep440_pattern, version, re.IGNORECASE), (
+            f"Version {version} is not PEP 440 compliant"
+        )
 
     def test_version_parsing(self):
         """Test version parsing functionality."""
@@ -138,7 +140,9 @@ class TestVersionConsistency:
 
             # Initialize git repo
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
-            subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=tmpdir)
+            subprocess.run(
+                ["git", "config", "user.email", "test@example.com"], cwd=tmpdir
+            )
             subprocess.run(["git", "config", "user.name", "Test User"], cwd=tmpdir)
 
             # Copy project files
@@ -148,7 +152,9 @@ class TestVersionConsistency:
             shutil.copytree(
                 project_root,
                 tmpdir / "py7zz",
-                ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "dist", "build"),
+                ignore=shutil.ignore_patterns(
+                    ".git", "__pycache__", "*.pyc", "dist", "build"
+                ),
             )
 
             # Create test tag
@@ -236,7 +242,14 @@ class TestGitTagIntegration:
 
     def test_git_tag_format_validation(self):
         """Test Git tag format validation."""
-        valid_tags = ["v1.0.0", "v1.0.0a1", "v1.0.0.dev1", "v10.5.2", "v1.0.0a10", "v1.0.0.dev5"]
+        valid_tags = [
+            "v1.0.0",
+            "v1.0.0a1",
+            "v1.0.0.dev1",
+            "v10.5.2",
+            "v1.0.0a10",
+            "v1.0.0.dev5",
+        ]
 
         invalid_tags = [
             "1.0.0",  # missing 'v' prefix
@@ -254,4 +267,6 @@ class TestGitTagIntegration:
             assert re.match(tag_pattern, tag), f"Valid tag {tag} failed validation"
 
         for tag in invalid_tags:
-            assert not re.match(tag_pattern, tag), f"Invalid tag {tag} passed validation"
+            assert not re.match(tag_pattern, tag), (
+                f"Invalid tag {tag} passed validation"
+            )

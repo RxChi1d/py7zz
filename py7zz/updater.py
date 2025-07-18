@@ -116,7 +116,9 @@ def get_latest_release(use_cache: bool = True) -> Dict[str, Any]:
         raise UpdateError(f"Failed to fetch release information: {e}") from e
 
 
-def download_and_extract_binary(version: str, platform: str, arch: str, target_dir: Path) -> Path:
+def download_and_extract_binary(
+    version: str, platform: str, arch: str, target_dir: Path
+) -> Path:
     """Download and extract 7zz binary for specified version and platform.
 
     Args:
@@ -152,7 +154,9 @@ def download_and_extract_binary(version: str, platform: str, arch: str, target_d
                     f.write(chunk)
         else:
             # Unix tar.xz file - extract binary
-            with tempfile.NamedTemporaryFile(suffix=".tar.xz", delete=False) as tmp_file:
+            with tempfile.NamedTemporaryFile(
+                suffix=".tar.xz", delete=False
+            ) as tmp_file:
                 for chunk in response.iter_content(chunk_size=8192):
                     tmp_file.write(chunk)
                 tmp_file.flush()
@@ -272,7 +276,9 @@ def get_version_from_binary(binary_path: Path) -> Optional[str]:
     try:
         import subprocess
 
-        result = subprocess.run([str(binary_path), "--help"], capture_output=True, text=True, timeout=5)
+        result = subprocess.run(
+            [str(binary_path), "--help"], capture_output=True, text=True, timeout=5
+        )
 
         # Parse version from help output
         for line in result.stdout.splitlines():

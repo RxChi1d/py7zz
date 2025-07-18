@@ -140,7 +140,9 @@ def test_sevenzipfile_extract(mock_run_7z):
 def test_sevenzipfile_extract_write_mode():
     """Test extracting from write-only archive raises error."""
     sz = SevenZipFile("test.7z", "w")
-    with pytest.raises(ValueError, match="Cannot extract from archive opened in write mode"):
+    with pytest.raises(
+        ValueError, match="Cannot extract from archive opened in write mode"
+    ):
         sz.extract()
 
 

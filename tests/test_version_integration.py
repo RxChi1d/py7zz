@@ -130,7 +130,9 @@ class TestVersionIntegration:
         """Set up a Git repository with py7zz files."""
         # Initialize git repo
         subprocess.run(["git", "init"], cwd=repo_path, check=True)
-        subprocess.run(["git", "config", "user.email", "test@example.com"], cwd=repo_path)
+        subprocess.run(
+            ["git", "config", "user.email", "test@example.com"], cwd=repo_path
+        )
         subprocess.run(["git", "config", "user.name", "Test User"], cwd=repo_path)
 
         # Copy project files
@@ -140,7 +142,9 @@ class TestVersionIntegration:
         shutil.copytree(
             project_root,
             repo_path / "py7zz",
-            ignore=shutil.ignore_patterns(".git", "__pycache__", "*.pyc", "dist", "build"),
+            ignore=shutil.ignore_patterns(
+                ".git", "__pycache__", "*.pyc", "dist", "build"
+            ),
         )
 
         # Initial commit
@@ -150,13 +154,22 @@ class TestVersionIntegration:
     def _get_version_from_repo(self, repo_path: Path) -> str:
         """Get version from a Git repository using hatch-vcs."""
         # Use hatch-vcs to get version
-        cmd = ["python", "-c", "from hatch_vcs import get_version; print(get_version('.'))"]
-        result = subprocess.run(cmd, cwd=repo_path / "py7zz", capture_output=True, text=True)
+        cmd = [
+            "python",
+            "-c",
+            "from hatch_vcs import get_version; print(get_version('.'))",
+        ]
+        result = subprocess.run(
+            cmd, cwd=repo_path / "py7zz", capture_output=True, text=True
+        )
 
         if result.returncode != 0:
             # Fallback to manual git describe
             result = subprocess.run(
-                ["git", "describe", "--tags", "--match=v*"], cwd=repo_path, capture_output=True, text=True
+                ["git", "describe", "--tags", "--match=v*"],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
             )
             if result.returncode == 0:
                 tag = result.stdout.strip()
@@ -181,7 +194,9 @@ class TestVersionIntegration:
         )
 
         if result.returncode != 0:
-            raise subprocess.CalledProcessError(result.returncode, result.args, result.stdout, result.stderr)
+            raise subprocess.CalledProcessError(
+                result.returncode, result.args, result.stdout, result.stderr
+            )
 
         # Find built wheel
         wheel_files = list(build_dir.glob("*.whl"))
@@ -201,15 +216,32 @@ class TestCIValidation:
         # This is the regex from our CI/CD pipeline
         tag_pattern = r"^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$"
 
-        valid_tags = ["v1.0.0", "v1.0.0a1", "v1.0.0.dev1", "v10.5.2", "v1.0.0a10", "v1.0.0.dev5"]
+        valid_tags = [
+            "v1.0.0",
+            "v1.0.0a1",
+            "v1.0.0.dev1",
+            "v10.5.2",
+            "v1.0.0a10",
+            "v1.0.0.dev5",
+        ]
 
-        invalid_tags = ["1.0.0", "v1.0", "v1.0.0.1", "v1.0.0b1", "v1.0.0-dev1", "v1.0.0.dev", "v1.0.0a"]
+        invalid_tags = [
+            "1.0.0",
+            "v1.0",
+            "v1.0.0.1",
+            "v1.0.0b1",
+            "v1.0.0-dev1",
+            "v1.0.0.dev",
+            "v1.0.0a",
+        ]
 
         for tag in valid_tags:
             assert re.match(tag_pattern, tag), f"Valid tag {tag} failed validation"
 
         for tag in invalid_tags:
-            assert not re.match(tag_pattern, tag), f"Invalid tag {tag} passed validation"
+            assert not re.match(tag_pattern, tag), (
+                f"Invalid tag {tag} passed validation"
+            )
 
     def test_version_extraction_from_tag(self):
         """Test version extraction from Git tag."""
@@ -232,12 +264,30 @@ class TestCIValidation:
         # This is the regex from our CI/CD pipeline
         pep440_pattern = r"^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$"
 
-        valid_versions = ["1.0.0", "1.0.0a1", "1.0.0.dev1", "10.5.2", "1.0.0a10", "1.0.0.dev5"]
+        valid_versions = [
+            "1.0.0",
+            "1.0.0a1",
+            "1.0.0.dev1",
+            "10.5.2",
+            "1.0.0a10",
+            "1.0.0.dev5",
+        ]
 
-        invalid_versions = ["1.0", "1.0.0.1", "1.0.0b1", "1.0.0-dev1", "1.0.0.dev", "1.0.0a"]
+        invalid_versions = [
+            "1.0",
+            "1.0.0.1",
+            "1.0.0b1",
+            "1.0.0-dev1",
+            "1.0.0.dev",
+            "1.0.0a",
+        ]
 
         for version in valid_versions:
-            assert re.match(pep440_pattern, version), f"Valid version {version} failed validation"
+            assert re.match(pep440_pattern, version), (
+                f"Valid version {version} failed validation"
+            )
 
         for version in invalid_versions:
-            assert not re.match(pep440_pattern, version), f"Invalid version {version} passed validation"
+            assert not re.match(pep440_pattern, version), (
+                f"Invalid version {version} passed validation"
+            )

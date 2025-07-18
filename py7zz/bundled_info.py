@@ -58,7 +58,10 @@ def get_version_info() -> Dict[str, Union[str, None]]:
         "release_type": info.get("release_type", "unknown"),
         "release_date": info.get("release_date", "unknown"),
         "github_tag": info.get("github_tag", f"v{current_version}"),
-        "changelog_url": info.get("changelog_url", f"https://github.com/rxchi1d/py7zz/releases/tag/v{current_version}"),
+        "changelog_url": info.get(
+            "changelog_url",
+            f"https://github.com/rxchi1d/py7zz/releases/tag/v{current_version}",
+        ),
     }
 
 

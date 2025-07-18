@@ -199,7 +199,14 @@ if _async_available:
 
 # Add async simple API if available
 if _simple_async_available:
-    __all__.extend(["create_archive_async", "extract_archive_async", "compress_file_async", "compress_directory_async"])
+    __all__.extend(
+        [
+            "create_archive_async",
+            "extract_archive_async",
+            "compress_file_async",
+            "compress_directory_async",
+        ]
+    )
 
 # Version is now managed centrally in version.py
 # __version__ is imported from .version at the top of this file

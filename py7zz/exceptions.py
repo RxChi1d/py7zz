@@ -109,7 +109,11 @@ class BinaryNotFoundError(Py7zzError):
 class InsufficientSpaceError(Py7zzError):
     """Raised when there's insufficient disk space for operation."""
 
-    def __init__(self, required_space: Optional[int] = None, available_space: Optional[int] = None):
+    def __init__(
+        self,
+        required_space: Optional[int] = None,
+        available_space: Optional[int] = None,
+    ):
         self.required_space = required_space
         self.available_space = available_space
         message = "Insufficient disk space for operation"
@@ -134,8 +138,12 @@ class OperationTimeoutError(Py7zzError):
     def __init__(self, operation: str, timeout_seconds: int):
         self.operation = operation
         self.timeout_seconds = timeout_seconds
-        super().__init__(f"Operation '{operation}' timed out after {timeout_seconds} seconds")
+        super().__init__(
+            f"Operation '{operation}' timed out after {timeout_seconds} seconds"
+        )
 
 
 # Aliases for compatibility with standard library exceptions
-PyFileNotFoundError = FileNotFoundError  # Avoid conflict with built-in FileNotFoundError
+PyFileNotFoundError = (
+    FileNotFoundError  # Avoid conflict with built-in FileNotFoundError
+)

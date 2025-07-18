@@ -24,7 +24,9 @@ class TestPlatformInfo:
 
     @patch("platform.system")
     @patch("platform.machine")
-    def test_get_platform_info_mac_arm64(self, mock_machine: Mock, mock_system: Mock) -> None:
+    def test_get_platform_info_mac_arm64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
         """Test macOS ARM64 platform detection."""
         mock_system.return_value = "Darwin"
         mock_machine.return_value = "arm64"
@@ -35,7 +37,9 @@ class TestPlatformInfo:
 
     @patch("platform.system")
     @patch("platform.machine")
-    def test_get_platform_info_linux_x64(self, mock_machine: Mock, mock_system: Mock) -> None:
+    def test_get_platform_info_linux_x64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
         """Test Linux x64 platform detection."""
         mock_system.return_value = "Linux"
         mock_machine.return_value = "x86_64"
@@ -46,7 +50,9 @@ class TestPlatformInfo:
 
     @patch("platform.system")
     @patch("platform.machine")
-    def test_get_platform_info_windows_x64(self, mock_machine: Mock, mock_system: Mock) -> None:
+    def test_get_platform_info_windows_x64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
         """Test Windows x64 platform detection."""
         mock_system.return_value = "Windows"
         mock_machine.return_value = "AMD64"
@@ -65,7 +71,9 @@ class TestPlatformInfo:
 
     @patch("platform.system")
     @patch("platform.machine")
-    def test_get_platform_info_unsupported_arch(self, mock_machine: Mock, mock_system: Mock) -> None:
+    def test_get_platform_info_unsupported_arch(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
         """Test unsupported architecture raises error."""
         mock_system.return_value = "Linux"
         mock_machine.return_value = "i386"
