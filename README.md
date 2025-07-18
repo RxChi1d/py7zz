@@ -274,7 +274,7 @@ await py7zz.create_archive_async(
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.8+ (including Python 3.13)
 - No external dependencies (7zz binary is bundled)
 - **Supported platforms:** 
   - macOS (Intel + Apple Silicon)
