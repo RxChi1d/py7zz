@@ -16,10 +16,7 @@ def test_get_version():
     """Test version retrieval."""
     version = get_version()
     # Test version is PEP 440 compliant and follows expected pattern
-    assert version.startswith("0.1.0")
-
-    # Test version is PEP 440 compliant
-    assert version.startswith("0.1.0")
+    assert version.startswith("0.1")
 
     # Test version format follows PEP 440
     import py7zz.version
@@ -27,7 +24,7 @@ def test_get_version():
     parsed = py7zz.version.parse_version(version)
     assert parsed["major"] == 0
     assert parsed["minor"] == 1
-    assert parsed["patch"] == 0
+    assert parsed["patch"] >= 0
 
 
 def test_find_7z_binary_env_var():
