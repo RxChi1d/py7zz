@@ -32,14 +32,6 @@ def get_version() -> str:
         from importlib.metadata import version as get_pkg_version
 
         return get_pkg_version("py7zz")
-    except ImportError:
-        # Python < 3.8 fallback
-        try:
-            from importlib_metadata import version as get_pkg_version
-
-            return get_pkg_version("py7zz")
-        except ImportError:
-            pass
     except Exception:
         # Handle cases where package metadata is not available
         pass
