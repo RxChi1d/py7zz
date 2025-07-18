@@ -102,7 +102,7 @@ jobs:
             ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
             ;;
           "windows-x64")
-            ASSET_NAME="7z${VERSION_FOR_ASSET}-extra.7z"
+            ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
             ;;
           *)
             echo "Unsupported platform: $PLATFORM-$ARCH"
@@ -120,8 +120,8 @@ jobs:
         mkdir -p "py7zz/bin"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows extra.7z file - download and extract console version
-          echo "Downloading and extracting Windows console binary..."
+          # Windows installer - download and extract CLI components for full format support
+          echo "Downloading installer and extracting CLI components..."
           echo "URL: $DOWNLOAD_URL"
           echo "Target path: py7zz/bin/${BINARY_NAME}"
           
@@ -131,12 +131,14 @@ jobs:
           # GitHub Runner has built-in 7z.exe for extraction
           7z x "${TEMP_DIR}/${ASSET_NAME}" -o"${TEMP_DIR}/out" > /dev/null
           
-          # Copy 7zz.exe to package directory
-          if [[ -f "${TEMP_DIR}/out/7zz.exe" ]]; then
-            cp "${TEMP_DIR}/out/7zz.exe" "py7zz/bin/${BINARY_NAME}"
-            echo "Windows console binary extracted and copied successfully"
+          # Extract complete CLI with DLL for full format support (7z.exe + 7z.dll)
+          if [[ -f "${TEMP_DIR}/out/7z.exe" ]] && [[ -f "${TEMP_DIR}/out/7z.dll" ]]; then
+            # Rename 7z.exe to 7zz.exe for cross-platform consistency
+            cp "${TEMP_DIR}/out/7z.exe" "py7zz/bin/${BINARY_NAME}"
+            cp "${TEMP_DIR}/out/7z.dll" "py7zz/bin/"
+            echo "Windows CLI components (7z.exe + 7z.dll) extracted and copied successfully"
           else
-            echo "Error: 7zz.exe not found in extracted files"
+            echo "Error: 7z.exe or 7z.dll not found in extracted files"
             echo "Contents of extracted directory:"
             ls -la "${TEMP_DIR}/out/"
             exit 1
@@ -194,14 +196,15 @@ jobs:
         BINARY_PATH="py7zz/bin/${BINARY_NAME}"
         
         if [[ "$PLATFORM" == "windows" ]]; then
-          # Windows binary verification - actually run the binary to verify it works
+          # Windows binary verification - verify 7zz.exe (from 7z.exe) with 7z.dll works
           if "$BINARY_PATH" -h > /dev/null 2>&1; then
-            echo "✓ Windows binary verification passed"
+            echo "✓ Windows binary verification passed - 7zz.exe (from 7z.exe) with full format support"
           else
             echo "✗ Windows binary cannot run properly"
             echo "Binary path: $BINARY_PATH"
-            echo "File exists: $(test -f "$BINARY_PATH" && echo "yes" || echo "no")"
-            echo "File size: $(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "unknown")"
+            echo "Binary exists: $(test -f "$BINARY_PATH" && echo "yes" || echo "no")"
+            echo "DLL exists: $(test -f "py7zz/bin/7z.dll" && echo "yes" || echo "no")"
+            echo "Binary size: $(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "unknown")"
             exit 1
           fi
         else
