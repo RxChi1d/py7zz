@@ -456,45 +456,33 @@ await py7zz.create_archive_async(
 
 ### `get_version()`
 
-Get the full version string including py7zz and 7zz versions.
+Get the current py7zz version in PEP 440 format.
 
-**Returns:** str - Full version string
+**Returns:** str - Current py7zz version
 
 **Example:**
 ```python
 version = py7zz.get_version()
-print(version)  # "1.0.0+7zz24.07"
-```
-
-### `get_py7zz_version()`
-
-Get only the py7zz version.
-
-**Returns:** str - py7zz version
-
-**Example:**
-```python
-version = py7zz.get_py7zz_version()
 print(version)  # "1.0.0"
 ```
 
-### `get_7zz_version()`
+### `get_bundled_7zz_version()`
 
-Get only the 7zz version.
+Get the bundled 7zz version for the current py7zz version.
 
-**Returns:** str - 7zz version
+**Returns:** str - Bundled 7zz version
 
 **Example:**
 ```python
-version = py7zz.get_7zz_version()
+version = py7zz.get_bundled_7zz_version()
 print(version)  # "24.07"
 ```
 
 ### `get_version_info()`
 
-Get detailed version information.
+Get comprehensive version information including release details.
 
-**Returns:** Dict[str, str] - Version information dictionary
+**Returns:** Dict[str, str] - Complete version information dictionary
 
 **Example:**
 ```python
@@ -502,9 +490,30 @@ info = py7zz.get_version_info()
 print(info)
 # {
 #     'py7zz_version': '1.0.0',
-#     '7zz_version': '24.07',
-#     'full_version': '1.0.0+7zz24.07'
+#     'bundled_7zz_version': '24.07',
+#     'release_type': 'stable',
+#     'release_date': '2024-07-15',
+#     'github_tag': 'v1.0.0',
+#     'changelog_url': 'https://github.com/rxchi1d/py7zz/releases/tag/v1.0.0'
 # }
+```
+
+**Note:** Advanced version checking functions (get_release_type, is_stable_version, etc.) are planned for future releases. Current implementation provides basic version information through get_version_info().
+
+## CLI Version Commands
+
+py7zz provides command-line tools for version information:
+
+```bash
+# Human-readable version information
+py7zz version
+
+# JSON format
+py7zz version --format json
+
+# Quick version check
+py7zz --py7zz-version
+py7zz -V
 ```
 
 ## Format Support
@@ -652,23 +661,20 @@ with py7zz.SevenZipFile('archive.tar.gz', 'w') as sz:
 py7zz also provides a command-line interface:
 
 ```bash
-# Create archive
-7zz create backup.7z documents/ photos/
-
-# Extract archive
-7zz extract backup.7z extracted/
-
-# List archive contents
-7zz list backup.7z
-
-# Test archive
-7zz test backup.7z
-
 # Get version information
-7zz version
+py7zz version
+py7zz version --format json
+py7zz --py7zz-version
+py7zz -V
+
+# Direct 7zz operations (pass-through)
+py7zz a backup.7z documents/ photos/
+py7zz x backup.7z
+py7zz l backup.7z
+py7zz t backup.7z
 ```
 
 For more CLI options, run:
 ```bash
-7zz --help
+py7zz --help
 ```

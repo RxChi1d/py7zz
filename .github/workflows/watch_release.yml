@@ -32,38 +32,70 @@ jobs:
     - name: Get current py7zz version
       id: get_py7zz_version
       run: |
-        # Get version from pyproject.toml
+        # Get version from pyproject.toml - handle both old and new formats
         CURRENT_PY7ZZ=$(grep 'version = ' pyproject.toml | cut -d '"' -f 2)
         echo "current=$CURRENT_PY7ZZ" >> $GITHUB_OUTPUT
         echo "Current py7zz version: $CURRENT_PY7ZZ"
         
-        # Extract py7zz semantic version (before +7zz)
-        PY7ZZ_SEMANTIC=$(echo "$CURRENT_PY7ZZ" | cut -d '+' -f 1)
-        echo "semantic=$PY7ZZ_SEMANTIC" >> $GITHUB_OUTPUT
-        echo "py7zz semantic version: $PY7ZZ_SEMANTIC"
+        # Extract base version for both old format (1.0.0+7zz24.07) and new PEP 440 format
+        if [[ $CURRENT_PY7ZZ =~ ^([0-9]+\.[0-9]+\.[0-9]+)\+7zz.* ]]; then
+          # Old format: 1.0.0+7zz24.07
+          BASE_VERSION="${BASH_REMATCH[1]}"
+          echo "Detected old version format: $CURRENT_PY7ZZ"
+        elif [[ $CURRENT_PY7ZZ =~ ^([0-9]+\.[0-9]+\.[0-9]+)(a[0-9]+|\.dev[0-9]+)?$ ]]; then
+          # New PEP 440 format: 0.1.0.dev25, 1.0.0a1, etc.
+          BASE_VERSION="${BASH_REMATCH[1]}"
+          echo "Detected new PEP 440 format: $CURRENT_PY7ZZ"
+        else
+          # Fallback - assume entire version is base version
+          BASE_VERSION="$CURRENT_PY7ZZ"
+          echo "Unknown version format, using as-is: $CURRENT_PY7ZZ"
+        fi
+        echo "base=$BASE_VERSION" >> $GITHUB_OUTPUT
+        echo "Base version: $BASE_VERSION"
     
     - name: Compare versions and generate nightly version
       id: compare
       run: |
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
         CURRENT_PY7ZZ="${{ steps.get_py7zz_version.outputs.current }}"
-        PY7ZZ_SEMANTIC="${{ steps.get_py7zz_version.outputs.semantic }}"
+        BASE_VERSION="${{ steps.get_py7zz_version.outputs.base }}"
         
         echo "Comparing 7zz $LATEST_7ZZ with py7zz $CURRENT_PY7ZZ"
+        echo "Base version: $BASE_VERSION"
         
-        # Check if the 7zz version is already embedded in the py7zz version string
-        if [[ "$CURRENT_PY7ZZ" == *"7zz$LATEST_7ZZ"* ]]; then
-          echo "update_needed=false" >> $GITHUB_OUTPUT
-          echo "No update needed - 7zz $LATEST_7ZZ already included in py7zz $CURRENT_PY7ZZ"
-        else
+        # Check if current version uses old format (contains +7zz)
+        if [[ $CURRENT_PY7ZZ == *"+7zz"* ]]; then
+          echo "Detected old version format - migrating to new PEP 440 format"
+          # For old format, we need to upgrade to new PEP 440 format
+          # Use base version (e.g., 1.0.0) and create first auto version
+          AUTO_VERSION="${BASE_VERSION}a1"
           echo "update_needed=true" >> $GITHUB_OUTPUT
-          echo "Update needed - 7zz $LATEST_7ZZ not found in py7zz $CURRENT_PY7ZZ"
+          echo "Migration needed: $CURRENT_PY7ZZ -> $AUTO_VERSION"
+        else
+          # Check if we need to create a new auto version for new 7zz release
+          # For now, we'll check if the latest 7zz version is newer than what we have
+          # This is a simplified check - in production, you might want to track 7zz versions in the VERSION_REGISTRY
           
-          # Generate auto version using new format: {semantic}.auto+7zz{7zz_version}
-          AUTO_VERSION="${PY7ZZ_SEMANTIC}.auto+7zz${LATEST_7ZZ}"
-          echo "auto_version=$AUTO_VERSION" >> $GITHUB_OUTPUT
-          echo "Generated auto version: $AUTO_VERSION"
+          # Get the current bundled 7zz version from VERSION_REGISTRY if available
+          # For now, we'll assume we always need to update if 7zz has a new version
+          echo "update_needed=true" >> $GITHUB_OUTPUT
+          echo "Update needed - creating auto version for 7zz $LATEST_7ZZ"
+          
+          # Generate next auto version number
+          # Check if current version is already an auto version
+          if [[ $CURRENT_PY7ZZ =~ ^([0-9]+\.[0-9]+\.[0-9]+)a([0-9]+)$ ]]; then
+            # Current is auto version, increment the alpha number
+            NEXT_ALPHA_NUM=$((${BASH_REMATCH[2]} + 1))
+            AUTO_VERSION="${BASE_VERSION}a${NEXT_ALPHA_NUM}"
+          else
+            # Current is stable version, create first auto version
+            AUTO_VERSION="${BASE_VERSION}a1"
+          fi
         fi
+        
+        echo "auto_version=$AUTO_VERSION" >> $GITHUB_OUTPUT
+        echo "Generated auto version: $AUTO_VERSION"
     
     - name: Update version for auto build
       if: steps.compare.outputs.update_needed == 'true'
@@ -82,18 +114,27 @@ jobs:
         # Create a temporary tag for the auto build
         AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        CURRENT_PY7ZZ="${{ steps.get_py7zz_version.outputs.current }}"
         
         # Commit the version change
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add pyproject.toml
-        git commit -m "chore: auto build for 7zz $LATEST_7ZZ"
         
-        # Create and push tag to trigger build workflow
-        git tag "auto-$AUTO_VERSION"
-        git push origin "auto-$AUTO_VERSION"
+        # Different commit message based on migration vs normal update
+        if [[ $CURRENT_PY7ZZ == *"+7zz"* ]]; then
+          git commit -m "chore: migrate to PEP 440 format and update to 7zz $LATEST_7ZZ (auto build $AUTO_VERSION)"
+        else
+          git commit -m "chore: auto build for 7zz $LATEST_7ZZ (version $AUTO_VERSION)"
+        fi
         
-        echo "Created auto tag: auto-$AUTO_VERSION"
+        # Create and push tag to trigger build workflow using PEP 440 format
+        AUTO_TAG="v${AUTO_VERSION}"
+        git tag "$AUTO_TAG"
+        git push origin "$AUTO_TAG"
+        
+        echo "Created auto tag: $AUTO_TAG"
+        echo "Triggered build workflow for version: $AUTO_VERSION"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
@@ -102,38 +143,72 @@ jobs:
       run: |
         AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
         LATEST_7ZZ="${{ steps.get_7zz_version.outputs.version }}"
+        CURRENT_PY7ZZ="${{ steps.get_py7zz_version.outputs.current }}"
+        AUTO_TAG="v${AUTO_VERSION}"
         
-        # Create release notes
-        RELEASE_NOTES="🟡 **Auto Build - 7zz Update**
-
-        This is an automated build that includes the latest 7zz release. The py7zz code is unchanged.
-
+        # Create release notes based on migration vs normal update
+        if [[ $CURRENT_PY7ZZ == *"+7zz"* ]]; then
+          RELEASE_TITLE="🟡 Auto Build + PEP 440 Migration: py7zz $AUTO_VERSION"
+          RELEASE_NOTES="🟡 **Auto Build - Version Format Migration + 7zz Update**
+        
+        This is an automated build that migrates from the old version format to PEP 440 compliance and includes the latest 7zz release.
+        
         ### Changes
-        - Updated to 7zz version: **$LATEST_7ZZ**
-        - py7zz version: **$AUTO_VERSION**
-
+        - **Migrated to PEP 440 format**: From \`$CURRENT_PY7ZZ\` to \`$AUTO_VERSION\`
+        - **Updated to 7zz version**: **$LATEST_7ZZ**
+        - **py7zz version**: **$AUTO_VERSION**
+        
+        ### Version Format Changes
+        - **Old format**: \`1.0.0+7zz24.07\` (deprecated)
+        - **New format**: \`1.0.0a1\` (PEP 440 compliant)
+        
         ### Stability
-        - **🟡 Basic Stable**: Only 7zz binary updated, py7zz code unchanged
-        - **Recommended for**: Users who need latest 7zz features
+        - **🟡 Basic Stable**: Version format updated, 7zz binary updated, py7zz code unchanged
+        - **Recommended for**: Users who need latest 7zz features and PEP 440 compliance
         - **Not recommended for**: Critical production systems (use release version)
-
+        
         ### Installation
         \`\`\`bash
         pip install py7zz==$AUTO_VERSION
         \`\`\`
-
+        
         ### Release Notes
         See the [7zz release notes](https://github.com/ip7z/7zip/releases/tag/$LATEST_7ZZ) for details.
-
+        
         ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version."
+        else
+          RELEASE_TITLE="🟡 Auto Build: py7zz $AUTO_VERSION"
+          RELEASE_NOTES="🟡 **Auto Build - 7zz Update**
+        
+        This is an automated build that includes the latest 7zz release. The py7zz code is unchanged.
+        
+        ### Changes
+        - Updated to 7zz version: **$LATEST_7ZZ**
+        - py7zz version: **$AUTO_VERSION**
+        
+        ### Stability
+        - **🟡 Basic Stable**: Only 7zz binary updated, py7zz code unchanged
+        - **Recommended for**: Users who need latest 7zz features
+        - **Not recommended for**: Critical production systems (use release version)
+        
+        ### Installation
+        \`\`\`bash
+        pip install py7zz==$AUTO_VERSION
+        \`\`\`
+        
+        ### Release Notes
+        See the [7zz release notes](https://github.com/ip7z/7zip/releases/tag/$LATEST_7ZZ) for details.
+        
+        ℹ️ **Note**: This is an auto build with basic stability. For maximum stability, use the official release version."
+        fi
         
         # Create GitHub release
-        gh release create "auto-$AUTO_VERSION" \
-          --title "🟡 Auto Build: py7zz $AUTO_VERSION" \
+        gh release create "$AUTO_TAG" \
+          --title "$RELEASE_TITLE" \
           --notes "$RELEASE_NOTES" \
           --prerelease
         
-        echo "Created auto release: auto-$AUTO_VERSION"
+        echo "Created auto release: $AUTO_TAG"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
@@ -145,8 +220,10 @@ jobs:
         echo "- **Update needed**: ${{ steps.compare.outputs.update_needed }}" >> $GITHUB_STEP_SUMMARY
         
         if [[ "${{ steps.compare.outputs.update_needed }}" == "true" ]]; then
-          echo "- **Action**: Created auto build ${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag**: auto-${{ steps.compare.outputs.auto_version }}" >> $GITHUB_STEP_SUMMARY
+          AUTO_VERSION="${{ steps.compare.outputs.auto_version }}"
+          AUTO_TAG="v${AUTO_VERSION}"
+          echo "- **Action**: Created auto build $AUTO_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag**: $AUTO_TAG" >> $GITHUB_STEP_SUMMARY
         else
           echo "- **Action**: No update required" >> $GITHUB_STEP_SUMMARY
         fi

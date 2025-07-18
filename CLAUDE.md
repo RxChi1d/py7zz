@@ -17,7 +17,7 @@
 
 py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 工具，跨平台（macOS、Debian 系 Linux、Windows x64）提供一致的物件導向程式介面，並具備自動更新機制。專案遵循「Vibe Coding」工作流程，強調快速迭代、CI/CD 整合以及強制程式碼格式化。
 
-**專案願景**：讓使用者「pip install py7zz」後，立即能夠通過跨平台統一的Python API接口或7zz 原生Cli壓縮/解壓縮數十種格式，無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 二進位檔案。
+**專案願景**：讓使用者「pip install py7zz」後，立即能夠通過跨平台統一的Python API接口或py7zz CLI工具壓縮/解壓縮數十種格式，無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 二進位檔案。
 
 ## 開發命令
 
@@ -90,21 +90,45 @@ uv add --dev pytest ruff mypy
 
 ### 核心開發循環
 ```bash
-# 快速檢查（開發時使用）
-uv run py7zz-lint           # 風格檢查並自動修正
-uv run py7zz-format         # 格式化程式碼
-uv run py7zz-type-check     # 類型檢查
-uv run py7zz-test           # 執行單元測試
+# 使用 uv（推薦）
+uv run ruff check --fix .   # 風格檢查並自動修正
+uv run ruff format .        # 格式化程式碼
+uv run mypy .               # 類型檢查
+uv run pytest              # 執行單元測試
 
 # 或使用傳統命令（需要啟動虛擬環境）
 source .venv/bin/activate
-py7zz-lint
-py7zz-format
-py7zz-type-check
-py7zz-test
+ruff check --fix .
+ruff format .
+mypy .
+pytest
 ```
 
 **注意**：完整的程式碼品質檢查會在 GitHub Actions 中執行，確保 PR 合併前的程式碼品質。
+
+### 完整開發工作流程範例
+```bash
+# 1. 啟動開發環境
+source .venv/bin/activate
+
+# 2. 開發程式碼...
+
+# 3. 格式化程式碼
+uv run ruff format .
+
+# 4. 檢查和修正程式碼風格
+uv run ruff check --fix .
+
+# 5. 類型檢查
+uv run mypy .
+
+# 6. 執行測試
+uv run pytest
+
+# 7. 提交變更
+git add .
+git commit -m "feat: add new feature"
+```
 
 ## 架構
 
@@ -113,10 +137,8 @@ py7zz-test
 py7zz/
 ├── __init__.py            # 匯出 SevenZipFile, get_version
 ├── core.py                # subprocess 膠合、banner 解析
-├── binaries/              # 平台特定 7zz 二進位檔案
-│   ├── macos/7zz         # macOS 二進位檔案
-│   ├── linux/7zz         # Linux 二進位檔案
-│   └── windows/7zz.exe   # Windows 二進位檔案
+├── bin/                   # 二進位檔案目錄
+│   └── 7zz[.exe]         # 平台特定二進位檔案（每個 wheel 只包含一個）
 ├── updater.py             # GitHub API 整合及原始碼安裝的自動下載
 ├── pyproject.toml         # build-system = "hatchling"
 ├── README.md
@@ -156,10 +178,10 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 2. **build.yml**：tag push 時觸發 - 使用矩陣建置為所有平台建置 wheel
 3. **watch_release.yml**：每日檢查（cron: "0 3 * * *"）新 7zz 發布，為測試建立自動建置
 
-### 三層版本系統
-- **🟢 Release**（`1.0.0+7zz24.07`）：穩定、手動發布、生產就緒
-- **🟡 Auto**（`1.0.0.auto+7zz24.08`）：基本穩定、7zz 更新時自動發布
-- **🔴 Dev**（`1.1.0-dev.1+7zz24.07`）：不穩定、手動發布以測試新功能
+### 三層版本系統（PEP 440 規範）
+- **🟢 Release**（`1.0.0`）：穩定、手動發布、生產就緒
+- **🟡 Auto**（`1.0.0a1`）：基本穩定、7zz 更新時自動發布
+- **🔴 Dev**（`1.1.0.dev1`）：不穩定、手動發布以測試新功能
 
 ### 程式碼品質要求
 - **Ruff**：強制程式碼風格，line-length=120、select=["E", "F", "I", "UP", "B"]
@@ -180,11 +202,13 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 ### 二進位檔案發布
 - CI 下載平台特定資產（`7z{ver}-{os}-{arch}.tar.xz`）
 - 驗證 SHA256 校驗和
-- 解壓縮至 `binaries/<platform>/7zz[.exe]`
+- 解壓縮至 `bin/7zz[.exe]`
 - 打包於 wheel 中發布
 
 ### 版本管理
+- 採用 PEP 440 規範，確保 PyPI 和 GitHub Release 版本一致
 - 每個 py7zz 版本都與特定 7zz 版本配對以確保一致性
+- 版本資訊透過 bundled_info.py 的 VERSION_REGISTRY 追蹤
 - 無執行時自動更新 - 使用者必須升級整個 py7zz 套件
 - 夜間建置可用於在正式發布前測試新 7zz 發布
 - 正式發布需要手動測試和核准
@@ -224,7 +248,7 @@ py7zz 實作混合方法以確保**隔離性**和**版本一致性**：
 - 安裝後無需網路連線
 
 **原始碼安裝（開發環境）**：
-- git 儲存庫中 `py7zz/binaries/` 目錄為空
+- git 儲存庫中 `py7zz/bin/` 目錄為空
 - 透過 `updater.py` 首次使用時自動下載正確 7zz 二進位檔案
 - 快取於 `~/.cache/py7zz/{version}/` 目錄
 - 僅首次使用時需要網路連線
@@ -246,9 +270,9 @@ def find_7z_binary() -> str:
 ```
 
 #### 版本一致性機制
-- `version.py` 定義：`PY7ZZ_VERSION = "1.0.0"` 和 `SEVEN_ZZ_VERSION = "24.07"`
-- 完整版本：`1.0.0+7zz24.07`
-- 自動下載使用 `get_7zz_version()` 確保正確二進位檔案版本
+- `version.py` 定義：`__version__ = "1.0.0"` (PEP 440 規範)
+- `bundled_info.py` 的 `VERSION_REGISTRY` 追蹤 7zz 版本對應關係
+- 自動下載使用 `get_bundled_7zz_version()` 確保正確二進位檔案版本
 - 資產命名：`24.07` → `2407` 用於 GitHub 發布 URL
 
 #### 快取管理
@@ -264,11 +288,11 @@ def find_7z_binary() -> str:
 [tool.hatch.build.targets.wheel]
 packages = ["py7zz"]
 include = [
-    "py7zz/binaries/**/*",
+    "py7zz/bin/**/*",
 ]
 
 [tool.hatch.build.targets.wheel.force-include]
-"py7zz/binaries" = "py7zz/binaries"
+"py7zz/bin" = "py7zz/bin"
 ```
 
 #### GitHub Actions 二進位檔案下載
@@ -295,5 +319,32 @@ include = [
 - 驗證版本匹配：解析輸出的版本字串
 - 驗證平台相容性：正確架構
 - 驗證跨會話快取持久性
+
+## CLI 工具
+
+py7zz 提供 CLI 工具以支援版本查詢和直接 7zz 操作：
+
+### 版本查詢
+```bash
+# 查詢詳細版本資訊
+py7zz version
+
+# JSON 格式輸出
+py7zz version --format json
+
+# 快速版本查詢
+py7zz --py7zz-version
+py7zz -V
+```
+
+### 直接 7zz 操作
+```bash
+# 直接傳遞給 7zz 二進位檔案
+py7zz a archive.7z files/
+py7zz x archive.7z
+py7zz l archive.7z
+```
+
+**注意**：CLI 入口點從 `7zz` 改為 `py7zz` 以避免與系統 7zz 命令衝突。
 
 此混合方法確保 py7zz 在所有安裝方法中都能可靠運作，同時維護嚴格的版本控制和系統隔離。

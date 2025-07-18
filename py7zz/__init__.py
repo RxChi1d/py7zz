@@ -6,6 +6,15 @@ with automatic update mechanisms.
 """
 
 # Configuration and Presets
+# Bundled information
+from .bundled_info import (
+    get_bundled_7zz_version,
+    get_release_type,
+    get_version_info,
+    is_auto_release,
+    is_dev_release,
+    is_stable_release,
+)
 from .config import Config, Presets, create_custom_config, get_recommended_preset
 from .core import SevenZipFile, run_7z
 
@@ -39,18 +48,26 @@ from .simple import (
 
 # Version information
 from .version import (
-    VersionType,
     generate_auto_version,
     generate_dev_version,
-    get_7zz_version,
-    get_py7zz_version,
+    get_base_version,
+    get_build_number,
     get_version,
-    get_version_info,
     get_version_type,
     is_auto_version,
     is_dev_version,
-    is_release_version,
+    is_stable_version,
     parse_version,
+)
+
+# Try to get dynamic version, fallback to hardcoded if needed
+try:
+    __version__ = get_version()
+except Exception:
+    # Fallback to hardcoded version if dynamic version fails
+    from .version import __version__
+from .version import (
+    get_version_info as get_legacy_version_info,
 )
 
 # Import async simple functions if available
@@ -104,18 +121,25 @@ __all__ = [
     "SevenZipFile",
     "run_7z",
     # Version information
+    "__version__",
     "get_version",
-    "get_py7zz_version",
-    "get_7zz_version",
     "get_version_info",
+    "get_legacy_version_info",
     "parse_version",
     "generate_auto_version",
     "generate_dev_version",
     "get_version_type",
-    "is_release_version",
     "is_auto_version",
     "is_dev_version",
-    "VersionType",
+    "is_stable_version",
+    "get_base_version",
+    "get_build_number",
+    # Bundled information
+    "get_bundled_7zz_version",
+    "get_release_type",
+    "is_stable_release",
+    "is_auto_release",
+    "is_dev_release",
     # Simple API (Layer 1)
     "create_archive",
     "extract_archive",
@@ -177,4 +201,5 @@ if _async_available:
 if _simple_async_available:
     __all__.extend(["create_archive_async", "extract_archive_async", "compress_file_async", "compress_directory_async"])
 
-__version__ = "1.0.0+7zz24.07"
+# Version is now managed centrally in version.py
+# __version__ is imported from .version at the top of this file
