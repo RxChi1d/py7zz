@@ -56,11 +56,16 @@ Issues = "https://github.com/rxchi1d/py7zz/issues"
 Repository = "https://github.com/rxchi1d/py7zz"
 
 [tool.ruff]
-line-length = 120
+line-length = 88  # Industry standard (Black's default)
 target-version = "py38"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM"]  # Added comprehensions and simplify rules
+ignore = ["E501"]  # Let formatter handle line length
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"tests/*.py" = ["B011"]  # Allow assert statements in tests
 
 [tool.ruff.format]
 quote-style = "double"
@@ -68,6 +73,7 @@ indent-style = "space"
 
 [tool.mypy]
 python_version = "3.9"
+show_error_codes = true  # Show error codes for easier debugging
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -90,7 +96,12 @@ disallow_incomplete_defs = false
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v"
+addopts = "-v --tb=short --strict-markers"
+filterwarnings = [
+    "error",
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
 
 [dependency-groups]
 dev = [
