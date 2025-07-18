@@ -48,7 +48,6 @@ from .simple import (
 
 # Version information
 from .version import (
-    __version__,
     generate_auto_version,
     generate_dev_version,
     get_base_version,
@@ -60,6 +59,13 @@ from .version import (
     is_stable_version,
     parse_version,
 )
+
+# Try to get dynamic version, fallback to hardcoded if needed
+try:
+    __version__ = get_version()
+except Exception:
+    # Fallback to hardcoded version if dynamic version fails
+    from .version import __version__
 from .version import (
     get_version_info as get_legacy_version_info,
 )

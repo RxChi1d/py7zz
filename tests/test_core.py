@@ -17,7 +17,7 @@ def test_get_version():
     version = get_version()
     # Test version is PEP 440 compliant and follows expected pattern
     assert version.startswith("0.1.0")
-    
+
     # Test version is PEP 440 compliant
     assert version.startswith("0.1.0")
 

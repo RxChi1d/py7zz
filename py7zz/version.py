@@ -41,6 +41,7 @@ def get_version() -> str:
         except ImportError:
             pass
     except Exception:
+        # Handle cases where package metadata is not available
         pass
 
     # Fallback to hardcoded version (for development/editable installs)
@@ -130,7 +131,7 @@ def get_version_type(version_string: Optional[str] = None) -> str:
         'dev'
     """
     if version_string is None:
-        version_string = __version__
+        version_string = get_version()
 
     parsed = parse_version(version_string)
     return str(parsed["version_type"])
@@ -204,7 +205,7 @@ def get_base_version(version_string: Optional[str] = None) -> str:
         '1.1.0'
     """
     if version_string is None:
-        version_string = __version__
+        version_string = get_version()
 
     parsed = parse_version(version_string)
     return str(parsed["base_version"])
@@ -227,7 +228,7 @@ def get_build_number(version_string: Optional[str] = None) -> Optional[int]:
         None
     """
     if version_string is None:
-        version_string = __version__
+        version_string = get_version()
 
     parsed = parse_version(version_string)
     build_number = parsed["build_number"]
@@ -256,9 +257,10 @@ def get_version_info() -> Dict[str, Union[str, int, None]]:
             'base_version': '0.1.0'
         }
     """
-    parsed = parse_version(__version__)
+    current_version = get_version()
+    parsed = parse_version(current_version)
     return {
-        "py7zz_version": __version__,
+        "py7zz_version": current_version,
         "version_type": parsed["version_type"],
         "build_number": parsed["build_number"],
         "base_version": parsed["base_version"],
