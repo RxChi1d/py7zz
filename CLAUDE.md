@@ -17,6 +17,8 @@
 
 py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 工具，跨平台（macOS、Debian 系 Linux、Windows x64）提供一致的物件導向程式介面，並具備自動更新機制。專案遵循「Vibe Coding」工作流程，強調快速迭代、CI/CD 整合以及強制程式碼格式化。
 
+**Python 支援版本**：Python 3.8+ (包含 Python 3.13)
+
 **專案願景**：讓使用者「pip install py7zz」後，立即能夠通過跨平台統一的Python API接口或py7zz CLI工具壓縮/解壓縮數十種格式，無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 二進位檔案。
 
 ## 開發命令
@@ -134,13 +136,20 @@ git push origin <branch-name>
 py7zz/
 ├── __init__.py            # 匯出 SevenZipFile, get_version
 ├── core.py                # subprocess 膠合、banner 解析
+├── cli.py                 # CLI 工具入口點
+├── async_ops.py           # 異步操作支援
 ├── bin/                   # 二進位檔案目錄
 │   └── 7zz[.exe]         # 平台特定二進位檔案（每個 wheel 只包含一個）
 ├── updater.py             # GitHub API 整合及原始碼安裝的自動下載
+├── bundled_info.py        # 版本註冊表和二進位檔案資訊
 ├── pyproject.toml         # build-system = "hatchling"
 ├── README.md
+├── CLAUDE.md              # Claude Code 工作指引
+├── tests/                 # 測試套件
+│   ├── test_*.py         # 各種測試模組
+│   └── __init__.py
 └── .github/workflows/
-    ├── check.yml          # push/PR 時的 lint+test
+    ├── ci.yml             # push/PR 時的 lint+test (Python 3.8-3.13)
     ├── build.yml          # tag push 時的 wheel 矩陣建置
     └── watch_release.yml  # 夜間建置自動化
 ```
@@ -148,6 +157,8 @@ py7zz/
 ### 核心元件
 - **SevenZipFile**：主要 API 類別，類似 zipfile 介面
 - **core.run_7z()**：7zz CLI 執行的 subprocess 包裝器
+- **AsyncSevenZipFile**：異步操作支援，具進度報告功能
+- **CLI 工具**：py7zz 命令行工具，提供直接 7zz 操作
 - **二進位檔案解析**：具隔離性和版本一致性的混合方法
 - **版本一致性**：每個 py7zz 版本都與特定 7zz 版本配對以確保穩定性
 - **三層版本控制**：Release（穩定）、Auto（基本穩定）、Dev（不穩定）
@@ -159,7 +170,8 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 1. **簡單函數 API**：一行解決方案（80% 使用情境）
 2. **相容性 API**：類似 zipfile.ZipFile 介面（遷移使用者）
 3. **進階控制 API**：細粒度控制與自訂組態（進階使用者）
-4. **原生 7zz API**：直接 7zz 命令存取（專家使用者）
+4. **異步 API**：非阻塞操作與進度報告（大型檔案處理）
+5. **原生 7zz API**：直接 7zz 命令存取（專家使用者）
 
 #### 設計原則
 1. **漸進複雜性**：簡單 → 標準 → 進階 → 專家
@@ -171,9 +183,10 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 ## CI/CD 流水線
 
 ### GitHub Actions 工作流程
-1. **check.yml**：push/PR 時執行 - 執行 ruff、pytest、mypy（PR 閘道）
+1. **ci.yml**：push/PR 時執行 - 執行 ruff、pytest、mypy（PR 閘道）
+   - 測試 Python 版本：3.8, 3.9, 3.10, 3.11, 3.12, 3.13
 2. **build.yml**：tag push 時觸發 - 使用矩陣建置為所有平台建置 wheel
-3. **watch_release.yml**：每日檢查（cron: "0 3 * * *"）新 7zz 發布，為測試建立自動建置
+3. **watch_release.yml**：夜間建置自動化（目前手動觸發）
 
 ### 三層版本系統（PEP 440 規範）
 - **🟢 Release**（`1.0.0`）：穩定、手動發布、生產就緒
@@ -185,6 +198,7 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 - **MyPy**：所有程式碼都需要類型檢查，target-version=py38
 - **Pytest**：合併前單元測試必須通過
 - **CI 必須通過**：所有程式碼必須通過 GitHub Actions 中的完整檢查
+- **Python 版本相容性**：所有程式碼必須在 Python 3.8-3.13 上通過測試
 - **提交前驗證**：必須執行完整的本地質檢流程
 
 ## 程式碼提交前檢查清單
@@ -205,10 +219,12 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 ## 開發注意事項
 
 - **依賴管理**：專用 `uv` 進行依賴管理和虛擬環境
+- **Python 版本相容性**：支援 Python 3.8+ (包含 Python 3.13)
 - **二進位檔案發布**：包含從 GitHub 發布下載的平台特定 7zz 執行檔
 - **自動建置**：偵測到新 7zz 發布時自動建立夜間建置
 - **跨平台相容性**：macOS、Debian 系 Linux、Windows x64
 - **授權條款**：BSD-3 + LGPL 2.1（保留 7-Zip 授權條款）
+- **異步支援**：提供完整的異步操作 API 與進度報告
 
 ## 建置系統
 
