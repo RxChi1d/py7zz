@@ -432,13 +432,13 @@ jobs:
         if [ -n "$LAST_TAG" ]; then
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          git log --oneline --no-merges ${LAST_TAG}..HEAD | sed 's/^/- /' >> release_notes.md
+          git log --format="* %s" --no-merges ${LAST_TAG}..HEAD >> release_notes.md
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ github.ref_name }}" >> release_notes.md
         else
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          echo "- Initial development release" >> release_notes.md
+          echo "* Initial development release" >> release_notes.md
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}" >> release_notes.md
         fi
