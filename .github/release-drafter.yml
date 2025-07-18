@@ -1,0 +1,94 @@
+name-template: 'py7zz $RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feat'
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'fix'
+      - 'bug'
+      - 'bugfix'
+  - title: '📚 Documentation'
+    labels:
+      - 'docs'
+      - 'documentation'
+  - title: '⚡ Performance'
+    labels:
+      - 'perf'
+      - 'performance'
+  - title: '🔧 Maintenance'
+    labels:
+      - 'chore'
+      - 'maintenance'
+      - 'refactor'
+      - 'style'
+  - title: '🧪 Testing'
+    labels:
+      - 'test'
+      - 'testing'
+  - title: '🔄 CI/CD'
+    labels:
+      - 'ci'
+      - 'cd'
+      - 'workflow'
+change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
+change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
+version-resolver:
+  major:
+    labels:
+      - 'major'
+      - 'breaking'
+  minor:
+    labels:
+      - 'minor'
+      - 'feat'
+      - 'feature'
+  patch:
+    labels:
+      - 'patch'
+      - 'fix'
+      - 'bug'
+      - 'bugfix'
+  default: patch
+exclude-labels:
+  - 'skip-changelog'
+  - 'dependencies'
+autolabeler:
+  - label: 'feat'
+    title:
+      - '/^feat(\(.+\))?: .+/'
+  - label: 'fix'  
+    title:
+      - '/^fix(\(.+\))?: .+/'
+  - label: 'docs'
+    title:
+      - '/^docs(\(.+\))?: .+/'
+  - label: 'chore'
+    title:
+      - '/^chore(\(.+\))?: .+/'
+  - label: 'test'
+    title:
+      - '/^test(\(.+\))?: .+/'
+  - label: 'ci'
+    title:
+      - '/^ci(\(.+\))?: .+/'
+  - label: 'perf'
+    title:
+      - '/^perf(\(.+\))?: .+/'
+  - label: 'refactor'
+    title:
+      - '/^refactor(\(.+\))?: .+/'
+  - label: 'style'
+    title:
+      - '/^style(\(.+\))?: .+/'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
