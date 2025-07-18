@@ -1,9 +1,9 @@
 # py7zz
 
-[![PyPI version](https://badge.fury.io/py/py7zz.svg)](https://badge.fury.io/py/py7zz)
+[![PyPI version](https://img.shields.io/pypi/v/py7zz.svg)](https://pypi.org/project/py7zz/)
 [![Python versions](https://img.shields.io/pypi/pyversions/py7zz.svg)](https://pypi.org/project/py7zz/)
 [![License](https://img.shields.io/pypi/l/py7zz.svg)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
-[![Tests](https://github.com/rxchi1d/py7zz/workflows/Tests/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
+[![CI](https://github.com/rxchi1d/py7zz/workflows/CI/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
 
 A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented interface across platforms (macOS, Linux, Windows) with automatic update mechanisms and support for dozens of archive formats.
 
