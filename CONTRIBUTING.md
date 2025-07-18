@@ -173,20 +173,42 @@ git commit -m "docs(readme): add installation troubleshooting"
 
 ## Pull Request Process
 
-1. **Pre-submission Checklist**
+1. **PR Title Convention**
+   
+   **IMPORTANT**: PR titles are used for release notes generation and must follow the same convention as commit messages:
+   
+   ```
+   <type>(<scope>): <description>
+   ```
+   
+   **Examples:**
+   ```
+   feat: add async operations with progress callbacks
+   fix: resolve binary path detection on Windows systems
+   docs: add comprehensive migration guide from zipfile
+   perf: optimize memory usage for large file extraction
+   ```
+   
+   **Why this matters:**
+   - PR titles appear directly in release notes
+   - Automatic labeling based on PR title
+   - Semantic version determination (feat = minor, fix = patch)
+
+2. **Pre-submission Checklist**
+   - [ ] PR title follows conventional format
    - [ ] All quality checks pass locally
    - [ ] Tests are added for new functionality
    - [ ] Documentation is updated if needed
    - [ ] Commit messages follow convention
    - [ ] No TODO/FIXME comments left unresolved
 
-2. **PR Description**
+3. **PR Description**
    - Clearly describe what changes were made
    - Reference any related issues
    - Include screenshots for UI changes
    - List any breaking changes
 
-3. **Review Process**
+4. **Review Process**
    - All CI checks must pass
    - Code review by maintainers
    - Address feedback promptly

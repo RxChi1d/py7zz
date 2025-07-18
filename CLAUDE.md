@@ -309,10 +309,48 @@ git commit -m "docs(readme): add installation troubleshooting"
 
 ### 為什麼重要
 
-1. **自動化 Release Notes**：GitHub 自動生成基於 commit 訊息
-2. **版本控制**：工具可自動判斷版本號變更
+1. **自動化 Release Notes**：Release Drafter 基於 PR 標題生成分類的 release notes
+2. **版本控制**：工具可自動判斷版本號變更（feat = minor, fix = patch）
 3. **可追蹤性**：清楚了解每次變更的目的和影響
 4. **團隊協作**：一致的格式提高可讀性
+
+### PR 標題規範
+
+**重要**：PR 標題必須遵循相同的約定式提交格式，因為：
+- PR 標題會直接出現在 release notes 中
+- Release Drafter 根據 PR 標題自動分類和標籤
+- 語義化版本控制依賴 PR 標題判斷版本類型
+
+```bash
+# PR 標題範例
+feat: add async operations with progress callbacks
+fix: resolve binary path detection on Windows systems
+docs: add comprehensive migration guide from zipfile
+perf: optimize memory usage for large file extraction
+```
+
+### 建立 Pull Request 規範
+
+**重要**：建立 PR 時必須遵循以下規範：
+
+1. **PR 標題格式**：
+   - 必須遵循約定式提交格式：`<type>(<scope>): <description>`
+   - 範例：`feat: add async operations with progress callbacks`
+
+2. **PR 內容格式**：
+   - 參考 `.github/pull_request_template.md` 中的模板
+   - 包含完整的變更說明、測試資訊、檢查清單
+
+3. **PR 標籤**：
+   - 根據 PR 標題自動分類（Release Drafter 自動處理）
+   - 確保選擇正確的變更類型
+
+4. **PR 描述要求**：
+   - 清楚描述變更內容和原因
+   - 列出相關的測試項目
+   - 確認所有檢查清單項目
+
+**模板位置**：`.github/pull_request_template.md`
 
 ### 檢查清單
 
