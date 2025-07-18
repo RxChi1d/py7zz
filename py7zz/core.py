@@ -44,10 +44,7 @@ def find_7z_binary() -> str:
 
     # Platform-specific binary name but unified location
     system = platform.system().lower()
-    if system == "windows":
-        binary_name = "7zz.exe"
-    else:
-        binary_name = "7zz"
+    binary_name = "7zz.exe" if system == "windows" else "7zz"
 
     binary_path = binaries_dir / binary_name
 

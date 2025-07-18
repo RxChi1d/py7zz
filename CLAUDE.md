@@ -113,21 +113,18 @@ source .venv/bin/activate
 
 # 2. 開發程式碼...
 
-# 3. 格式化程式碼
-uv run ruff format .
+# 3. 執行完整質檢流程（與 CI 一致）
+uv run ruff format .        # 格式化程式碼
+uv run ruff check --fix .   # 檢查並修正程式碼風格（包含 SIM 規則）
+uv run mypy .               # 類型檢查
+uv run pytest              # 執行完整測試套件
 
-# 4. 檢查和修正程式碼風格
-uv run ruff check --fix .
-
-# 5. 類型檢查
-uv run mypy .
-
-# 6. 執行測試
-uv run pytest
-
-# 7. 提交變更
+# 4. 確認所有檢查通過後才提交
 git add .
 git commit -m "feat: add new feature"
+
+# 5. 推送前再次確認 CI 會通過
+git push origin <branch-name>
 ```
 
 ## 架構
@@ -184,10 +181,26 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 - **🔴 Dev**（`1.1.0.dev1`）：不穩定、手動發布以測試新功能
 
 ### 程式碼品質要求
-- **Ruff**：強制程式碼風格，line-length=120、select=["E", "F", "I", "UP", "B"]
-- **MyPy**：所有程式碼都需要類型檢查
+- **Ruff**：強制程式碼風格，line-length=88、select=["E", "F", "I", "UP", "B", "C4", "SIM"]
+- **MyPy**：所有程式碼都需要類型檢查，target-version=py38
 - **Pytest**：合併前單元測試必須通過
-- PR 合併前 CI 中所有檢查必須通過
+- **CI 必須通過**：所有程式碼必須通過 GitHub Actions 中的完整檢查
+- **提交前驗證**：必須執行完整的本地質檢流程
+
+## 程式碼提交前檢查清單
+
+在提交程式碼前，請確保：
+- [ ] `uv run ruff format .` 執行成功，程式碼格式化完成
+- [ ] `uv run ruff check --fix .` 無錯誤，所有 lint 規則通過（包含 SIM 簡化規則）
+- [ ] `uv run mypy .` 無錯誤，所有類型檢查通過
+- [ ] `uv run pytest` 全部測試通過，無失敗案例
+- [ ] 所有修改都經過適當測試（單元測試、整合測試）
+- [ ] 相關文件已同步更新（README.md、CLAUDE.md、docstrings）
+- [ ] 程式碼符合專案架構和設計原則
+- [ ] 沒有遺留的 TODO 或 FIXME 註解（除非有計劃處理）
+- [ ] 提交訊息遵循約定格式（`feat:`、`fix:`、`docs:` 等）
+
+**重要**：只有在所有檢查項目都通過後，才能提交程式碼到儲存庫。這確保了程式碼品質並避免 CI 失敗。
 
 ## 開發注意事項
 

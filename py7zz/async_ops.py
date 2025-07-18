@@ -214,11 +214,9 @@ class AsyncSevenZipFile:
             line = line_bytes.decode("utf-8", errors="replace").strip()
 
             # Parse 7z output for progress information
-            if "Compressing" in line or "Extracting" in line:
-                # Extract filename from progress line
-                if " " in line:
-                    current_file = line.split(" ")[-1]
-                    files_processed += 1
+            if ("Compressing" in line or "Extracting" in line) and " " in line:
+                current_file = line.split(" ")[-1]
+                files_processed += 1
 
             # Calculate approximate progress
             # Note: This is simplified - actual 7z progress parsing is more complex

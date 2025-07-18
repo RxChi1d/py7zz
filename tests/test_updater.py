@@ -114,11 +114,12 @@ class TestLatestRelease:
         mock_response.raise_for_status.return_value = None
         mock_get.return_value = mock_response
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("py7zz.updater.CACHE_DIR", Path(tmpdir)):
-                result = get_latest_release(use_cache=False)
-                assert result["tag_name"] == "2408"
-                assert result["name"] == "7-Zip 24.08"
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "py7zz.updater.CACHE_DIR", Path(tmpdir)
+        ):
+            result = get_latest_release(use_cache=False)
+            assert result["tag_name"] == "2408"
+            assert result["name"] == "7-Zip 24.08"
 
     @patch("requests.get")
     def test_get_latest_release_network_error(self, mock_get: Mock) -> None:
@@ -204,10 +205,11 @@ class TestCachedBinary:
         """Test when cached binary doesn't exist and auto_update is False."""
         mock_platform.return_value = ("linux", "x64")
 
-        with tempfile.TemporaryDirectory() as tmpdir:
-            with patch("py7zz.updater.CACHE_DIR", Path(tmpdir)):
-                result = get_cached_binary("2408", auto_update=False)
-                assert result is None
+        with tempfile.TemporaryDirectory() as tmpdir, patch(
+            "py7zz.updater.CACHE_DIR", Path(tmpdir)
+        ):
+            result = get_cached_binary("2408", auto_update=False)
+            assert result is None
 
 
 class TestVersionFromBinary:

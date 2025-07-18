@@ -29,15 +29,15 @@ def get_version() -> str:
     """
     # Try to get version from package metadata (for wheel installations)
     try:
-        from importlib.metadata import version
+        from importlib.metadata import version as get_pkg_version
 
-        return version("py7zz")
+        return get_pkg_version("py7zz")
     except ImportError:
         # Python < 3.8 fallback
         try:
-            from importlib_metadata import version
+            from importlib_metadata import version as get_pkg_version
 
-            return version("py7zz")
+            return get_pkg_version("py7zz")
         except ImportError:
             pass
     except Exception:

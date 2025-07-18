@@ -29,10 +29,11 @@ def test_get_version():
 
 def test_find_7z_binary_env_var():
     """Test binary detection from environment variable."""
-    with patch.dict(os.environ, {"PY7ZZ_BINARY": "/fake/path/7zz"}):
-        with patch("pathlib.Path.exists", return_value=True):
-            binary = find_7z_binary()
-            assert binary == "/fake/path/7zz"
+    with patch.dict(os.environ, {"PY7ZZ_BINARY": "/fake/path/7zz"}), patch(
+        "pathlib.Path.exists", return_value=True
+    ):
+        binary = find_7z_binary()
+        assert binary == "/fake/path/7zz"
 
 
 def test_find_7z_binary_system_path():
@@ -44,21 +45,23 @@ def test_find_7z_binary_system_path():
 
 def test_find_7z_binary_bundled():
     """Test binary detection from bundled location."""
-    with patch.dict(os.environ, {}, clear=True):
-        with patch("shutil.which", return_value=None):
-            with patch("platform.system", return_value="Linux"):
-                with patch("pathlib.Path.exists", return_value=True):
-                    binary = find_7z_binary()
-                    assert binary.endswith("bin/7zz")
+    with patch.dict(os.environ, {}, clear=True), patch(
+        "shutil.which", return_value=None
+    ), patch("platform.system", return_value="Linux"), patch(
+        "pathlib.Path.exists", return_value=True
+    ):
+        binary = find_7z_binary()
+        assert binary.endswith("bin/7zz")
 
 
 def test_find_7z_binary_not_found():
     """Test binary not found raises error."""
-    with patch.dict(os.environ, {}, clear=True):
-        with patch("shutil.which", return_value=None):
-            with patch("pathlib.Path.exists", return_value=False):
-                with pytest.raises(RuntimeError, match="7zz binary not found"):
-                    find_7z_binary()
+    with patch.dict(os.environ, {}, clear=True), patch(
+        "shutil.which", return_value=None
+    ), patch("pathlib.Path.exists", return_value=False), pytest.raises(
+        RuntimeError, match="7zz binary not found"
+    ):
+        find_7z_binary()
 
 
 def test_sevenzipfile_init():
@@ -114,9 +117,10 @@ def test_sevenzipfile_add_read_mode():
 def test_sevenzipfile_add_missing_file():
     """Test adding missing file raises error."""
     sz = SevenZipFile("test.7z", "w")
-    with patch("pathlib.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="File not found"):
-            sz.add("missing.txt")
+    with patch("pathlib.Path.exists", return_value=False), pytest.raises(
+        FileNotFoundError, match="File not found"
+    ):
+        sz.add("missing.txt")
 
 
 @patch("py7zz.core.run_7z")
@@ -124,17 +128,16 @@ def test_sevenzipfile_extract(mock_run_7z):
     """Test extracting archive."""
     mock_run_7z.return_value = Mock()
 
-    with patch("pathlib.Path.exists", return_value=True):
-        with patch("pathlib.Path.mkdir"):
-            sz = SevenZipFile("test.7z", "r")
-            sz.extract("./output", overwrite=True)
+    with patch("pathlib.Path.exists", return_value=True), patch("pathlib.Path.mkdir"):
+        sz = SevenZipFile("test.7z", "r")
+        sz.extract("./output", overwrite=True)
 
-            mock_run_7z.assert_called_once()
-            args = mock_run_7z.call_args[0][0]
-            assert "x" in args
-            assert "test.7z" in args
-            assert "-ooutput" in args
-            assert "-y" in args
+        mock_run_7z.assert_called_once()
+        args = mock_run_7z.call_args[0][0]
+        assert "x" in args
+        assert "test.7z" in args
+        assert "-ooutput" in args
+        assert "-y" in args
 
 
 def test_sevenzipfile_extract_write_mode():
@@ -149,9 +152,10 @@ def test_sevenzipfile_extract_write_mode():
 def test_sevenzipfile_extract_missing_archive():
     """Test extracting missing archive raises error."""
     sz = SevenZipFile("missing.7z", "r")
-    with patch("pathlib.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="Archive not found"):
-            sz.extract()
+    with patch("pathlib.Path.exists", return_value=False), pytest.raises(
+        FileNotFoundError, match="Archive not found"
+    ):
+        sz.extract()
 
 
 @patch("py7zz.core.run_7z")
@@ -196,6 +200,7 @@ Blocks = 1
 def test_sevenzipfile_list_contents_missing_archive():
     """Test listing missing archive raises error."""
     sz = SevenZipFile("missing.7z", "r")
-    with patch("pathlib.Path.exists", return_value=False):
-        with pytest.raises(FileNotFoundError, match="Archive not found"):
-            sz.list_contents()
+    with patch("pathlib.Path.exists", return_value=False), pytest.raises(
+        FileNotFoundError, match="Archive not found"
+    ):
+        sz.list_contents()
