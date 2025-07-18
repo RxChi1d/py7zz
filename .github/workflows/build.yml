@@ -393,3 +393,87 @@ jobs:
       with:
         attestations: true
         packages-dir: dist/
+
+  github-release:
+    needs: [quality-check, build]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Get full history for changelog
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+        pattern: wheels-*
+        merge-multiple: true
+    
+    
+    - name: Get Release Draft
+      id: get_release_draft
+      uses: release-drafter/release-drafter@v6
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # Only run for stable releases (merged to main)
+      if: ${{ !contains(github.ref_name, 'dev') && !contains(github.ref_name, 'a') }}
+    
+    - name: Generate dev release notes
+      id: dev_release_notes
+      if: ${{ contains(github.ref_name, 'dev') || contains(github.ref_name, 'a') }}
+      run: |
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -n "$LAST_TAG" ]; then
+          echo "## What's Changed" > release_notes.md
+          echo "" >> release_notes.md
+          git log --format="* %s" --no-merges ${LAST_TAG}..HEAD >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ github.ref_name }}" >> release_notes.md
+        else
+          echo "## What's Changed" > release_notes.md
+          echo "" >> release_notes.md
+          echo "* Initial development release" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}" >> release_notes.md
+        fi
+        
+        # Set output
+        echo "notes<<EOF" >> $GITHUB_OUTPUT
+        cat release_notes.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release (Dev/Alpha)
+      uses: ncipollo/release-action@v1
+      if: ${{ contains(github.ref_name, 'dev') || contains(github.ref_name, 'a') }}
+      with:
+        tag: ${{ github.ref_name }}
+        name: "py7zz ${{ github.ref_name }}"
+        body: ${{ steps.dev_release_notes.outputs.notes }}
+        artifacts: "dist/*.whl"
+        draft: false
+        prerelease: true
+        generateReleaseNotes: false
+        allowUpdates: true
+        artifactErrorsFailBuild: true
+        makeLatest: false
+
+    - name: Create GitHub Release (Stable)
+      uses: ncipollo/release-action@v1
+      if: ${{ !contains(github.ref_name, 'dev') && !contains(github.ref_name, 'a') }}
+      with:
+        tag: ${{ github.ref_name }}
+        name: "py7zz ${{ github.ref_name }}"
+        body: ${{ steps.get_release_draft.outputs.body }}
+        artifacts: "dist/*.whl"
+        draft: false
+        prerelease: false
+        generateReleaseNotes: false
+        allowUpdates: true
+        artifactErrorsFailBuild: true
+        makeLatest: true
