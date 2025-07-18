@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 from typing import Iterator, List, Optional, Union
 
+# Python 3.8 compatibility - use string annotation for subprocess.CompletedProcess
 from .config import Config, Presets
 from .exceptions import PyFileNotFoundError as FileNotFoundError
 
@@ -75,7 +76,7 @@ def find_7z_binary() -> str:
 
 def run_7z(
     args: List[str], cwd: Optional[str] = None
-) -> subprocess.CompletedProcess[str]:
+) -> "subprocess.CompletedProcess[str]":
     """
     Execute 7zz command with given arguments.
 
