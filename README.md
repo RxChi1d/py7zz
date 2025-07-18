@@ -339,9 +339,17 @@ mypy .                     # Type checking
 
 ## Contributing
 
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+
+- Setting up the development environment
+- Code style and testing requirements
+- Commit message conventions
+- Pull request process
+
+**Quick Start:**
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
+3. Follow the [commit message conventions](CONTRIBUTING.md#commit-message-convention)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
@@ -368,6 +376,7 @@ Since py7zz uses the 7zz binary as a separate executable (not statically linked)
 
 - **📚 Complete API Documentation**: [docs/API.md](docs/API.md)
 - **🔄 Migration Guide**: [docs/MIGRATION.md](docs/MIGRATION.md)
+- **🤝 Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
 - **📦 PyPI Package**: [py7zz on PyPI](https://pypi.org/project/py7zz/)
 - **🐛 Issue Tracker**: [GitHub Issues](https://github.com/rxchi1d/py7zz/issues)
 - **💻 Source Code**: [GitHub Repository](https://github.com/rxchi1d/py7zz)

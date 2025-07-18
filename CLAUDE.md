@@ -212,9 +212,117 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 - [ ] 相關文件已同步更新（README.md、CLAUDE.md、docstrings）
 - [ ] 程式碼符合專案架構和設計原則
 - [ ] 沒有遺留的 TODO 或 FIXME 註解（除非有計劃處理）
-- [ ] 提交訊息遵循約定格式（`feat:`、`fix:`、`docs:` 等）
+- [ ] 提交訊息遵循約定格式（詳見「提交訊息規範」）
 
 **重要**：只有在所有檢查項目都通過後，才能提交程式碼到儲存庫。這確保了程式碼品質並避免 CI 失敗。
+
+## 提交訊息規範
+
+py7zz 遵循**約定式提交**（Conventional Commits）規範，確保自動生成的 Release Notes 品質良好。
+
+### 格式要求
+
+```
+<type>(<scope>): <description>    ← 第一行（50-72 字符）
+
+[optional body]                   ← 詳細說明（72 字符換行）
+
+[optional footer(s)]              ← 破壞性變更、問題參考
+```
+
+**重要說明**：
+- **第一行**：GitHub 自動生成 release notes 使用
+- **內容主體**：複雜變更的詳細解釋（不會出現在 release notes 中）
+- **腳註**：破壞性變更和問題參考
+
+### 提交類型
+
+- **feat**: 新功能（對應 MINOR 版本）
+- **fix**: 錯誤修復（對應 PATCH 版本）
+- **docs**: 文件變更
+- **style**: 代碼格式（不影響功能）
+- **refactor**: 重構代碼
+- **perf**: 性能優化
+- **test**: 測試相關
+- **chore**: 建置或工具變更
+- **ci**: CI/CD 相關
+
+### 描述寫法
+
+**❌ 不好的範例**：
+```bash
+git commit -m "feat: add async support"
+git commit -m "fix: Windows bug"
+git commit -m "docs: update readme"
+```
+
+**✅ 好的範例**：
+```bash
+# 單行 commit（簡單變更）
+git commit -m "feat: add async operations with progress callbacks for large archives"
+git commit -m "fix: resolve binary path detection on Windows systems with spaces"
+git commit -m "docs: add comprehensive migration guide from zipfile to py7zz"
+
+# 多行 commit（複雜變更）
+git commit -m "feat: add async operations with progress callbacks
+
+This commit introduces comprehensive async support including:
+- Progress callback mechanism for real-time updates
+- Batch operations for multiple archives
+- Memory-efficient streaming for large files
+- Cross-platform compatibility testing
+
+The implementation maintains backward compatibility while
+providing significant performance improvements for large-scale
+operations."
+
+git commit -m "fix: resolve binary path detection on Windows systems with spaces
+
+The previous implementation failed when the 7zz binary path contained
+spaces due to incorrect subprocess argument handling. This fix:
+
+- Properly quotes binary paths in subprocess calls
+- Adds comprehensive path validation
+- Includes test cases for paths with spaces
+- Maintains compatibility with existing installations
+
+Fixes #42"
+```
+
+### 重大變更
+
+使用 `BREAKING CHANGE:` 標記（對應 MAJOR 版本）：
+```bash
+git commit -m "feat!: redesign API for better async support
+
+BREAKING CHANGE: SevenZipFile.extract() now returns async iterator instead of list"
+```
+
+### 作用域（可選）
+
+指定影響範圍：
+```bash
+git commit -m "feat(api): add batch extraction support"
+git commit -m "fix(cli): resolve version display format"
+git commit -m "docs(readme): add installation troubleshooting"
+```
+
+### 為什麼重要
+
+1. **自動化 Release Notes**：GitHub 自動生成基於 commit 訊息
+2. **版本控制**：工具可自動判斷版本號變更
+3. **可追蹤性**：清楚了解每次變更的目的和影響
+4. **團隊協作**：一致的格式提高可讀性
+
+### 檢查清單
+
+提交前確認：
+- [ ] 使用正確的 type 前綴
+- [ ] 描述清楚具體做了什麼
+- [ ] 使用現在式動詞（"add" 而非 "added"）
+- [ ] 首字母小寫
+- [ ] 不超過 72 字符
+- [ ] 描述「做了什麼」而非「怎麼做」
 
 ## 開發注意事項
 
