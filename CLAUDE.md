@@ -190,8 +190,14 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 
 ### 三層版本系統（PEP 440 規範）
 - **🟢 Release**（`1.0.0`）：穩定、手動發布、生產就緒
+  - **Release Notes**：Release Drafter 生成的專業分類 release notes
+  - **來源**：合併到 main 分支的 PR
 - **🟡 Auto**（`1.0.0a1`）：基本穩定、7zz 更新時自動發布
+  - **Release Notes**：GitHub 原生自動生成（基於 commit 訊息）
+  - **來源**：feature branch 上的 commit 記錄
 - **🔴 Dev**（`1.1.0.dev1`）：不穩定、手動發布以測試新功能
+  - **Release Notes**：GitHub 原生自動生成（基於 commit 訊息）
+  - **來源**：feature branch 上的 commit 記錄
 
 ### 程式碼品質要求
 - **Ruff**：強制程式碼風格，line-length=88、select=["E", "F", "I", "UP", "B", "C4", "SIM"]
