@@ -276,7 +276,12 @@ await py7zz.create_archive_async(
 
 - Python 3.8+
 - No external dependencies (7zz binary is bundled)
-- Supported platforms: macOS, Linux, Windows x64
+- **Supported platforms:** 
+  - macOS (Intel + Apple Silicon)
+  - Linux x86_64 (manylinux compatible)
+  - Windows x64
+
+> **Note:** Pre-built wheels are available for the above platforms. Other architectures may require building from source.
 
 ## Version Information
 
