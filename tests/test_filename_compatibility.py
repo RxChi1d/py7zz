@@ -242,16 +242,14 @@ class TestSanitizedExtractionMethods:
         mock_temp_dir_instance.__exit__.return_value = None
         mock_temp_dir.return_value = mock_temp_dir_instance
 
-        # Mock file listing
+        # Mock file listing and move sanitized files method
         with patch.object(
             self.sz, "list_contents", return_value=["file:name.txt", "CON.txt"]
-        ):
-            # Mock the move sanitized files method
-            with patch.object(self.sz, "_move_sanitized_files") as mock_move:
-                self.sz._extract_with_sanitization(Path("output"), False)
+        ), patch.object(self.sz, "_move_sanitized_files") as mock_move:
+            self.sz._extract_with_sanitization(Path("output"), False)
 
-                # Should have called move_sanitized_files
-                mock_move.assert_called_once()
+            # Should have called move_sanitized_files
+            mock_move.assert_called_once()
 
     @patch("py7zz.core.is_windows", return_value=True)
     @patch("tempfile.TemporaryDirectory")
@@ -273,16 +271,14 @@ class TestSanitizedExtractionMethods:
             1, ["7zz"], stderr="Still failing"
         )
 
-        # Mock file listing
-        with patch.object(self.sz, "list_contents", return_value=["file:name.txt"]):
-            # Mock individual extraction method
-            with patch.object(
-                self.sz, "_extract_files_individually"
-            ) as mock_individual:
-                self.sz._extract_with_sanitization(Path("output"), False)
+        # Mock file listing and individual extraction method
+        with patch.object(
+            self.sz, "list_contents", return_value=["file:name.txt"]
+        ), patch.object(self.sz, "_extract_files_individually") as mock_individual:
+            self.sz._extract_with_sanitization(Path("output"), False)
 
-                # Should have called individual extraction
-                mock_individual.assert_called_once()
+            # Should have called individual extraction
+            mock_individual.assert_called_once()
 
     @patch("py7zz.core.is_windows", return_value=True)
     def test_extract_files_individually_success(self, mock_is_windows):

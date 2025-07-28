@@ -51,7 +51,7 @@ def test_find_7z_binary_bundled():
         "pathlib.Path.exists", return_value=True
     ):
         binary = find_7z_binary()
-        assert binary.endswith("bin/7zz")
+        assert binary.endswith(("bin/7zz", "bin\\7zz"))
 
 
 def test_find_7z_binary_not_found():

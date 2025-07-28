@@ -10,9 +10,8 @@ from .logging_config import ensure_default_logging
 
 ensure_default_logging()
 
-# Configuration and Presets
 # Bundled information
-from .bundled_info import (
+from .bundled_info import (  # noqa: E402
     get_bundled_7zz_version,
     get_release_type,
     get_version_info,
@@ -20,11 +19,20 @@ from .bundled_info import (
     is_dev_release,
     is_stable_release,
 )
-from .config import Config, Presets, create_custom_config, get_recommended_preset
-from .core import SevenZipFile, run_7z
+
+# Configuration and Presets
+from .config import (  # noqa: E402
+    Config,
+    Presets,
+    create_custom_config,
+    get_recommended_preset,
+)
+
+# Core functionality
+from .core import SevenZipFile, run_7z  # noqa: E402
 
 # Exceptions
-from .exceptions import (
+from .exceptions import (  # noqa: E402
     ArchiveNotFoundError,
     BinaryNotFoundError,
     CompressionError,
@@ -42,14 +50,14 @@ from .exceptions import (
 )
 
 # Logging configuration
-from .logging_config import (
+from .logging_config import (  # noqa: E402
     disable_warnings,
     enable_debug_logging,
     setup_logging,
 )
 
-# Layer 1: Simple Function API
-from .simple import (
+# Simple Function API (Layer 1)
+from .simple import (  # noqa: E402
     compress_directory,
     compress_file,
     create_archive,
@@ -60,7 +68,7 @@ from .simple import (
 )
 
 # Version information
-from .version import (
+from .version import (  # noqa: E402
     generate_auto_version,
     generate_dev_version,
     get_base_version,
@@ -79,7 +87,7 @@ try:
 except Exception:
     # Fallback to hardcoded version if dynamic version fails
     from .version import __version__
-from .version import (
+from .version import (  # noqa: E402
     get_version_info as get_legacy_version_info,
 )
 
