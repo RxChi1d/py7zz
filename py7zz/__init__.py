@@ -2,8 +2,13 @@
 py7zz - Python wrapper for 7zz CLI tool
 
 Provides a consistent OOP interface across platforms (macOS, Linux, Windows)
-with automatic update mechanisms.
+with automatic update mechanisms and Windows filename compatibility.
 """
+
+# Initialize logging early
+from .logging_config import ensure_default_logging
+
+ensure_default_logging()
 
 # Configuration and Presets
 # Bundled information
@@ -26,6 +31,7 @@ from .exceptions import (
     ConfigurationError,
     CorruptedArchiveError,
     ExtractionError,
+    FilenameCompatibilityError,
     FileNotFoundError,
     InsufficientSpaceError,
     InvalidPasswordError,
@@ -33,6 +39,13 @@ from .exceptions import (
     PasswordRequiredError,
     Py7zzError,
     UnsupportedFormatError,
+)
+
+# Logging configuration
+from .logging_config import (
+    disable_warnings,
+    enable_debug_logging,
+    setup_logging,
 )
 
 # Layer 1: Simple Function API
@@ -153,6 +166,10 @@ __all__ = [
     "Presets",
     "create_custom_config",
     "get_recommended_preset",
+    # Logging
+    "setup_logging",
+    "enable_debug_logging",
+    "disable_warnings",
     # Exceptions
     "Py7zzError",
     "FileNotFoundError",
@@ -167,6 +184,7 @@ __all__ = [
     "InsufficientSpaceError",
     "ConfigurationError",
     "OperationTimeoutError",
+    "FilenameCompatibilityError",
 ]
 
 # Add compression API if available

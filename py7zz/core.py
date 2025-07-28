@@ -5,6 +5,7 @@ Provides subprocess wrapper and main SevenZipFile class.
 
 import os
 import platform
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -12,9 +13,25 @@ from typing import Iterator, List, Optional, Union
 
 # Python 3.8 compatibility - use string annotation for subprocess.CompletedProcess
 from .config import Config, Presets
-from .exceptions import PyFileNotFoundError as FileNotFoundError
+from .exceptions import (
+    ExtractionError,
+    FilenameCompatibilityError,
+)
+from .exceptions import (
+    PyFileNotFoundError as FileNotFoundError,
+)
+from .filename_sanitizer import (
+    get_sanitization_mapping,
+    is_windows,
+    log_sanitization_changes,
+    needs_sanitization,
+)
+from .logging_config import get_logger
 
 # Removed updater imports - py7zz now only uses bundled binaries
+
+# Get logger for this module
+logger = get_logger(__name__)
 
 
 def get_version() -> str:
@@ -103,6 +120,37 @@ def run_7z(
         raise subprocess.CalledProcessError(
             e.returncode, cmd, e.output, e.stderr
         ) from e
+
+
+def _is_filename_error(error_message: str) -> bool:
+    """
+    Check if the error message indicates a filename compatibility issue.
+
+    Args:
+        error_message: The error message from 7zz
+
+    Returns:
+        True if this appears to be a filename error
+    """
+    if not is_windows():
+        return False
+
+    error_lower = error_message.lower()
+
+    # Common Windows filename error patterns
+    filename_error_patterns = [
+        "cannot create",
+        "cannot use name",
+        "invalid name",
+        "the filename, directory name, or volume label syntax is incorrect",
+        "the system cannot find the path specified",
+        "cannot find the path",
+        "access is denied",  # Sometimes occurs with reserved names
+        "filename too long",
+        "illegal characters in name",
+    ]
+
+    return any(pattern in error_lower for pattern in filename_error_patterns)
 
 
 class SevenZipFile:
@@ -213,7 +261,7 @@ class SevenZipFile:
 
     def extract(self, path: Union[str, Path] = ".", overwrite: bool = False) -> None:
         """
-        Extract archive contents.
+        Extract archive contents with Windows filename compatibility handling.
 
         Args:
             path: Directory to extract to
@@ -234,9 +282,213 @@ class SevenZipFile:
             args.append("-y")  # assume yes for all prompts
 
         try:
+            # First attempt: direct extraction
             run_7z(args)
+            logger.debug("Archive extracted successfully without filename sanitization")
+
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to extract archive: {e.stderr}") from e
+            # Check if this is a filename compatibility error
+            error_message = e.stderr or str(e)
+
+            if not _is_filename_error(error_message):
+                # Not a filename error, re-raise as extraction error
+                raise ExtractionError(
+                    f"Failed to extract archive: {error_message}", e.returncode
+                ) from e
+
+            logger.info(
+                "Extraction failed due to filename compatibility issues, attempting with sanitized names"
+            )
+
+            # Second attempt: extraction with filename sanitization
+            try:
+                self._extract_with_sanitization(path, overwrite)
+
+            except Exception as sanitization_error:
+                # If sanitization also fails, raise the original error with context
+                raise ExtractionError(
+                    f"Failed to extract archive even with filename sanitization. "
+                    f"Original error: {error_message}. "
+                    f"Sanitization error: {sanitization_error}",
+                    e.returncode,
+                ) from e
+
+    def _extract_with_sanitization(self, target_path: Path, overwrite: bool) -> None:
+        """
+        Extract archive with filename sanitization for Windows compatibility.
+
+        Args:
+            target_path: Final destination for extracted files
+            overwrite: Whether to overwrite existing files
+        """
+        # Get list of files in archive to determine what needs sanitization
+        file_list = self.list_contents()
+
+        # Check if any files need sanitization
+        problematic_files = [f for f in file_list if needs_sanitization(f)]
+
+        if not problematic_files:
+            # No problematic files found, this might be a different issue
+            raise FilenameCompatibilityError(
+                "No problematic filenames detected, but extraction failed. "
+                "This might be a different type of error.",
+                problematic_files=problematic_files,
+            )
+
+        # Generate sanitization mapping
+        sanitization_mapping = get_sanitization_mapping(file_list)
+
+        if not sanitization_mapping:
+            raise FilenameCompatibilityError(
+                "Unable to generate filename sanitization mapping",
+                problematic_files=problematic_files,
+            )
+
+        # Log the changes that will be made
+        log_sanitization_changes(sanitization_mapping)
+
+        # Use a temporary directory for extraction
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+
+            # Extract to temporary directory first
+            args = ["x", str(self.file), f"-o{temp_path}"]
+            if overwrite:
+                args.append("-y")
+
+            try:
+                # This might still fail, but we'll handle it
+                run_7z(args)
+
+                # If extraction succeeds, move files with sanitized names
+                self._move_sanitized_files(
+                    temp_path, target_path, sanitization_mapping, overwrite
+                )
+
+            except subprocess.CalledProcessError:
+                # Even extraction to temp dir failed, try individual file extraction
+                logger.warning(
+                    "Bulk extraction to temp directory failed, trying individual file extraction"
+                )
+                self._extract_files_individually(
+                    target_path, sanitization_mapping, overwrite
+                )
+
+    def _move_sanitized_files(
+        self,
+        source_path: Path,
+        target_path: Path,
+        sanitization_mapping: dict,
+        overwrite: bool,
+    ) -> None:
+        """
+        Move files from temporary directory to target with sanitized names.
+
+        Args:
+            source_path: Source directory (temporary)
+            target_path: Target directory (final destination)
+            sanitization_mapping: Mapping of original to sanitized names
+            overwrite: Whether to overwrite existing files
+        """
+        for root, _dirs, files in os.walk(source_path):
+            root_path = Path(root)
+
+            # Calculate relative path from source
+            rel_path = root_path.relative_to(source_path)
+
+            for file in files:
+                original_file_path = rel_path / file
+                original_file_str = str(original_file_path).replace("\\", "/")
+
+                # Get sanitized name or use original
+                sanitized_name = sanitization_mapping.get(
+                    original_file_str, original_file_str
+                )
+
+                source_file = root_path / file
+                target_file = target_path / sanitized_name
+
+                # Create target directory if needed
+                target_file.parent.mkdir(parents=True, exist_ok=True)
+
+                # Move file
+                if target_file.exists() and not overwrite:
+                    logger.warning(f"Skipping existing file: {target_file}")
+                    continue
+
+                shutil.move(str(source_file), str(target_file))
+                logger.debug(f"Moved {source_file} to {target_file}")
+
+    def _extract_files_individually(
+        self, target_path: Path, sanitization_mapping: dict, overwrite: bool
+    ) -> None:
+        """
+        Extract files individually when bulk extraction fails.
+
+        Args:
+            target_path: Target directory for extraction
+            sanitization_mapping: Mapping of original to sanitized names
+            overwrite: Whether to overwrite existing files
+        """
+        extracted_count = 0
+        failed_files = []
+
+        for original_name, sanitized_name in sanitization_mapping.items():
+            try:
+                # Create a temporary file for this specific extraction
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_path = Path(temp_file.name)
+
+                # Try to extract this specific file
+                args = [
+                    "e",
+                    str(self.file),
+                    f"-o{temp_path.parent}",
+                    original_name,
+                    "-y",
+                ]
+
+                try:
+                    run_7z(args)
+
+                    # Move to final location with sanitized name
+                    final_path = target_path / sanitized_name
+                    final_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    if final_path.exists() and not overwrite:
+                        logger.warning(f"Skipping existing file: {final_path}")
+                        temp_path.unlink(missing_ok=True)
+                        continue
+
+                    shutil.move(str(temp_path), str(final_path))
+                    extracted_count += 1
+                    logger.debug(
+                        f"Individually extracted {original_name} as {sanitized_name}"
+                    )
+
+                except subprocess.CalledProcessError:
+                    failed_files.append(original_name)
+                    temp_path.unlink(missing_ok=True)
+
+            except Exception as e:
+                failed_files.append(original_name)
+                logger.error(f"Failed to extract {original_name}: {e}")
+
+        if failed_files:
+            logger.warning(
+                f"Failed to extract {len(failed_files)} files: {failed_files[:5]}..."
+            )
+
+        if extracted_count == 0:
+            raise FilenameCompatibilityError(
+                f"Unable to extract any files even with sanitization. Failed files: {failed_files[:10]}",
+                problematic_files=list(sanitization_mapping.keys()),
+                sanitized=True,
+            )
+
+        logger.info(
+            f"Successfully extracted {extracted_count} files with sanitized names"
+        )
 
     def list_contents(self) -> List[str]:
         """

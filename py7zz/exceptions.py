@@ -143,6 +143,20 @@ class OperationTimeoutError(Py7zzError):
         )
 
 
+class FilenameCompatibilityError(Py7zzError):
+    """Raised when filename compatibility issues are encountered during extraction."""
+
+    def __init__(
+        self,
+        message: str,
+        problematic_files: Optional[List[str]] = None,
+        sanitized: bool = False,
+    ):
+        self.problematic_files = problematic_files or []
+        self.sanitized = sanitized
+        super().__init__(message)
+
+
 # Aliases for compatibility with standard library exceptions
 PyFileNotFoundError = (
     FileNotFoundError  # Avoid conflict with built-in FileNotFoundError

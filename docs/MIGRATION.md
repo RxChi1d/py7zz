@@ -1,6 +1,6 @@
 # Migration Guide: From zipfile/tarfile to py7zz
 
-This guide helps you migrate from Python's standard library `zipfile` and `tarfile` modules to py7zz, which provides enhanced compression support for dozens of archive formats with a familiar interface.
+This guide helps you migrate from Python's standard library `zipfile` and `tarfile` modules to py7zz, which provides enhanced compression support for dozens of archive formats with a familiar interface and automatic Windows filename compatibility.
 
 ## Quick Start
 
@@ -381,6 +381,8 @@ try:
     py7zz.extract_archive('archive.7z')
 except py7zz.CorruptedArchiveError:
     print("Invalid archive file")
+except py7zz.FilenameCompatibilityError as e:
+    print(f"Filename issues resolved: {len(e.problematic_files)} files renamed")
 except py7zz.FileNotFoundError:
     print("Archive not found")
 ```
@@ -515,6 +517,54 @@ asyncio.run(process_large_archive())
    py7zz.extract_archive('archive.7z', 'output/', overwrite=True)
    ```
 
+## Windows Filename Compatibility
+
+One major advantage of migrating to py7zz is automatic handling of Windows filename restrictions, which is not available in the standard library modules.
+
+### The Problem
+
+When using zipfile/tarfile to extract archives created on Unix/Linux systems on Windows, you may encounter errors like:
+
+```python
+# OLD - zipfile fails with Windows-incompatible filenames
+import zipfile
+
+try:
+    with zipfile.ZipFile('unix_archive.zip', 'r') as zf:
+        zf.extractall('output/')  # Fails on Windows with files named 'CON.txt', 'file:name.txt', etc.
+except Exception as e:
+    print(f"Extraction failed: {e}")  # No automatic resolution
+```
+
+### The Solution
+
+py7zz automatically handles these issues:
+
+```python
+# NEW - py7zz automatically resolves filename issues
+import py7zz
+
+# Extract with automatic filename sanitization on Windows
+py7zz.extract_archive('unix_archive.zip', 'output/')
+# Files are automatically renamed:
+# 'CON.txt' -> 'CON_file.txt'
+# 'file:name.txt' -> 'file_name.txt'
+# 'file*.log' -> 'file_.log'
+
+# Control logging output
+py7zz.setup_logging("INFO")        # Show what was renamed (default)
+py7zz.disable_warnings()           # Hide filename warnings
+```
+
+### Migration Benefits
+
+| zipfile/tarfile | py7zz |
+|----------------|-------|
+| Fails on Windows with invalid filenames | Automatically sanitizes filenames |
+| No built-in filename handling | Handles reserved names, invalid chars, long names |
+| Manual error handling required | Detailed logging of changes |
+| Platform-specific issues | Works consistently across platforms |
+
 ### Getting Help
 
 - Check the [py7zz documentation](https://github.com/rxchi1d/py7zz)
@@ -528,6 +578,7 @@ py7zz provides a seamless migration path from zipfile and tarfile with:
 - **Enhanced Features**: Support for 50+ archive formats
 - **Better Performance**: Efficient 7zz engine under the hood
 - **Modern Features**: Async operations, progress reporting
-- **Cross-platform**: Works on Windows, macOS, and Linux
+- **Windows Compatibility**: Automatic filename sanitization
+- **Cross-platform**: Works consistently on Windows, macOS, and Linux
 
 The migration is straightforward - in most cases, you only need to change the import and class names. The rest of your code can remain largely unchanged while gaining access to advanced compression formats and features.

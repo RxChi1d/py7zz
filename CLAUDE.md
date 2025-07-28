@@ -377,6 +377,7 @@ perf: optimize memory usage for large file extraction
 - **跨平台相容性**：macOS、Debian 系 Linux、Windows x64
 - **授權條款**：BSD-3 + LGPL 2.1（保留 7-Zip 授權條款）
 - **異步支援**：提供完整的異步操作 API 與進度報告
+- **Windows 檔案名稱相容性**：自動處理 Windows 檔案名稱限制，包含無效字符替換和保留名稱處理
 
 ## 建置系統
 
@@ -529,3 +530,79 @@ py7zz l archive.7z
 **注意**：CLI 入口點從 `7zz` 改為 `py7zz` 以避免與系統 7zz 命令衝突。
 
 此混合方法確保 py7zz 在所有安裝方法中都能可靠運作，同時維護嚴格的版本控制和系統隔離。
+
+## Windows 檔案名稱相容性
+
+py7zz 提供自動的 Windows 檔案名稱相容性處理，解決從 Unix 系統建立的封存檔在 Windows 上解壓縮時的檔名問題。
+
+### 功能特色
+
+**自動偵測和重試機制**：
+- 先嘗試直接解壓縮
+- 若因檔名問題失敗，自動使用淨化檔名重試
+- 提供詳細的日誌記錄每個重新命名的檔案
+
+**檔案名稱淨化規則**：
+- **無效字符替換**：將 `< > : " | ? *` 及控制字符替換為 `_`
+- **保留名稱處理**：Windows 保留名稱（CON, PRN, AUX, NUL, COM1-9, LPT1-9）加上 `_file` 後綴
+- **長度限制**：檔名超過 255 字符時截短並加上 MD5 hash 確保唯一性
+- **尾隨字符移除**：移除檔名結尾的空格和句點
+- **目錄遍歷防護**：防止 `../` 等路徑遍歷攻擊
+- **唯一性保證**：確保淨化後的檔名不會產生衝突
+
+### 使用方式
+
+功能完全自動化，用戶無需額外設定：
+
+```python
+import py7zz
+
+# 自動處理有問題的檔名
+py7zz.extract_archive("unix-created-archive.7z", "output/")
+
+# 使用 SevenZipFile 類別
+with py7zz.SevenZipFile("problematic-names.zip") as sz:
+    sz.extract("output/")  # 自動淨化檔名
+```
+
+### 日誌控制
+
+用戶可控制檔名相容性警告的顯示：
+
+```python
+import py7zz
+
+# 啟用詳細日誌（預設）
+py7zz.setup_logging("INFO")
+
+# 停用檔名警告
+py7zz.disable_warnings()
+
+# 啟用除錯日誌
+py7zz.enable_debug_logging()
+```
+
+### 檔名轉換範例
+
+| 原始檔名 | 淨化後檔名 | 原因 |
+|---------|-----------|------|
+| `file:name.txt` | `file_name.txt` | 無效字符 `:` |
+| `CON.txt` | `CON_file.txt` | Windows 保留名稱 |
+| `file<>name.zip` | `file___name.zip` | 多個無效字符 |
+| `very-long-filename...` | `very-long-fil_a1b2c3d4.txt` | 超長檔名截短+hash |
+| `filename ` | `filename` | 移除尾隨空格 |
+
+### 錯誤處理
+
+**FilenameCompatibilityError**：當檔名相容性處理失敗時拋出
+**ExtractionError**：包含原始錯誤訊息和淨化錯誤的詳細資訊
+
+### 非 Windows 系統
+
+在非 Windows 系統上，此功能自動停用以避免不必要的效能開銷。
+
+### 安全考量
+
+- **路徑遍歷防護**：防止惡意封存檔案寫入系統目錄外
+- **檔名長度限制**：防止過長檔名造成系統問題
+- **字符安全性**：移除可能導致系統問題的控制字符
