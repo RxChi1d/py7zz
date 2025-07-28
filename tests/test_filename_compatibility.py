@@ -233,7 +233,12 @@ class TestSanitizedExtractionMethods:
     @patch("py7zz.core.run_7z")
     @patch("pathlib.Path.exists", return_value=True)
     def test_extract_with_sanitization_temp_success(
-        self, mock_exists, mock_run_7z, mock_temp_dir, mock_core_is_windows, mock_sanitizer_is_windows
+        self,
+        mock_exists,
+        mock_run_7z,
+        mock_temp_dir,
+        mock_core_is_windows,
+        mock_sanitizer_is_windows,
     ):
         """Test successful extraction to temp directory with sanitization."""
         # Mock temporary directory
@@ -258,7 +263,12 @@ class TestSanitizedExtractionMethods:
     @patch("py7zz.core.run_7z")
     @patch("pathlib.Path.exists", return_value=True)
     def test_extract_with_sanitization_temp_fails(
-        self, mock_exists, mock_run_7z, mock_temp_dir, mock_core_is_windows, mock_sanitizer_is_windows
+        self,
+        mock_exists,
+        mock_run_7z,
+        mock_temp_dir,
+        mock_core_is_windows,
+        mock_sanitizer_is_windows,
     ):
         """Test fallback to individual extraction when temp extraction fails."""
         # Mock temporary directory
@@ -284,7 +294,9 @@ class TestSanitizedExtractionMethods:
 
     @patch("py7zz.filename_sanitizer.is_windows", return_value=True)
     @patch("py7zz.core.is_windows", return_value=True)
-    def test_extract_files_individually_success(self, mock_core_is_windows, mock_sanitizer_is_windows):
+    def test_extract_files_individually_success(
+        self, mock_core_is_windows, mock_sanitizer_is_windows
+    ):
         """Test individual file extraction with sanitization."""
         sanitization_mapping = {
             "file:name.txt": "file_name.txt",
@@ -315,7 +327,9 @@ class TestSanitizedExtractionMethods:
 
     @patch("py7zz.filename_sanitizer.is_windows", return_value=True)
     @patch("py7zz.core.is_windows", return_value=True)
-    def test_extract_files_individually_all_fail(self, mock_core_is_windows, mock_sanitizer_is_windows):
+    def test_extract_files_individually_all_fail(
+        self, mock_core_is_windows, mock_sanitizer_is_windows
+    ):
         """Test individual extraction when all files fail."""
         sanitization_mapping = {"file:name.txt": "file_name.txt"}
 
