@@ -1,6 +1,6 @@
 # py7zz API Reference
 
-Complete API documentation for py7zz, a Python wrapper for the 7zz CLI tool.
+Complete API documentation for py7zz, a Python wrapper for the 7zz CLI tool with Windows filename compatibility.
 
 ## Table of Contents
 
@@ -8,6 +8,8 @@ Complete API documentation for py7zz, a Python wrapper for the 7zz CLI tool.
 - [Object-Oriented API](#object-oriented-api)
 - [Async Operations API](#async-operations-api)
 - [Advanced Configuration](#advanced-configuration)
+- [Windows Filename Compatibility](#windows-filename-compatibility)
+- [Logging Configuration](#logging-configuration)
 - [Exception Handling](#exception-handling)
 - [Progress Callbacks](#progress-callbacks)
 - [Version Information](#version-information)
@@ -42,7 +44,7 @@ py7zz.create_archive(
 
 ### `extract_archive(archive_path, output_dir=".", overwrite=True)`
 
-Extract an archive to the specified directory.
+Extract an archive to the specified directory with automatic Windows filename compatibility handling.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
@@ -51,13 +53,21 @@ Extract an archive to the specified directory.
 
 **Returns:** None
 
+**Raises:**
+- `FilenameCompatibilityError`: When filename issues cannot be resolved
+- `ExtractionError`: When extraction fails for other reasons
+
 **Example:**
 ```python
-# Basic extraction
+# Basic extraction (automatic filename handling on Windows)
 py7zz.extract_archive('backup.7z', 'extracted/')
 
 # Extract without overwriting existing files
 py7zz.extract_archive('backup.7z', 'extracted/', overwrite=False)
+
+# On Windows, files with problematic names are automatically renamed:
+# 'CON.txt' -> 'CON_file.txt'
+# 'file:name.txt' -> 'file_name.txt'
 ```
 
 ### `list_archive(archive_path)`
@@ -301,6 +311,93 @@ config = py7zz.create_custom_config(
 )
 ```
 
+## Windows Filename Compatibility
+
+py7zz automatically handles Windows filename restrictions when extracting archives, particularly those created on Unix/Linux systems.
+
+### Automatic Filename Sanitization
+
+On Windows systems, py7zz automatically detects and resolves filename compatibility issues:
+
+```python
+import py7zz
+
+# Extract with automatic filename handling
+py7zz.extract_archive('unix-archive.7z', 'output/')
+
+# Object-oriented interface also handles filenames automatically
+with py7zz.SevenZipFile('problematic.zip', 'r') as sz:
+    sz.extract('output/')  # Filenames automatically sanitized
+```
+
+### Sanitization Rules
+
+The following transformations are applied automatically:
+
+| Issue | Example | Solution |
+|-------|---------|----------|
+| Invalid characters | `file:name.txt` | `file_name.txt` |
+| Reserved names | `CON.txt` | `CON_file.txt` |
+| Multiple issues | `PRN<file>.txt` | `PRN_file_file_.txt` |
+| Long filenames | `very-long...` | `very-long-fil_a1b2c3d4.txt` |
+| Trailing spaces/dots | `filename .` | `filename` |
+
+### Platform Behavior
+
+- **Windows**: Automatic filename sanitization when needed
+- **Unix/Linux/macOS**: No filename modification (not needed)
+
+### Error Handling
+
+```python
+try:
+    py7zz.extract_archive('problematic.7z', 'output/')
+except py7zz.FilenameCompatibilityError as e:
+    print(f"Filename issues encountered: {len(e.problematic_files)} files")
+    print(f"Sanitization {'successful' if e.sanitized else 'failed'}")
+```
+
+## Logging Configuration
+
+Control logging output for filename compatibility warnings and other operations.
+
+### Setup Logging
+
+```python
+import py7zz
+
+# Configure logging level
+py7zz.setup_logging("INFO")        # Default - shows warnings
+py7zz.setup_logging("DEBUG")       # Verbose output
+py7zz.setup_logging("ERROR")       # Only errors
+
+# Quick configuration methods
+py7zz.enable_debug_logging()       # Enable debug mode
+py7zz.disable_warnings()           # Hide filename warnings
+```
+
+### Example Log Output
+
+When extracting archives with problematic filenames:
+
+```
+INFO [py7zz] Extraction failed due to filename compatibility issues, attempting with sanitized names
+WARNING [py7zz] Windows filename compatibility: 3 files renamed
+WARNING [py7zz]   'CON.txt' -> 'CON_file.txt' (reason: reserved name: CON)
+WARNING [py7zz]   'file:name.txt' -> 'file_name.txt' (reason: invalid characters: ':')
+WARNING [py7zz]   'file*.log' -> 'file_.log' (reason: invalid characters: '*')
+INFO [py7zz] Successfully extracted 15 files with sanitized names
+```
+
+### Logging Levels
+
+| Level | What's Shown |
+|-------|--------------|
+| `DEBUG` | All operations, file movements, detailed progress |
+| `INFO` | Operation start/completion, filename warnings |
+| `WARNING` | Filename compatibility warnings only |
+| `ERROR` | Only error messages |
+
 ## Exception Handling
 
 ### Exception Hierarchy
@@ -310,6 +407,7 @@ Py7zzError (base exception)
 ├── BinaryNotFoundError
 ├── CompressionError
 ├── ExtractionError
+├── FilenameCompatibilityError
 ├── FileNotFoundError
 ├── ArchiveNotFoundError
 ├── CorruptedArchiveError
@@ -338,6 +436,26 @@ Raised when compression fails.
 #### `ExtractionError`
 
 Raised when extraction fails.
+
+#### `FilenameCompatibilityError`
+
+Raised when filename compatibility issues are encountered during extraction on Windows.
+
+**Attributes:**
+- `problematic_files` (List[str]): List of problematic filenames
+- `sanitized` (bool): Whether sanitization was attempted
+
+**Example:**
+```python
+try:
+    py7zz.extract_archive('problematic.7z', 'output/')
+except py7zz.FilenameCompatibilityError as e:
+    print(f"{len(e.problematic_files)} files had naming issues")
+    if e.sanitized:
+        print("Files were successfully renamed")
+    else:
+        print("Could not resolve all filename issues")
+```
 
 #### `FileNotFoundError`
 

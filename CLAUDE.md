@@ -91,42 +91,102 @@ uv add --dev pytest ruff mypy
 ```
 
 ### 核心開發循環
+
+⚠️ **重要**：每次提交前**必須**執行完整的品質檢查流程，確保與 CI 環境一致。
+
 ```bash
-# 使用 uv（推薦）
-uv run ruff check --fix .   # 風格檢查並自動修正
-uv run ruff format .        # 格式化程式碼
-uv run mypy .               # 類型檢查
-uv run pytest              # 執行單元測試
+# 使用 uv（推薦）- 按照 CI 執行順序
+uv run ruff format .        # 1. 格式化程式碼
+uv run ruff check --fix .   # 2. 風格檢查並自動修正
+uv run mypy .               # 3. 類型檢查
+uv run pytest              # 4. 執行單元測試
 
 # 或使用傳統命令（需要啟動虛擬環境）
 source .venv/bin/activate
-ruff check --fix .
 ruff format .
+ruff check --fix .
 mypy .
 pytest
 ```
 
-**注意**：完整的程式碼品質檢查會在 GitHub Actions 中執行，確保 PR 合併前的程式碼品質。
-
-### 完整開發工作流程範例
+### 完整開發工作流程範例（**嚴格遵循**）
 ```bash
 # 1. 啟動開發環境
 source .venv/bin/activate
 
 # 2. 開發程式碼...
 
-# 3. 執行完整質檢流程（與 CI 一致）
-uv run ruff format .        # 格式化程式碼
-uv run ruff check --fix .   # 檢查並修正程式碼風格（包含 SIM 規則）
-uv run mypy .               # 類型檢查
-uv run pytest              # 執行完整測試套件
+# 3. **必須**執行完整質檢流程（與 CI 完全一致的順序）
+echo "=== 執行程式碼品質檢查 ==="
 
-# 4. 確認所有檢查通過後才提交
+echo "步驟 1/4: 格式化程式碼"
+uv run ruff format .
+if [ $? -ne 0 ]; then
+    echo "❌ ruff format 失敗，請檢查程式碼"
+    exit 1
+fi
+
+echo "步驟 2/4: 檢查程式碼風格"
+uv run ruff check --fix .
+if [ $? -ne 0 ]; then
+    echo "❌ ruff check 失敗，請修正程式碼風格問題"
+    exit 1
+fi
+
+echo "步驟 3/4: 類型檢查"
+uv run mypy .
+if [ $? -ne 0 ]; then
+    echo "❌ mypy 類型檢查失敗，請修正類型錯誤"
+    exit 1
+fi
+
+echo "步驟 4/4: 執行測試套件"
+uv run pytest -v --tb=short
+if [ $? -ne 0 ]; then
+    echo "❌ pytest 測試失敗，請修正測試錯誤"
+    exit 1
+fi
+
+echo "✅ 所有品質檢查通過，可以安全提交"
+
+# 4. 只有在所有檢查通過後才允許提交
 git add .
 git commit -m "feat: add new feature"
 
-# 5. 推送前再次確認 CI 會通過
+# 5. 推送到遠端
 git push origin <branch-name>
+```
+
+### 自動化品質檢查腳本（建議）
+
+為了避免遺漏檢查步驟，可以建立一個檢查腳本：
+
+```bash
+# 建立 scripts/quality-check.sh
+#!/bin/bash
+set -e
+
+echo "=== py7zz 程式碼品質檢查 ==="
+
+echo "步驟 1/4: 格式化程式碼"
+uv run ruff format .
+
+echo "步驟 2/4: 檢查程式碼風格"
+uv run ruff check --fix .
+
+echo "步驟 3/4: 類型檢查"
+uv run mypy .
+
+echo "步驟 4/4: 執行測試套件"
+uv run pytest -v --tb=short
+
+echo "✅ 所有品質檢查通過！"
+```
+
+```bash
+# 使用方式
+chmod +x scripts/quality-check.sh
+./scripts/quality-check.sh && git add . && git commit -m "your commit message"
 ```
 
 ## 架構
@@ -209,16 +269,70 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 
 ## 程式碼提交前檢查清單
 
-在提交程式碼前，請確保：
+⚠️ **關鍵問題**：經常發現 push 後 CI 仍然失敗，表示提交前檢查不夠嚴格。
+
+### 🔴 **強制執行順序**（與 CI 完全一致）
+
+**每次提交前必須按照以下確切順序執行，不可省略任何步驟：**
+
+```bash
+# 步驟 1: 格式化 (與 CI ruff format --check 對應)
+uv run ruff format .
+echo "✅ 格式化完成"
+
+# 步驟 2: Lint 檢查 (與 CI ruff check 對應)  
+uv run ruff check --fix .
+echo "✅ Lint 檢查通過"
+
+# 步驟 3: 類型檢查 (與 CI mypy 對應)
+uv run mypy .
+echo "✅ 類型檢查通過"
+
+# 步驟 4: 測試執行 (與 CI pytest 對應)
+uv run pytest -v --tb=short
+echo "✅ 所有測試通過"
+
+# 只有全部通過才允許提交
+git add .
+git commit -m "your message"
+```
+
+### 📋 完整檢查清單
+
+在提交程式碼前，**必須**確保：
+
+#### 🔧 程式碼品質 (自動化檢查)
 - [ ] `uv run ruff format .` 執行成功，程式碼格式化完成
-- [ ] `uv run ruff check --fix .` 無錯誤，所有 lint 規則通過（包含 SIM 簡化規則）
+- [ ] `uv run ruff check --fix .` 無錯誤，所有 lint 規則通過（包含 SIM, E402 等規則）
 - [ ] `uv run mypy .` 無錯誤，所有類型檢查通過
-- [ ] `uv run pytest` 全部測試通過，無失敗案例
+- [ ] `uv run pytest -v --tb=short` 全部測試通過，無失敗案例
+- [ ] **驗證**：所有命令的退出碼都是 0
+
+#### 🧪 測試覆蓋 (手動檢查)
 - [ ] 所有修改都經過適當測試（單元測試、整合測試）
+- [ ] 新增功能有對應的測試案例
+- [ ] 修復的 bug 有迴歸測試
+- [ ] 跨平台相容性測試（特別是 Windows/Linux 差異）
+
+#### 📚 文件同步 (手動檢查)  
 - [ ] 相關文件已同步更新（README.md、CLAUDE.md、docstrings）
+- [ ] API 變更有對應的文件更新
+- [ ] 新功能有使用範例
+
+#### 🏗️ 程式碼品質 (手動檢查)
 - [ ] 程式碼符合專案架構和設計原則
 - [ ] 沒有遺留的 TODO 或 FIXME 註解（除非有計劃處理）
 - [ ] 提交訊息遵循約定格式（詳見「提交訊息規範」）
+- [ ] 沒有調試用的 print 或 console.log 語句
+
+### 🚨 **CI 失敗預防**
+
+如果你的提交經常導致 CI 失敗，請檢查：
+
+1. **環境差異**：確保本地 Python 版本與 CI 一致（支援 3.8-3.13）
+2. **依賴版本**：使用 `uv sync --dev` 確保依賴版本一致
+3. **跨平台問題**：Windows 開發者特別注意路徑分隔符、行結束符等問題
+4. **Mock 設定**：測試中的 mock 是否正確覆蓋所有必要的函數（如 `is_windows()`）
 
 **重要**：只有在所有檢查項目都通過後，才能提交程式碼到儲存庫。這確保了程式碼品質並避免 CI 失敗。
 
@@ -377,6 +491,7 @@ perf: optimize memory usage for large file extraction
 - **跨平台相容性**：macOS、Debian 系 Linux、Windows x64
 - **授權條款**：BSD-3 + LGPL 2.1（保留 7-Zip 授權條款）
 - **異步支援**：提供完整的異步操作 API 與進度報告
+- **Windows 檔案名稱相容性**：自動處理 Windows 檔案名稱限制，包含無效字符替換和保留名稱處理
 
 ## 建置系統
 
@@ -529,3 +644,79 @@ py7zz l archive.7z
 **注意**：CLI 入口點從 `7zz` 改為 `py7zz` 以避免與系統 7zz 命令衝突。
 
 此混合方法確保 py7zz 在所有安裝方法中都能可靠運作，同時維護嚴格的版本控制和系統隔離。
+
+## Windows 檔案名稱相容性
+
+py7zz 提供自動的 Windows 檔案名稱相容性處理，解決從 Unix 系統建立的封存檔在 Windows 上解壓縮時的檔名問題。
+
+### 功能特色
+
+**自動偵測和重試機制**：
+- 先嘗試直接解壓縮
+- 若因檔名問題失敗，自動使用淨化檔名重試
+- 提供詳細的日誌記錄每個重新命名的檔案
+
+**檔案名稱淨化規則**：
+- **無效字符替換**：將 `< > : " | ? *` 及控制字符替換為 `_`
+- **保留名稱處理**：Windows 保留名稱（CON, PRN, AUX, NUL, COM1-9, LPT1-9）加上 `_file` 後綴
+- **長度限制**：檔名超過 255 字符時截短並加上 MD5 hash 確保唯一性
+- **尾隨字符移除**：移除檔名結尾的空格和句點
+- **目錄遍歷防護**：防止 `../` 等路徑遍歷攻擊
+- **唯一性保證**：確保淨化後的檔名不會產生衝突
+
+### 使用方式
+
+功能完全自動化，用戶無需額外設定：
+
+```python
+import py7zz
+
+# 自動處理有問題的檔名
+py7zz.extract_archive("unix-created-archive.7z", "output/")
+
+# 使用 SevenZipFile 類別
+with py7zz.SevenZipFile("problematic-names.zip") as sz:
+    sz.extract("output/")  # 自動淨化檔名
+```
+
+### 日誌控制
+
+用戶可控制檔名相容性警告的顯示：
+
+```python
+import py7zz
+
+# 啟用詳細日誌（預設）
+py7zz.setup_logging("INFO")
+
+# 停用檔名警告
+py7zz.disable_warnings()
+
+# 啟用除錯日誌
+py7zz.enable_debug_logging()
+```
+
+### 檔名轉換範例
+
+| 原始檔名 | 淨化後檔名 | 原因 |
+|---------|-----------|------|
+| `file:name.txt` | `file_name.txt` | 無效字符 `:` |
+| `CON.txt` | `CON_file.txt` | Windows 保留名稱 |
+| `file<>name.zip` | `file___name.zip` | 多個無效字符 |
+| `very-long-filename...` | `very-long-fil_a1b2c3d4.txt` | 超長檔名截短+hash |
+| `filename ` | `filename` | 移除尾隨空格 |
+
+### 錯誤處理
+
+**FilenameCompatibilityError**：當檔名相容性處理失敗時拋出
+**ExtractionError**：包含原始錯誤訊息和淨化錯誤的詳細資訊
+
+### 非 Windows 系統
+
+在非 Windows 系統上，此功能自動停用以避免不必要的效能開銷。
+
+### 安全考量
+
+- **路徑遍歷防護**：防止惡意封存檔案寫入系統目錄外
+- **檔名長度限制**：防止過長檔名造成系統問題
+- **字符安全性**：移除可能導致系統問題的控制字符

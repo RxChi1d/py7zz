@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/pypi/l/py7zz.svg)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
 [![CI](https://github.com/rxchi1d/py7zz/workflows/CI/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
 
-A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented interface across platforms (macOS, Linux, Windows) with automatic update mechanisms and support for dozens of archive formats.
+A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented interface across platforms (macOS, Linux, Windows) with automatic update mechanisms, Windows filename compatibility, and support for dozens of archive formats.
 
 ## Features
 
@@ -16,6 +16,7 @@ A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented in
 - **⚡ Async operations** - Non-blocking operations with progress reporting
 - **🔒 Secure** - Bundled 7zz binaries, no system dependencies
 - **🎯 Smart presets** - Optimized settings for different use cases
+- **🪟 Windows filename compatibility** - Automatic handling of Unix archive filenames on Windows
 
 ## Quick Start
 
@@ -214,6 +215,44 @@ pip install -e .
 pip install git+https://github.com/rxchi1d/py7zz.git
 ```
 
+## Windows Filename Compatibility
+
+py7zz automatically handles Windows filename restrictions when extracting archives created on Unix/Linux systems:
+
+```python
+import py7zz
+
+# Automatically handles problematic filenames
+py7zz.extract_archive('unix-created-archive.7z', 'output/')
+# Files like 'CON.txt' become 'CON_file.txt'
+# Files like 'file:name.txt' become 'file_name.txt'
+
+# Control logging output
+py7zz.setup_logging("INFO")        # Show filename warnings (default)
+py7zz.disable_warnings()           # Hide filename warnings
+py7zz.enable_debug_logging()       # Show detailed debug info
+```
+
+### Automatic Filename Sanitization
+
+When extracting on Windows, py7zz automatically:
+
+- **Replaces invalid characters**: `< > : " | ? *` → `_`
+- **Handles reserved names**: `CON.txt` → `CON_file.txt`
+- **Truncates long names**: Very long filenames get shortened with hash
+- **Removes trailing spaces/dots**: `filename ` → `filename`
+- **Ensures uniqueness**: Prevents filename conflicts
+- **Logs all changes**: Shows exactly what was renamed and why
+
+| Original (Unix) | Windows Safe | Reason |
+|----------------|--------------|---------|
+| `file:name.txt` | `file_name.txt` | Invalid character `:` |
+| `CON.txt` | `CON_file.txt` | Windows reserved name |
+| `file<>*.zip` | `file___.zip` | Multiple invalid chars |
+| `very-long-filename...` | `very-long-fil_a1b2c.txt` | Length + hash |
+
+**This feature is automatic and only activates on Windows systems when needed.**
+
 ## Error Handling
 
 py7zz provides specific exception types for better error handling:
@@ -222,11 +261,15 @@ py7zz provides specific exception types for better error handling:
 import py7zz
 
 try:
-    py7zz.create_archive('backup.7z', ['nonexistent/'])
+    py7zz.extract_archive('problematic.7z', 'output/')
+except py7zz.FilenameCompatibilityError as e:
+    print(f"Filename issues resolved: {len(e.problematic_files)} files renamed")
 except py7zz.FileNotFoundError:
     print("Source file not found")
 except py7zz.CompressionError:
     print("Compression failed")
+except py7zz.ExtractionError:
+    print("Extraction failed")
 except py7zz.InsufficientSpaceError:
     print("Not enough disk space")
 except py7zz.Py7zzError as e:
