@@ -6,6 +6,8 @@ Complete API documentation for py7zz, a Python wrapper for the 7zz CLI tool with
 
 - [Simple Function API](#simple-function-api)
 - [Object-Oriented API](#object-oriented-api)
+- [Archive Information Classes](#archive-information-classes)
+- [Industry Standard Compatibility](#industry-standard-compatibility)
 - [Async Operations API](#async-operations-api)
 - [Advanced Configuration](#advanced-configuration)
 - [Windows Filename Compatibility](#windows-filename-compatibility)
@@ -174,24 +176,119 @@ Extract a specific file from the archive.
 
 **Returns:** None
 
-##### `extractall(output_dir)`
+##### `extractall(output_dir, members=None)`
 
-Extract all files from the archive.
+Extract all files from the archive, with optional selective extraction.
 
 **Parameters:**
 - `output_dir` (str): Directory to extract to
+- `members` (Optional[List[str]]): List of specific members to extract (zipfile/tarfile compatible)
 
 **Returns:** None
+
+**Example:**
+```python
+# Extract everything
+sz.extractall('output/')
+
+# Extract specific files (zipfile/tarfile compatible)
+sz.extractall('output/', members=['file1.txt', 'folder/file2.txt'])
+```
 
 ##### `add(path, arcname=None)`
 
-Add a file or directory to the archive.
+Add a file or directory to the archive with optional custom naming.
 
 **Parameters:**
 - `path` (str): Path to the file/directory to add
-- `arcname` (str, optional): Name to use in the archive
+- `arcname` (str, optional): Custom name to use in the archive (zipfile compatible)
 
 **Returns:** None
+
+**Example:**
+```python
+# Add with original name
+sz.add('file.txt')
+
+# Add with custom name (zipfile compatible)
+sz.add('file.txt', arcname='renamed.txt')
+sz.add('src/data.txt', arcname='backup/data.txt')
+```
+
+##### `infolist()`
+
+Get detailed information about all archive members (zipfile.ZipFile compatible).
+
+**Returns:** List[ArchiveInfo] - List of archive member information objects
+
+**Example:**
+```python
+info_list = sz.infolist()
+for info in info_list:
+    print(f"{info.filename}: {info.file_size} bytes")
+    print(f"  Compressed: {info.compress_size} bytes")
+    print(f"  Ratio: {info.get_compression_ratio():.1%}")
+```
+
+##### `getinfo(name)`
+
+Get detailed information about a specific archive member (zipfile.ZipFile compatible).
+
+**Parameters:**
+- `name` (str): Name of the archive member
+
+**Returns:** ArchiveInfo - Archive member information object
+
+**Raises:**
+- `KeyError`: If the member is not found in the archive
+
+**Example:**
+```python
+info = sz.getinfo('file.txt')
+print(f"Size: {info.file_size}")
+print(f"Modified: {info.date_time}")
+print(f"CRC: {info.CRC:08X}")
+```
+
+##### `getmembers()`
+
+Get detailed information about all archive members (tarfile.TarFile compatible).
+
+**Returns:** List[ArchiveInfo] - List of archive member information objects
+
+**Example:**
+```python
+members = sz.getmembers()
+for member in members:
+    print(f"{member.filename} ({member.type})")
+    if hasattr(member, 'mode'):
+        print(f"  Mode: {oct(member.mode)}")
+```
+
+##### `getmember(name)`
+
+Get detailed information about a specific archive member (tarfile.TarFile compatible).
+
+**Parameters:**
+- `name` (str): Name of the archive member
+
+**Returns:** ArchiveInfo - Archive member information object
+
+**Raises:**
+- `KeyError`: If the member is not found in the archive
+
+##### `getnames()`
+
+Get list of archive member names (tarfile.TarFile compatible).
+
+**Returns:** List[str] - List of member names
+
+**Example:**
+```python
+names = sz.getnames()
+for name in names:
+    print(name)
+```
 
 ##### `close()`
 
@@ -199,7 +296,277 @@ Close the archive file.
 
 **Returns:** None
 
+## Archive Information Classes
+
+### `ArchiveInfo`
+
+Represents information about a member in an archive, compatible with both `zipfile.ZipInfo` and `tarfile.TarInfo`.
+
+**Attributes:**
+- `filename` (str): Name of the archive member
+- `file_size` (int): Uncompressed size in bytes
+- `compress_size` (int): Compressed size in bytes
+- `date_time` (Optional[tuple]): Last modification time as (year, month, day, hour, minute, second)
+- `CRC` (int): CRC-32 checksum
+- `method` (str): Compression method used
+- `type` (str): File type ('file', 'dir', 'link')
+- `mode` (Optional[int]): File permissions (Unix-style)
+- `uid` (Optional[int]): User ID (Unix-style)
+- `gid` (Optional[int]): Group ID (Unix-style)
+- `mtime` (Optional[float]): Modification time as timestamp
+- `attributes` (int): File attributes
+- `comment` (str): File comment
+- `encrypted` (Optional[bool]): Whether the file is encrypted
+- `solid` (Optional[bool]): Whether the file is part of solid compression
+
+**Example:**
+```python
+import py7zz
+
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    info = sz.getinfo('file.txt')
+    
+    # Basic information
+    print(f"Name: {info.filename}")
+    print(f"Size: {info.file_size} bytes")
+    print(f"Compressed: {info.compress_size} bytes")
+    print(f"CRC: {info.CRC:08X}")
+    
+    # Time information
+    if info.date_time:
+        year, month, day, hour, minute, second = info.date_time
+        print(f"Modified: {year}-{month:02d}-{day:02d} {hour:02d}:{minute:02d}:{second:02d}")
+    
+    # Compression information
+    print(f"Method: {info.method}")
+    print(f"Ratio: {info.get_compression_ratio():.1%}")
+```
+
+#### Methods
+
+##### `is_dir()`
+
+Check if the archive member is a directory.
+
+**Returns:** bool - True if directory, False otherwise
+
+##### `isfile()`
+
+Check if the archive member is a regular file (zipfile.ZipInfo compatible).
+
+**Returns:** bool - True if regular file, False otherwise
+
+##### `isdir()`
+
+Check if the archive member is a directory (zipfile.ZipInfo compatible).
+
+**Returns:** bool - True if directory, False otherwise
+
+##### `get_compression_ratio()`
+
+Calculate the compression ratio.
+
+**Returns:** float - Compression ratio as a decimal (0.0 = no compression, 1.0 = 100% compression)
+
+##### `from_zipinfo(zipinfo)`
+
+Create an ArchiveInfo object from a zipfile.ZipInfo object.
+
+**Parameters:**
+- `zipinfo` (zipfile.ZipInfo): Source ZipInfo object
+
+**Returns:** ArchiveInfo - New ArchiveInfo instance
+
+**Example:**
+```python
+import zipfile
+import py7zz
+
+# Convert from zipfile.ZipInfo
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    zip_info = zf.getinfo('file.txt')
+    archive_info = py7zz.ArchiveInfo.from_zipinfo(zip_info)
+    print(f"Converted: {archive_info.filename}")
+```
+
+##### `from_tarinfo(tarinfo)`
+
+Create an ArchiveInfo object from a tarfile.TarInfo object.
+
+**Parameters:**
+- `tarinfo` (tarfile.TarInfo): Source TarInfo object
+
+**Returns:** ArchiveInfo - New ArchiveInfo instance
+
+**Example:**
+```python
+import tarfile
+import py7zz
+
+# Convert from tarfile.TarInfo
+with tarfile.open('archive.tar.gz', 'r:gz') as tf:
+    tar_info = tf.getmember('file.txt')
+    archive_info = py7zz.ArchiveInfo.from_tarinfo(tar_info)
+    print(f"Converted: {archive_info.filename}")
+```
+
+## Industry Standard Compatibility
+
+py7zz provides complete compatibility with Python's standard library archive modules.
+
+### zipfile.ZipFile Compatibility
+
+py7zz's `SevenZipFile` class provides all major `zipfile.ZipFile` methods:
+
+```python
+import py7zz
+
+# zipfile-style usage
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # Get list of files
+    names = sz.namelist()
+    
+    # Get detailed information
+    info_list = sz.infolist()
+    info = sz.getinfo('file.txt')
+    
+    # Extract files
+    sz.extractall('output/')
+    sz.extractall('output/', members=['file1.txt', 'file2.txt'])
+
+# Write archives
+with py7zz.SevenZipFile('archive.7z', 'w') as sz:
+    sz.add('file.txt')
+    sz.add('src/data.txt', arcname='backup/data.txt')
+```
+
+### tarfile.TarFile Compatibility
+
+py7zz also provides `tarfile.TarFile` compatible methods:
+
+```python
+import py7zz
+
+# tarfile-style usage
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # Get member information
+    members = sz.getmembers()
+    member = sz.getmember('file.txt')
+    
+    # Get member names
+    names = sz.getnames()
+    
+    # Extract specific members
+    sz.extractall('output/', members=['file1.txt', 'dir/'])
+```
+
+### Migration Examples
+
+#### From zipfile
+
+```python
+# OLD (zipfile)
+import zipfile
+
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    names = zf.namelist()
+    info = zf.getinfo('file.txt')
+    info_list = zf.infolist()
+    zf.extractall('output/')
+    zf.extractall('output/', members=['file1.txt'])
+
+# NEW (py7zz) - Identical API
+import py7zz
+
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    names = sz.namelist()           # Same method
+    info = sz.getinfo('file.txt')   # Same method, returns ArchiveInfo
+    info_list = sz.infolist()       # Same method, returns List[ArchiveInfo]
+    sz.extractall('output/')        # Same method
+    sz.extractall('output/', members=['file1.txt'])  # Same parameters
+```
+
+#### From tarfile
+
+```python
+# OLD (tarfile)
+import tarfile
+
+with tarfile.open('archive.tar.gz', 'r:gz') as tf:
+    names = tf.getnames()
+    members = tf.getmembers()
+    member = tf.getmember('file.txt')
+    tf.extractall('output/')
+
+# NEW (py7zz) - Compatible API
+import py7zz
+
+with py7zz.SevenZipFile('archive.tar.gz', 'r') as sz:
+    names = sz.getnames()           # tarfile compatible
+    members = sz.getmembers()       # tarfile compatible
+    member = sz.getmember('file.txt')  # tarfile compatible
+    sz.extractall('output/')        # Same method
+```
+
+### Advanced Compatibility Features
+
+#### Unified ArchiveInfo Objects
+
+Both zipfile and tarfile compatible methods return the same `ArchiveInfo` objects:
+
+```python
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # All these methods return ArchiveInfo objects
+    zipfile_style = sz.infolist()[0]  # ArchiveInfo
+    tarfile_style = sz.getmembers()[0]  # ArchiveInfo (same object)
+    
+    # Access properties using either style
+    print(f"zipfile style: {zipfile_style.file_size}")
+    print(f"tarfile style: {tarfile_style.size}")  # Same value, different name
+```
+
+#### Factory Methods for Conversion
+
+Convert existing archive info objects:
+
+```python
+import zipfile
+import tarfile
+import py7zz
+
+# Convert from zipfile
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    zip_info = zf.getinfo('file.txt')
+    archive_info = py7zz.ArchiveInfo.from_zipinfo(zip_info)
+
+# Convert from tarfile
+with tarfile.open('archive.tar.gz', 'r:gz') as tf:
+    tar_info = tf.getmember('file.txt')
+    archive_info = py7zz.ArchiveInfo.from_tarinfo(tar_info)
+```
+
 ## Async Operations API
+
+### Updated Async API with Industry Standard Methods
+
+The async API now includes all industry standard methods:
+
+```python
+import asyncio
+import py7zz
+
+async def async_archive_operations():
+    async with py7zz.AsyncSevenZipFile('archive.7z', 'r') as asz:
+        # All methods available in async form
+        info_list = await asz.infolist()
+        info = await asz.getinfo('file.txt')
+        members = await asz.getmembers()
+        member = await asz.getmember('file.txt')
+        names = await asz.namelist()
+        names_tar = await asz.getnames()
+
+asyncio.run(async_archive_operations())
+```
 
 ### `create_archive_async(archive_path, files, *, preset=None, password=None, progress_callback=None)`
 

@@ -11,6 +11,8 @@ from .logging_config import ensure_default_logging
 ensure_default_logging()
 
 # Bundled information
+# Archive information classes
+from .archive_info import ArchiveInfo  # noqa: E402
 from .bundled_info import (  # noqa: E402
     get_bundled_7zz_version,
     get_release_type,
@@ -141,6 +143,8 @@ __all__ = [
     # Core API (Layer 2)
     "SevenZipFile",
     "run_7z",
+    # Archive information classes
+    "ArchiveInfo",
     # Version information
     "__version__",
     "get_version",

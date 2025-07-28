@@ -5,6 +5,7 @@ Provides one-line solutions for common archive operations.
 This is the highest-level interface designed for 80% of use cases.
 """
 
+import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
@@ -93,6 +94,10 @@ def list_archive(archive_path: Union[str, Path]) -> List[str]:
     """
     List all files in an archive.
 
+    .. deprecated:: 0.2.0
+        Use ``SevenZipFile.namelist()`` or ``SevenZipFile.getnames()`` instead.
+        This function will be removed in version 1.0.0.
+
     Args:
         archive_path: Path to the archive to list
 
@@ -103,6 +108,13 @@ def list_archive(archive_path: Union[str, Path]) -> List[str]:
         >>> files = py7zz.list_archive("backup.7z")
         >>> print(f"Archive contains {len(files)} files")
     """
+    warnings.warn(
+        "list_archive() is deprecated and will be removed in version 1.0.0. "
+        "Use SevenZipFile.namelist() or SevenZipFile.getnames() instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     if not Path(archive_path).exists():
         raise FileNotFoundError(f"Archive not found: {archive_path}")
 
@@ -183,36 +195,73 @@ def compress_directory(
 
 def get_archive_info(archive_path: Union[str, Path]) -> Dict[str, Any]:
     """
-    Get detailed information about an archive.
+    Get statistical information about an archive (no file listing).
+
+    This function provides pure archive statistics without file enumeration,
+    addressing the previous design issue where file listing was mixed with
+    archive metadata. For file listings, use SevenZipFile.namelist() instead.
 
     Args:
         archive_path: Path to the archive
 
     Returns:
-        Dictionary with archive information
+        Dictionary with archive statistics only
 
     Example:
         >>> info = py7zz.get_archive_info("backup.7z")
-        >>> print(f"Files: {info['file_count']}, Size: {info['compressed_size']}")
+        >>> print(f"Files: {info['file_count']}, Compression: {info['compression_ratio']:.1%}")
     """
     if not Path(archive_path).exists():
         raise FileNotFoundError(f"Archive not found: {archive_path}")
 
     archive_path = Path(archive_path)
 
-    with SevenZipFile(archive_path, "r") as sz:
-        files = sz.namelist()
+    # Get detailed information to calculate statistics
+    from .detailed_parser import create_archive_summary, get_detailed_archive_info
 
-    # Get file size
-    compressed_size = archive_path.stat().st_size
+    try:
+        members = get_detailed_archive_info(archive_path)
+        summary = create_archive_summary(members)
 
-    return {
-        "file_count": len(files),
-        "compressed_size": compressed_size,
-        "files": files,
-        "format": archive_path.suffix.lower(),
-        "path": str(archive_path),
-    }
+        # Get file system metadata
+        stat = archive_path.stat()
+
+        return {
+            "file_count": summary["file_count"],
+            "directory_count": summary["directory_count"],
+            "total_entries": summary["total_file_count"],
+            "compressed_size": stat.st_size,
+            "uncompressed_size": summary["total_uncompressed_size"],
+            "compression_ratio": summary["compression_ratio"],
+            "compression_percentage": summary["compression_percentage"],
+            "format": archive_path.suffix.lower().lstrip("."),
+            "path": str(archive_path),
+            "archive_type": summary["archive_type"],
+            "created": stat.st_ctime,
+            "modified": stat.st_mtime,
+        }
+
+    except Exception:
+        # Fallback to basic information if detailed parsing fails
+        with SevenZipFile(archive_path, "r") as sz:
+            file_list = sz.namelist()
+
+        stat = archive_path.stat()
+
+        return {
+            "file_count": len(file_list),
+            "directory_count": 0,  # Cannot determine without detailed info
+            "total_entries": len(file_list),
+            "compressed_size": stat.st_size,
+            "uncompressed_size": 0,  # Cannot determine without detailed info
+            "compression_ratio": 0.0,  # Cannot calculate without uncompressed size
+            "compression_percentage": 0.0,
+            "format": archive_path.suffix.lower().lstrip("."),
+            "path": str(archive_path),
+            "archive_type": "unknown",
+            "created": stat.st_ctime,
+            "modified": stat.st_mtime,
+        }
 
 
 def test_archive(archive_path: Union[str, Path]) -> bool:

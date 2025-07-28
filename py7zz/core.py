@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Iterator, List, Optional, Union
 
 # Python 3.8 compatibility - use string annotation for subprocess.CompletedProcess
+from .archive_info import ArchiveInfo
 from .config import Config, Presets
 from .exceptions import (
     ExtractionError,
@@ -233,7 +234,7 @@ class SevenZipFile:
 
         Args:
             name: Path to file or directory to add
-            arcname: Name in archive (defaults to name) - currently not implemented
+            arcname: Name in archive (defaults to name)
         """
         if self.mode == "r":
             raise ValueError("Cannot add to archive opened in read mode")
@@ -242,10 +243,20 @@ class SevenZipFile:
         if not name.exists():
             raise FileNotFoundError(f"File not found: {name}")
 
-        # Build 7z command
-        # TODO: Implement arcname support in future version
-        _ = arcname  # Unused parameter
+        if arcname is None:
+            # Simple case: add file with its original name
+            self._add_simple(name)
+        else:
+            # Complex case: add file with custom archive name
+            self._add_with_arcname(name, arcname)
 
+    def _add_simple(self, name: Path) -> None:
+        """
+        Add file with its original name to the archive.
+
+        Args:
+            name: Path to file or directory to add
+        """
         args = ["a"]  # add command
 
         # Add configuration arguments
@@ -258,6 +269,70 @@ class SevenZipFile:
             run_7z(args)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to add {name} to archive: {e.stderr}") from e
+
+    def _add_with_arcname(self, name: Path, arcname: str) -> None:
+        """
+        Add file with a custom archive name.
+
+        Args:
+            name: Path to file or directory to add
+            arcname: Name to use in the archive
+        """
+        # For 7zz, we need to use a temporary directory structure
+        # that matches the desired archive name
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_base = Path(temp_dir)
+
+            # Create the target path structure
+            target_arcname = Path(arcname)
+            temp_target = temp_base / target_arcname
+
+            # Create parent directories if needed
+            temp_target.parent.mkdir(parents=True, exist_ok=True)
+
+            if name.is_file():
+                # For files: copy to temporary location with desired name
+                shutil.copy2(name, temp_target)
+            else:
+                # For directories: create symlink or copy
+                if hasattr(os, "symlink"):
+                    try:
+                        # Try to create a symlink (faster)
+                        os.symlink(name, temp_target, target_is_directory=True)
+                    except (OSError, NotImplementedError):
+                        # Symlink failed, fall back to copying
+                        shutil.copytree(name, temp_target)
+                else:
+                    # Platform doesn't support symlinks, copy the directory
+                    shutil.copytree(name, temp_target)
+
+            # Add the temporary file/directory to the archive
+            args = ["a"]  # add command
+
+            # Add configuration arguments
+            args.extend(self.config.to_7z_args())
+
+            # Add archive path
+            args.append(str(self.file))
+
+            # Change to temp directory and add the file with relative path
+            # This ensures the archive name is correct
+            try:
+                # Build the complete command: 7zz a <archive> <file>
+                cmd = [find_7z_binary()] + args + [str(target_arcname)]
+                subprocess.run(
+                    cmd,
+                    cwd=str(temp_base),
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                logger.debug(f"Successfully added {name} as {arcname} to archive")
+
+            except subprocess.CalledProcessError as e:
+                raise RuntimeError(
+                    f"Failed to add {name} as {arcname} to archive: {e.stderr}"
+                ) from e
 
     def extract(self, path: Union[str, Path] = ".", overwrite: bool = False) -> None:
         """
@@ -322,7 +397,7 @@ class SevenZipFile:
             overwrite: Whether to overwrite existing files
         """
         # Get list of files in archive to determine what needs sanitization
-        file_list = self.list_contents()
+        file_list = self._list_contents()
 
         # Check if any files need sanitization
         problematic_files = [f for f in file_list if needs_sanitization(f)]
@@ -490,9 +565,9 @@ class SevenZipFile:
             f"Successfully extracted {extracted_count} files with sanitized names"
         )
 
-    def list_contents(self) -> List[str]:
+    def _list_contents(self) -> List[str]:
         """
-        List archive contents.
+        List archive contents (internal method).
 
         Returns:
             List of file names in the archive
@@ -529,6 +604,17 @@ class SevenZipFile:
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to list archive contents: {e.stderr}") from e
 
+    def _get_detailed_info(self) -> List[ArchiveInfo]:
+        """
+        Internal method to get detailed archive information using 7zz -slt.
+
+        Returns:
+            List of ArchiveInfo objects with comprehensive metadata
+        """
+        from .detailed_parser import get_detailed_archive_info
+
+        return get_detailed_archive_info(self.file)
+
     # zipfile/tarfile compatibility methods
 
     def namelist(self) -> List[str]:
@@ -536,14 +622,72 @@ class SevenZipFile:
         Return a list of archive members by name.
         Compatible with zipfile.ZipFile.namelist() and tarfile.TarFile.getnames().
         """
-        return self.list_contents()
+        return self._list_contents()
 
     def getnames(self) -> List[str]:
         """
         Return a list of archive members by name.
         Compatible with tarfile.TarFile.getnames().
         """
-        return self.list_contents()
+        return self._list_contents()
+
+    def infolist(self) -> List[ArchiveInfo]:
+        """
+        Return a list of ArchiveInfo objects for all members in the archive.
+        Compatible with zipfile.ZipFile.infolist().
+
+        Returns:
+            List of ArchiveInfo objects with detailed metadata
+        """
+        return self._get_detailed_info()
+
+    def getinfo(self, name: str) -> ArchiveInfo:
+        """
+        Return ArchiveInfo object for the specified member.
+        Compatible with zipfile.ZipFile.getinfo().
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            ArchiveInfo object for the specified member
+
+        Raises:
+            KeyError: If the member is not found in the archive
+        """
+        members = self._get_detailed_info()
+
+        for member in members:
+            if member.filename == name:
+                return member
+
+        raise KeyError(f"File '{name}' not found in archive")
+
+    def getmembers(self) -> List[ArchiveInfo]:
+        """
+        Return a list of ArchiveInfo objects for all members in the archive.
+        Compatible with tarfile.TarFile.getmembers().
+
+        Returns:
+            List of ArchiveInfo objects with detailed metadata
+        """
+        return self._get_detailed_info()
+
+    def getmember(self, name: str) -> ArchiveInfo:
+        """
+        Return ArchiveInfo object for the specified member.
+        Compatible with tarfile.TarFile.getmember().
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            ArchiveInfo object for the specified member
+
+        Raises:
+            KeyError: If the member is not found in the archive
+        """
+        return self.getinfo(name)
 
     def extractall(
         self, path: Union[str, Path] = ".", members: Optional[List[str]] = None
@@ -556,11 +700,184 @@ class SevenZipFile:
             path: Directory to extract to (default: current directory)
             members: List of member names to extract (default: all members)
         """
-        # TODO: Implement selective extraction with members parameter
-        if members is not None:
-            raise NotImplementedError("Selective extraction not yet implemented")
+        if self.mode == "w":
+            raise ValueError("Cannot extract from archive opened in write mode")
 
-        self.extract(path, overwrite=True)
+        if not self.file.exists():
+            raise FileNotFoundError(f"Archive not found: {self.file}")
+
+        path = Path(path)
+        path.mkdir(parents=True, exist_ok=True)
+
+        if members is None:
+            # Extract all members
+            self.extract(path, overwrite=True)
+        else:
+            # Selective extraction: extract only specified members
+            self._extract_selective_members(path, members)
+
+    def _extract_selective_members(self, target_path: Path, members: List[str]) -> None:
+        """
+        Extract only specified members from the archive.
+
+        Args:
+            target_path: Directory to extract to
+            members: List of member names to extract
+        """
+        if not members:
+            return  # Nothing to extract
+
+        # Build 7z command for selective extraction
+        args = ["x", str(self.file), f"-o{target_path}", "-y"]
+
+        # Add specific file names to extract
+        args.extend(members)
+
+        try:
+            # First attempt: direct selective extraction
+            run_7z(args)
+            logger.debug(f"Successfully extracted {len(members)} selected members")
+
+        except subprocess.CalledProcessError as e:
+            # Check if this is a filename compatibility error on Windows
+            error_message = e.stderr or str(e)
+
+            if not _is_filename_error(error_message):
+                # Not a filename error, re-raise as extraction error
+                raise ExtractionError(
+                    f"Failed to extract selected members: {error_message}", e.returncode
+                ) from e
+
+            logger.info(
+                "Selective extraction failed due to filename compatibility issues, attempting with sanitization"
+            )
+
+            # Second attempt: extraction with filename sanitization
+            try:
+                self._extract_selective_with_sanitization(target_path, members)
+            except Exception as sanitization_error:
+                # If sanitization also fails, raise the original error with context
+                raise ExtractionError(
+                    f"Failed to extract selected members even with filename sanitization. "
+                    f"Original error: {error_message}. "
+                    f"Sanitization error: {sanitization_error}",
+                    e.returncode,
+                ) from e
+
+    def _extract_selective_with_sanitization(
+        self, target_path: Path, requested_members: List[str]
+    ) -> None:
+        """
+        Extract selected members with filename sanitization for Windows compatibility.
+
+        Args:
+            target_path: Final destination for extracted files
+            requested_members: List of member names to extract
+        """
+        # Get full list of files in archive to determine what needs sanitization
+        all_files = self._list_contents()
+
+        # Filter to only the requested members that exist in the archive
+        existing_members = [f for f in requested_members if f in all_files]
+        missing_members = [f for f in requested_members if f not in all_files]
+
+        if missing_members:
+            logger.warning(f"Requested members not found in archive: {missing_members}")
+
+        if not existing_members:
+            logger.warning("No requested members found in archive")
+            return
+
+        # Check if any of the requested files need sanitization
+        problematic_files = [f for f in existing_members if needs_sanitization(f)]
+
+        if not problematic_files:
+            # No problematic files among requested members, this might be a different issue
+            raise FilenameCompatibilityError(
+                "No problematic filenames detected among requested members, but extraction failed. "
+                "This might be a different type of error.",
+                problematic_files=problematic_files,
+            )
+
+        # Generate sanitization mapping for all files (needed for context)
+        full_file_list = self._list_contents()
+        full_sanitization_mapping = get_sanitization_mapping(full_file_list)
+
+        # Filter mapping to only requested members
+        selective_mapping = {
+            original: sanitized
+            for original, sanitized in full_sanitization_mapping.items()
+            if original in existing_members
+        }
+
+        if not selective_mapping:
+            raise FilenameCompatibilityError(
+                "Unable to generate filename sanitization mapping for requested members",
+                problematic_files=problematic_files,
+            )
+
+        # Log the changes that will be made
+        log_sanitization_changes(selective_mapping)
+
+        # Extract files individually with sanitized names
+        extracted_count = 0
+        failed_files = []
+
+        for original_name, sanitized_name in selective_mapping.items():
+            try:
+                # Create a temporary file for this specific extraction
+                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+                    temp_path = Path(temp_file.name)
+
+                # Try to extract this specific file
+                args = [
+                    "e",
+                    str(self.file),
+                    f"-o{temp_path.parent}",
+                    original_name,
+                    "-y",
+                ]
+
+                try:
+                    run_7z(args)
+
+                    # Move to final location with sanitized name
+                    final_path = target_path / sanitized_name
+                    final_path.parent.mkdir(parents=True, exist_ok=True)
+
+                    if final_path.exists():
+                        logger.warning(f"Overwriting existing file: {final_path}")
+                        final_path.unlink()
+
+                    shutil.move(str(temp_path), str(final_path))
+                    extracted_count += 1
+                    logger.debug(
+                        f"Individually extracted {original_name} as {sanitized_name}"
+                    )
+
+                except subprocess.CalledProcessError:
+                    failed_files.append(original_name)
+                    temp_path.unlink(missing_ok=True)
+
+            except Exception as e:
+                failed_files.append(original_name)
+                logger.error(f"Failed to extract {original_name}: {e}")
+
+        if failed_files:
+            logger.warning(
+                f"Failed to extract {len(failed_files)} files: {failed_files[:5]}..."
+            )
+
+        if extracted_count == 0:
+            raise FilenameCompatibilityError(
+                f"Unable to extract any requested files even with sanitization. Failed files: {failed_files[:10]}",
+                problematic_files=list(selective_mapping.keys()),
+                sanitized=True,
+            )
+
+        logger.info(
+            f"Successfully extracted {extracted_count} selected files with sanitized names"
+        )
 
     def read(self, name: str) -> bytes:
         """

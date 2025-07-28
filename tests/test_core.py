@@ -159,8 +159,8 @@ def test_sevenzipfile_extract_missing_archive():
 
 
 @patch("py7zz.core.run_7z")
-def test_sevenzipfile_list_contents(mock_run_7z):
-    """Test listing archive contents."""
+def test_sevenzipfile_namelist(mock_run_7z):
+    """Test listing archive contents via namelist() method."""
     mock_run_7z.return_value = Mock(
         stdout="""\
 7-Zip 24.00 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-05-26
@@ -190,17 +190,17 @@ Blocks = 1
 
     with patch("pathlib.Path.exists", return_value=True):
         sz = SevenZipFile("test.7z", "r")
-        contents = sz.list_contents()
+        contents = sz.namelist()
 
         assert "test.txt" in contents
         assert "folder" in contents
         assert len(contents) >= 2
 
 
-def test_sevenzipfile_list_contents_missing_archive():
+def test_sevenzipfile_namelist_missing_archive():
     """Test listing missing archive raises error."""
     sz = SevenZipFile("missing.7z", "r")
     with patch("pathlib.Path.exists", return_value=False), pytest.raises(
         FileNotFoundError, match="Archive not found"
     ):
-        sz.list_contents()
+        sz.namelist()

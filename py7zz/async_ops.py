@@ -10,7 +10,8 @@ import subprocess
 from pathlib import Path
 from typing import Callable, List, Optional, Union
 
-from .core import find_7z_binary
+from .archive_info import ArchiveInfo
+from .core import SevenZipFile, find_7z_binary
 from .exceptions import FileNotFoundError
 
 
@@ -147,6 +148,95 @@ class AsyncSevenZipFile:
             )
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to extract archive: {e.stderr}") from e
+
+    async def infolist(self) -> List[ArchiveInfo]:
+        """
+        Return a list of ArchiveInfo objects for all members in the archive asynchronously.
+        Compatible with zipfile.ZipFile.infolist().
+
+        Returns:
+            List of ArchiveInfo objects with detailed metadata
+        """
+        # Use synchronous method since file info parsing is already fast
+        # and doesn't benefit from async execution
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._get_sync_infolist
+        )
+
+    def _get_sync_infolist(self) -> List[ArchiveInfo]:
+        """Helper method to get infolist synchronously."""
+        with SevenZipFile(self.file, "r") as sz:
+            return sz.infolist()
+
+    async def getinfo(self, name: str) -> ArchiveInfo:
+        """
+        Return ArchiveInfo object for the specified member asynchronously.
+        Compatible with zipfile.ZipFile.getinfo().
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            ArchiveInfo object for the specified member
+
+        Raises:
+            KeyError: If the member is not found in the archive
+        """
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._get_sync_info, name
+        )
+
+    def _get_sync_info(self, name: str) -> ArchiveInfo:
+        """Helper method to get info synchronously."""
+        with SevenZipFile(self.file, "r") as sz:
+            return sz.getinfo(name)
+
+    async def getmembers(self) -> List[ArchiveInfo]:
+        """
+        Return a list of ArchiveInfo objects for all members in the archive asynchronously.
+        Compatible with tarfile.TarFile.getmembers().
+
+        Returns:
+            List of ArchiveInfo objects with detailed metadata
+        """
+        return await self.infolist()  # Same as infolist
+
+    async def getmember(self, name: str) -> ArchiveInfo:
+        """
+        Return ArchiveInfo object for the specified member asynchronously.
+        Compatible with tarfile.TarFile.getmember().
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            ArchiveInfo object for the specified member
+
+        Raises:
+            KeyError: If the member is not found in the archive
+        """
+        return await self.getinfo(name)  # Same as getinfo
+
+    async def namelist(self) -> List[str]:
+        """
+        Return a list of archive members by name asynchronously.
+        Compatible with zipfile.ZipFile.namelist() and tarfile.TarFile.getnames().
+        """
+        return await asyncio.get_event_loop().run_in_executor(
+            None, self._get_sync_namelist
+        )
+
+    def _get_sync_namelist(self) -> List[str]:
+        """Helper method to get namelist synchronously."""
+        with SevenZipFile(self.file, "r") as sz:
+            return sz.namelist()
+
+    async def getnames(self) -> List[str]:
+        """
+        Return a list of archive members by name asynchronously.
+        Compatible with tarfile.TarFile.getnames().
+        """
+        return await self.namelist()  # Same as namelist
 
     async def _run_with_progress(
         self,

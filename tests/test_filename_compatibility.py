@@ -250,7 +250,7 @@ class TestSanitizedExtractionMethods:
 
         # Mock file listing and move sanitized files method
         with patch.object(
-            self.sz, "list_contents", return_value=["file:name.txt", "CON.txt"]
+            self.sz, "_list_contents", return_value=["file:name.txt", "CON.txt"]
         ), patch.object(self.sz, "_move_sanitized_files") as mock_move:
             self.sz._extract_with_sanitization(Path("output"), False)
 
@@ -285,7 +285,7 @@ class TestSanitizedExtractionMethods:
 
         # Mock file listing and individual extraction method
         with patch.object(
-            self.sz, "list_contents", return_value=["file:name.txt"]
+            self.sz, "_list_contents", return_value=["file:name.txt"]
         ), patch.object(self.sz, "_extract_files_individually") as mock_individual:
             self.sz._extract_with_sanitization(Path("output"), False)
 

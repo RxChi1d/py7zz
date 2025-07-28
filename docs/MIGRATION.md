@@ -19,6 +19,56 @@ pip install py7zz
 | Read file | `zf.read()` | `sz.read()` |
 | Add file | `zf.write()` | `sz.add()` |
 
+## Industry Standard API Compatibility
+
+py7zz 1.0+ provides complete compatibility with both `zipfile.ZipFile` and `tarfile.TarFile` APIs, making migration seamless.
+
+### New Industry Standard Methods
+
+py7zz now includes all standard archive library methods:
+
+| Method | zipfile | tarfile | py7zz | Description |
+|--------|---------|---------|-------|-------------|
+| `namelist()` | ✅ | ❌ | ✅ | Get list of member names |
+| `getnames()` | ❌ | ✅ | ✅ | Get list of member names (tarfile style) |
+| `infolist()` | ✅ | ❌ | ✅ | Get detailed info for all members |
+| `getmembers()` | ❌ | ✅ | ✅ | Get detailed info for all members (tarfile style) |
+| `getinfo(name)` | ✅ | ❌ | ✅ | Get detailed info for specific member |
+| `getmember(name)` | ❌ | ✅ | ✅ | Get detailed info for specific member (tarfile style) |
+| `extractall(members=...)` | ✅ | ✅ | ✅ | Extract specific members only |
+| `add(arcname=...)` | ✅ (write) | ❌ | ✅ | Add file with custom archive name |
+
+### ArchiveInfo Class - Unified Archive Member Information
+
+py7zz introduces the `ArchiveInfo` class, compatible with both `zipfile.ZipInfo` and `tarfile.TarInfo`:
+
+```python
+import py7zz
+
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # Get detailed information about archive members
+    info = sz.getinfo('file.txt')
+    
+    # zipfile.ZipInfo compatible properties
+    print(f"Filename: {info.filename}")
+    print(f"File size: {info.file_size}")
+    print(f"Compressed size: {info.compress_size}")
+    print(f"CRC: {info.CRC:08X}")
+    print(f"Date modified: {info.date_time}")
+    
+    # tarfile.TarInfo compatible properties
+    print(f"Size: {info.size}")        # Same as file_size
+    print(f"Mode: {oct(info.mode)}")   # File permissions
+    print(f"Type: {info.type}")        # 'file', 'dir', 'link'
+    print(f"UID: {info.uid}")          # User ID
+    print(f"GID: {info.gid}")          # Group ID
+    
+    # Additional py7zz features
+    print(f"Compression method: {info.method}")
+    print(f"Compression ratio: {info.get_compression_ratio():.1%}")
+    print(f"Is encrypted: {info.encrypted}")
+```
+
 ## API Mapping
 
 ### 1. Creating Archives
@@ -95,8 +145,14 @@ py7zz.extract_archive('archive.7z', 'output_folder')
 import zipfile
 
 with zipfile.ZipFile('archive.zip', 'r') as zf:
+    # Get basic file list
     file_list = zf.namelist()
     print(f"Archive contains {len(file_list)} files")
+    
+    # Get detailed information
+    info_list = zf.infolist()
+    for info in info_list:
+        print(f"{info.filename}: {info.file_size} bytes")
 ```
 
 #### tarfile
@@ -104,8 +160,14 @@ with zipfile.ZipFile('archive.zip', 'r') as zf:
 import tarfile
 
 with tarfile.open('archive.tar.gz', 'r:gz') as tf:
+    # Get basic file list
     file_list = tf.getnames()
     print(f"Archive contains {len(file_list)} files")
+    
+    # Get detailed information
+    members = tf.getmembers()
+    for member in members:
+        print(f"{member.name}: {member.size} bytes")
 ```
 
 #### py7zz
@@ -114,10 +176,23 @@ import py7zz
 
 # Compatible with both zipfile and tarfile APIs
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    file_list = sz.namelist()  # or sz.getnames()
+    # zipfile style
+    file_list = sz.namelist()
+    info_list = sz.infolist()
+    
+    # or tarfile style
+    file_list = sz.getnames()
+    members = sz.getmembers()
+    
     print(f"Archive contains {len(file_list)} files")
+    
+    # Enhanced information available
+    for info in info_list:
+        print(f"{info.filename}: {info.file_size} bytes")
+        print(f"  Compressed: {info.compress_size} bytes ({info.get_compression_ratio():.1%})")
+        print(f"  Method: {info.method}")
 
-# Simple one-liner
+# Simple one-liner (legacy)
 file_list = py7zz.list_archive('archive.7z')
 ```
 
@@ -336,6 +411,199 @@ with zipfile.ZipFile('archive.zip', 'w') as zf:
 
 # NEW - one line
 py7zz.create_archive('archive.7z', ['file.txt', 'folder/'])
+```
+
+## Complete Migration Examples
+
+### Advanced zipfile Migration
+
+#### Old zipfile Code
+```python
+import zipfile
+import os
+
+# Create archive with custom names
+with zipfile.ZipFile('backup.zip', 'w') as zf:
+    zf.write('config.txt', arcname='settings/config.txt')
+    zf.write('data.json', arcname='backup/data.json')
+
+# Extract specific files only
+with zipfile.ZipFile('backup.zip', 'r') as zf:
+    # Get information about specific files
+    try:
+        info = zf.getinfo('settings/config.txt')
+        print(f"Config file size: {info.file_size}")
+        print(f"Modified: {info.date_time}")
+    except KeyError:
+        print("Config file not found")
+    
+    # Extract only specific members
+    zf.extractall('output/', members=['settings/config.txt', 'backup/data.json'])
+    
+    # Get all file information
+    for info in zf.infolist():
+        print(f"{info.filename}: {info.file_size} bytes, CRC: {info.CRC:08X}")
+```
+
+#### New py7zz Code (Identical API)
+```python
+import py7zz
+
+# Create archive with custom names - IDENTICAL API
+with py7zz.SevenZipFile('backup.7z', 'w') as sz:
+    sz.add('config.txt', arcname='settings/config.txt')    # Same method!
+    sz.add('data.json', arcname='backup/data.json')       # Same method!
+
+# Extract specific files only - IDENTICAL API
+with py7zz.SevenZipFile('backup.7z', 'r') as sz:
+    # Get information about specific files - IDENTICAL API
+    try:
+        info = sz.getinfo('settings/config.txt')           # Same method!
+        print(f"Config file size: {info.file_size}")       # Same property!
+        print(f"Modified: {info.date_time}")               # Same property!
+    except KeyError:
+        print("Config file not found")
+    
+    # Extract only specific members - IDENTICAL API
+    sz.extractall('output/', members=['settings/config.txt', 'backup/data.json'])
+    
+    # Get all file information - IDENTICAL API + Enhanced info
+    for info in sz.infolist():                             # Same method!
+        print(f"{info.filename}: {info.file_size} bytes, CRC: {info.CRC:08X}")
+        # BONUS: Additional information available
+        print(f"  Compression: {info.method}, Ratio: {info.get_compression_ratio():.1%}")
+```
+
+### Advanced tarfile Migration
+
+#### Old tarfile Code
+```python
+import tarfile
+
+# Create TAR archive
+with tarfile.open('backup.tar.gz', 'w:gz') as tf:
+    tf.add('src/', arcname='source')  # Custom name for directory
+
+# Extract and analyze
+with tarfile.open('backup.tar.gz', 'r:gz') as tf:
+    # Get member information
+    members = tf.getmembers()
+    names = tf.getnames()
+    
+    print(f"Archive contains {len(names)} items")
+    
+    # Analyze each member
+    for member in members:
+        print(f"{member.name} ({member.type})")
+        if member.isfile():
+            print(f"  Size: {member.size} bytes")
+            print(f"  Mode: {oct(member.mode)}")
+            print(f"  UID/GID: {member.uid}/{member.gid}")
+    
+    # Get specific member
+    try:
+        member = tf.getmember('source/main.py')
+        print(f"Found main.py: {member.size} bytes")
+    except KeyError:
+        print("main.py not found")
+```
+
+#### New py7zz Code (Compatible API)
+```python
+import py7zz
+
+# Create archive - Enhanced but compatible
+with py7zz.SevenZipFile('backup.7z', 'w') as sz:
+    sz.add('src/', arcname='source')                       # Same as tarfile!
+
+# Extract and analyze - Compatible API + enhancements
+with py7zz.SevenZipFile('backup.7z', 'r') as sz:
+    # Get member information - SAME METHODS
+    members = sz.getmembers()                              # Same method!
+    names = sz.getnames()                                  # Same method!
+    
+    print(f"Archive contains {len(names)} items")
+    
+    # Analyze each member - Enhanced compatibility
+    for member in members:
+        print(f"{member.filename} ({member.type})")        # filename works like name
+        if member.isfile():                                # Same method!
+            print(f"  Size: {member.size} bytes")          # size property available
+            if hasattr(member, 'mode'):
+                print(f"  Mode: {oct(member.mode)}")       # Same property!
+            if hasattr(member, 'uid'):
+                print(f"  UID/GID: {member.uid}/{member.gid}")  # Same properties!
+        
+        # BONUS: Additional 7z-specific information
+        print(f"  Compression: {member.method}")
+        print(f"  Ratio: {member.get_compression_ratio():.1%}")
+    
+    # Get specific member - SAME METHOD
+    try:
+        member = sz.getmember('source/main.py')            # Same method!
+        print(f"Found main.py: {member.size} bytes")       # Same property!
+    except KeyError:
+        print("main.py not found")
+```
+
+### Async Migration for Large Operations
+
+#### Old synchronous code
+```python
+import zipfile
+import os
+import time
+
+def process_large_archives():
+    start_time = time.time()
+    
+    # Process multiple archives sequentially
+    for i in range(5):
+        archive_name = f'large_archive_{i}.zip'
+        with zipfile.ZipFile(archive_name, 'w') as zf:
+            # Add large directory (blocks main thread)
+            for root, dirs, files in os.walk('large_data/'):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zf.write(file_path)
+        
+        print(f"Created {archive_name}")
+    
+    print(f"Total time: {time.time() - start_time:.1f}s")
+```
+
+#### New async py7zz code
+```python
+import py7zz
+import asyncio
+import time
+
+async def process_large_archives():
+    start_time = time.time()
+    
+    # Progress callback for user feedback
+    async def progress_callback(info):
+        print(f"\r{info.operation}: {info.percentage:.1f}% - {info.current_file}", end='')
+    
+    # Process multiple archives concurrently
+    tasks = []
+    for i in range(5):
+        archive_name = f'large_archive_{i}.7z'
+        task = py7zz.create_archive_async(
+            archive_name, 
+            ['large_data/'], 
+            preset='balanced',
+            progress_callback=progress_callback
+        )
+        tasks.append(task)
+    
+    # Run all tasks concurrently
+    await asyncio.gather(*tasks)
+    
+    print(f"\nTotal time: {time.time() - start_time:.1f}s")
+
+# Run async operation
+asyncio.run(process_large_archives())
 ```
 
 ## Common Migration Patterns

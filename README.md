@@ -9,14 +9,15 @@ A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented in
 
 ## Features
 
+- **🔧 Industry Standard API Compatibility** - Complete `zipfile.ZipFile` and `tarfile.TarFile` API compatibility with enhanced features
 - **🚀 One-line archive operations** - Simple API for common tasks
-- **🔧 zipfile/tarfile compatibility** - Drop-in replacement with familiar interface
 - **📦 50+ archive formats** - ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, LZ4, ZSTD, and more
 - **🌐 Cross-platform** - Works on macOS, Linux, and Windows
 - **⚡ Async operations** - Non-blocking operations with progress reporting
 - **🔒 Secure** - Bundled 7zz binaries, no system dependencies
 - **🎯 Smart presets** - Optimized settings for different use cases
 - **🪟 Windows filename compatibility** - Automatic handling of Unix archive filenames on Windows
+- **📊 Rich archive information** - Detailed metadata with compression ratios, file attributes, and more
 
 ## Quick Start
 
@@ -31,19 +32,29 @@ pip install py7zz
 ```python
 import py7zz
 
-# Create archive (simple API)
+# Simple API - One-line operations
 py7zz.create_archive('backup.7z', ['documents/', 'photos/'])
-
-# Extract archive
 py7zz.extract_archive('backup.7z', 'extracted/')
 
-# List archive contents
-files = py7zz.list_archive('backup.7z')
-print(f"Archive contains {len(files)} files")
+# Industry Standard API - zipfile.ZipFile compatible
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # zipfile compatible methods
+    files = sz.namelist()                    # List all files
+    info_list = sz.infolist()               # Get detailed file info
+    info = sz.getinfo('document.txt')       # Get specific file info
+    
+    # Enhanced information available
+    print(f"File: {info.filename}")
+    print(f"Size: {info.file_size} bytes")
+    print(f"Compressed: {info.compress_size} bytes")
+    print(f"Compression ratio: {info.get_compression_ratio():.1%}")
+    print(f"Method: {info.method}")
 
-# Test archive integrity
-if py7zz.test_archive('backup.7z'):
-    print("Archive is OK")
+# tarfile.TarFile compatible methods also available
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    members = sz.getmembers()               # tarfile compatible
+    member = sz.getmember('document.txt')   # tarfile compatible
+    names = sz.getnames()                   # tarfile compatible
 ```
 
 ### Advanced Usage
@@ -51,15 +62,23 @@ if py7zz.test_archive('backup.7z'):
 ```python
 import py7zz
 
-# Object-oriented interface (similar to zipfile.ZipFile)
+# Complete zipfile.ZipFile API compatibility
 with py7zz.SevenZipFile('archive.7z', 'w', preset='ultra') as sz:
-    sz.add('file.txt')
-    sz.add('folder/')
+    # zipfile compatible methods with enhancements
+    sz.add('file.txt')                          # Basic file addition
+    sz.add('src/data.txt', arcname='backup/data.txt')  # Custom archive name
+    sz.writestr('config.txt', 'setting=value') # String data
 
-# Read files from archive
+# Selective extraction (zipfile/tarfile compatible)
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # Extract specific files only
+    sz.extractall('output/', members=['file1.txt', 'folder/file2.txt'])
+    
+    # Read file content
     content = sz.read('file.txt')
-    files = sz.namelist()
+    
+    # Archive integrity test
+    bad_file = sz.testzip()  # Returns None if OK, filename if corrupted
 ```
 
 ### Async Operations
@@ -98,16 +117,32 @@ py7zz provides a **layered API design** to serve different user needs:
 # One-line solutions
 py7zz.create_archive('backup.7z', ['files/'])
 py7zz.extract_archive('backup.7z', 'output/')
-py7zz.list_archive('backup.7z')
+py7zz.list_archive('backup.7z')  # ⚠️ Deprecated - use SevenZipFile.namelist()
 py7zz.test_archive('backup.7z')
 ```
 
-### Layer 2: Object-Oriented API (zipfile/tarfile compatibility)
+### Layer 2: Industry Standard API (zipfile/tarfile compatibility)
 ```python
-# Similar to zipfile.ZipFile
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.add('file.txt')
-    sz.extractall('output/')
+# Complete zipfile.ZipFile API compatibility
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    # zipfile compatible methods
+    files = sz.namelist()              # ✅ zipfile.ZipFile.namelist()
+    info_list = sz.infolist()          # ✅ zipfile.ZipFile.infolist()  
+    info = sz.getinfo('file.txt')      # ✅ zipfile.ZipFile.getinfo()
+    sz.extractall('out/', members=['file.txt'])  # ✅ Selective extraction
+    
+    # tarfile compatible methods
+    members = sz.getmembers()          # ✅ tarfile.TarFile.getmembers()
+    member = sz.getmember('file.txt')  # ✅ tarfile.TarFile.getmember()
+    names = sz.getnames()              # ✅ tarfile.TarFile.getnames()
+
+# Enhanced ArchiveInfo objects (zipfile.ZipInfo & tarfile.TarInfo compatible)
+info = sz.getinfo('document.txt')
+print(f"Size: {info.file_size}")           # zipfile.ZipInfo.file_size
+print(f"Compressed: {info.compress_size}") # zipfile.ZipInfo.compress_size
+print(f"CRC: {info.CRC:08X}")             # zipfile.ZipInfo.CRC
+print(f"Mode: {oct(info.mode)}")          # tarfile.TarInfo.mode (when available)
+print(f"Compression: {info.get_compression_ratio():.1%}")  # 🚀 Enhanced feature
 ```
 
 ### Layer 3: Advanced Control API (power users)
@@ -155,21 +190,56 @@ py7zz supports reading and writing many archive formats:
 
 ## Migration from zipfile/tarfile
 
-py7zz is designed as a drop-in replacement for Python's `zipfile` and `tarfile` modules:
+py7zz provides **complete API compatibility** with Python's standard library `zipfile` and `tarfile` modules. Migration is as simple as changing the import and class name:
 
+### zipfile.ZipFile → SevenZipFile
 ```python
-# OLD
+# OLD (zipfile)
 import zipfile
-with zipfile.ZipFile('archive.zip', 'w') as zf:
-    zf.write('file.txt')
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    files = zf.namelist()                    # ✅ Same method
+    info = zf.getinfo('file.txt')           # ✅ Same method
+    info_list = zf.infolist()               # ✅ Same method
+    zf.extractall('output/', members=['file.txt'])  # ✅ Same parameters
 
-# NEW
+# NEW (py7zz) - Identical API + Enhanced Features
 import py7zz
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.add('file.txt')
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:
+    files = sz.namelist()                    # ✅ Same method
+    info = sz.getinfo('file.txt')           # ✅ Same method, returns ArchiveInfo
+    info_list = sz.infolist()               # ✅ Same method, enhanced info
+    sz.extractall('output/', members=['file.txt'])  # ✅ Same parameters
+    
+    # 🚀 Bonus: Additional information available
+    print(f"Compression method: {info.method}")
+    print(f"Compression ratio: {info.get_compression_ratio():.1%}")
 ```
 
-**📖 [Complete Migration Guide](docs/MIGRATION.md)** - Detailed guide for migrating from zipfile/tarfile with examples and best practices.
+### tarfile.TarFile → SevenZipFile
+```python
+# OLD (tarfile)
+import tarfile
+with tarfile.open('archive.tar.gz', 'r:gz') as tf:
+    members = tf.getmembers()               # ✅ Same method
+    member = tf.getmember('file.txt')       # ✅ Same method
+    names = tf.getnames()                   # ✅ Same method
+
+# NEW (py7zz) - Compatible API + Enhanced Features
+import py7zz
+with py7zz.SevenZipFile('archive.tar.gz', 'r') as sz:
+    members = sz.getmembers()               # ✅ Same method name
+    member = sz.getmember('file.txt')       # ✅ Same method name
+    names = sz.getnames()                   # ✅ Same method name
+```
+
+### Key Benefits of Migration:
+- **🔄 Identical API** - Same method names, same parameters, same behavior
+- **📦 50+ Formats** - Support ZIP, TAR, 7Z, RAR, and many more formats
+- **🚀 Enhanced Features** - Detailed compression info, better error handling
+- **🪟 Windows Compatibility** - Automatic filename sanitization for Unix archives
+- **⚡ Async Support** - All methods available in async form
+
+**📖 [Complete Migration Guide](docs/MIGRATION.md)** - Detailed guide with advanced examples, error handling patterns, and best practices.
 
 ## Compression Presets
 
