@@ -14,7 +14,7 @@ Complete API documentation for py7zz, a Python wrapper for the 7zz CLI tool.
 
 ## Simple Function API
 
-### `create_archive(archive_path, files, *, preset=None, password=None, progress_callback=None)`
+### `create_archive(archive_path, files, preset="balanced")`
 
 Create an archive with the specified files.
 
@@ -22,8 +22,6 @@ Create an archive with the specified files.
 - `archive_path` (str): Path to the output archive
 - `files` (List[str]): List of files/directories to archive
 - `preset` (str, optional): Compression preset ('fast', 'balanced', 'backup', 'ultra')
-- `password` (str, optional): Password for encrypted archives
-- `progress_callback` (callable, optional): Progress callback function
 
 **Returns:** None
 
@@ -34,34 +32,22 @@ import py7zz
 # Basic usage
 py7zz.create_archive('backup.7z', ['documents/', 'photos/'])
 
-# With preset and password
+# With preset
 py7zz.create_archive(
-    'secure_backup.7z',
-    ['sensitive_data/'],
-    preset='ultra',
-    password='my_secret_password'
-)
-
-# With progress callback
-def progress_handler(info):
-    print(f"Progress: {info.percentage:.1f}%")
-
-py7zz.create_archive(
-    'large_backup.7z',
-    ['big_folder/'],
-    progress_callback=progress_handler
+    'backup.7z',
+    ['documents/'],
+    preset='ultra'
 )
 ```
 
-### `extract_archive(archive_path, output_dir, *, password=None, progress_callback=None)`
+### `extract_archive(archive_path, output_dir=".", overwrite=True)`
 
 Extract an archive to the specified directory.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
-- `output_dir` (str): Directory to extract files to
-- `password` (str, optional): Password for encrypted archives
-- `progress_callback` (callable, optional): Progress callback function
+- `output_dir` (str): Directory to extract files to (default: current directory)
+- `overwrite` (bool): Whether to overwrite existing files
 
 **Returns:** None
 
@@ -70,17 +56,16 @@ Extract an archive to the specified directory.
 # Basic extraction
 py7zz.extract_archive('backup.7z', 'extracted/')
 
-# With password
-py7zz.extract_archive('secure_backup.7z', 'extracted/', password='my_secret_password')
+# Extract without overwriting existing files
+py7zz.extract_archive('backup.7z', 'extracted/', overwrite=False)
 ```
 
-### `list_archive(archive_path, *, password=None)`
+### `list_archive(archive_path)`
 
 List contents of an archive.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
-- `password` (str, optional): Password for encrypted archives
 
 **Returns:** List[str] - List of file paths in the archive
 
@@ -91,13 +76,12 @@ for file in files:
     print(file)
 ```
 
-### `test_archive(archive_path, *, password=None)`
+### `test_archive(archive_path)`
 
 Test archive integrity.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
-- `password` (str, optional): Password for encrypted archives
 
 **Returns:** bool - True if archive is valid, False otherwise
 
@@ -109,13 +93,12 @@ else:
     print("Archive is corrupted")
 ```
 
-### `get_archive_info(archive_path, *, password=None)`
+### `get_archive_info(archive_path)`
 
 Get detailed information about an archive.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
-- `password` (str, optional): Password for encrypted archives
 
 **Returns:** Dict[str, Any] - Archive information including file count, size, compression ratio
 
@@ -130,16 +113,16 @@ print(f"Compression ratio: {info['compression_ratio']:.1%}")
 
 ## Object-Oriented API
 
-### `SevenZipFile(archive_path, mode='r', *, preset=None, password=None, config=None)`
+### `SevenZipFile(archive_path, mode='r', level='normal', preset=None, config=None)`
 
 Main class for working with 7z archives, similar to `zipfile.ZipFile`.
 
 **Parameters:**
 - `archive_path` (str): Path to the archive file
 - `mode` (str): Open mode ('r', 'w', 'a')
+- `level` (str): Compression level ('store', 'fastest', 'fast', 'normal', 'maximum', 'ultra')
 - `preset` (str, optional): Compression preset ('fast', 'balanced', 'backup', 'ultra')
-- `password` (str, optional): Password for encrypted archives
-- `config` (CompressionConfig, optional): Advanced compression configuration
+- `config` (Config, optional): Advanced compression configuration
 
 **Example:**
 ```python
@@ -235,12 +218,12 @@ Async version of `extract_archive`.
 
 **Returns:** None
 
-### `batch_compress_async(tasks, *, progress_callback=None)`
+### `batch_compress_async(operations, progress_callback=None)`
 
 Compress multiple archives concurrently.
 
 **Parameters:**
-- `tasks` (List[Tuple[str, List[str]]]): List of (archive_path, files) tuples
+- `operations` (List[Tuple[str, List[str]]]): List of (archive_path, files) tuples
 - `progress_callback` (callable, optional): Progress callback function
 
 **Returns:** None
@@ -248,30 +231,30 @@ Compress multiple archives concurrently.
 **Example:**
 ```python
 async def main():
-    tasks = [
+    operations = [
         ('backup1.7z', ['folder1/']),
         ('backup2.7z', ['folder2/']),
         ('backup3.7z', ['folder3/'])
     ]
     
-    await py7zz.batch_compress_async(tasks)
+    await py7zz.batch_compress_async(operations)
 
 asyncio.run(main())
 ```
 
-### `batch_extract_async(tasks, *, progress_callback=None)`
+### `batch_extract_async(operations, progress_callback=None)`
 
 Extract multiple archives concurrently.
 
 **Parameters:**
-- `tasks` (List[Tuple[str, str]]): List of (archive_path, output_dir) tuples
+- `operations` (List[Tuple[str, str]]): List of (archive_path, output_dir) tuples
 - `progress_callback` (callable, optional): Progress callback function
 
 **Returns:** None
 
 ## Advanced Configuration
 
-### `CompressionConfig`
+### `Config`
 
 Advanced compression configuration class.
 
@@ -287,7 +270,7 @@ Advanced compression configuration class.
 
 **Example:**
 ```python
-config = py7zz.CompressionConfig(
+config = py7zz.Config(
     level=9,
     method='LZMA2',
     dictionary_size='64m',
@@ -304,9 +287,9 @@ with py7zz.SevenZipFile('archive.7z', 'w', config=config) as sz:
 
 Create a custom compression configuration.
 
-**Parameters:** Same as `CompressionConfig`
+**Parameters:** Same as `Config`
 
-**Returns:** CompressionConfig
+**Returns:** Config
 
 **Example:**
 ```python
@@ -328,10 +311,14 @@ Py7zzError (base exception)
 ├── CompressionError
 ├── ExtractionError
 ├── FileNotFoundError
-├── InvalidArchiveError
+├── ArchiveNotFoundError
+├── CorruptedArchiveError
+├── UnsupportedFormatError
 ├── PasswordRequiredError
-├── WrongPasswordError
-└── InsufficientSpaceError
+├── InvalidPasswordError
+├── InsufficientSpaceError
+├── ConfigurationError
+└── OperationTimeoutError
 ```
 
 ### Exception Details
@@ -356,17 +343,33 @@ Raised when extraction fails.
 
 Raised when a file is not found.
 
-#### `InvalidArchiveError`
+#### `ArchiveNotFoundError`
+
+Raised when an archive file is not found.
+
+#### `CorruptedArchiveError`
 
 Raised when the archive is invalid or corrupted.
+
+#### `UnsupportedFormatError`
+
+Raised when trying to work with an unsupported archive format.
 
 #### `PasswordRequiredError`
 
 Raised when a password is required but not provided.
 
-#### `WrongPasswordError`
+#### `InvalidPasswordError`
 
 Raised when an incorrect password is provided.
+
+#### `ConfigurationError`
+
+Raised when there's an error in configuration parameters.
+
+#### `OperationTimeoutError`
+
+Raised when an operation times out.
 
 #### `InsufficientSpaceError`
 
@@ -382,6 +385,8 @@ except py7zz.CompressionError as e:
     print(f"Compression failed: {e}")
 except py7zz.InsufficientSpaceError:
     print("Not enough disk space")
+except py7zz.CorruptedArchiveError:
+    print("Archive is corrupted")
 except py7zz.Py7zzError as e:
     print(f"General error: {e}")
 ```
@@ -395,12 +400,10 @@ Progress callbacks receive a `ProgressInfo` object with the following attributes
 - `operation` (str): Current operation ('compress', 'extract', 'test')
 - `percentage` (float): Completion percentage (0.0-100.0)
 - `current_file` (str): Currently processed file
-- `processed_files` (int): Number of files processed
+- `files_processed` (int): Number of files processed
 - `total_files` (int): Total number of files
-- `processed_size` (int): Bytes processed
-- `total_size` (int): Total bytes to process
-- `speed` (float): Processing speed in bytes/second
-- `eta` (float): Estimated time to completion in seconds
+- `bytes_processed` (int): Bytes processed
+- `total_bytes` (int): Total bytes to process
 
 ### Callback Function Signature
 
@@ -428,10 +431,8 @@ def detailed_progress_handler(info):
     print(f"Operation: {info.operation}")
     print(f"Progress: {info.percentage:.1f}%")
     print(f"Current file: {info.current_file}")
-    print(f"Files: {info.processed_files}/{info.total_files}")
-    print(f"Size: {info.processed_size}/{info.total_size} bytes")
-    print(f"Speed: {info.speed:.1f} bytes/s")
-    print(f"ETA: {info.eta:.1f} seconds")
+    print(f"Files: {info.files_processed}/{info.total_files}")
+    print(f"Size: {info.bytes_processed}/{info.total_bytes} bytes")
     print("-" * 40)
 
 py7zz.create_archive('backup.7z', ['data/'], progress_callback=detailed_progress_handler)
