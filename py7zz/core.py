@@ -9,7 +9,7 @@ import shutil
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Iterator, List, Optional, Union
+from typing import Callable, Iterator, List, Optional, Union
 
 # Python 3.8 compatibility - use string annotation for subprocess.CompletedProcess
 from .archive_info import ArchiveInfo
@@ -991,3 +991,395 @@ class SevenZipFile:
         Compatible with zipfile.ZipFile membership testing.
         """
         return name in self.namelist()
+
+    # Additional zipfile/tarfile compatibility methods
+
+    def open(self, name: str, mode: str = "r") -> "ArchiveFileReader":
+        """
+        Open a file from the archive as a file-like object.
+        Compatible with zipfile.ZipFile.open().
+
+        Args:
+            name: Name of the file in the archive
+            mode: File mode (only 'r' is supported for reading)
+
+        Returns:
+            File-like object for reading the archive member
+
+        Raises:
+            ValueError: If mode is not 'r' or archive is in write mode
+            KeyError: If file is not found in archive
+        """
+        if mode != "r":
+            raise ValueError("Only 'r' mode is supported for archive members")
+
+        if self.mode == "w":
+            raise ValueError("Cannot read from archive opened in write mode")
+
+        # Check if file exists in archive
+        if name not in self.namelist():
+            raise KeyError(f"File '{name}' not found in archive")
+
+        # Return file-like object
+        return ArchiveFileReader(self, name)
+
+    def readall(self) -> bytes:
+        """
+        Read all files from the archive and return as concatenated bytes.
+        Compatible with some zipfile implementations.
+
+        Returns:
+            All file contents concatenated as bytes
+
+        Raises:
+            ValueError: If archive is opened in write mode
+        """
+        if self.mode == "w":
+            raise ValueError("Cannot read from archive opened in write mode")
+
+        all_data = b""
+        for name in self.namelist():
+            try:
+                all_data += self.read(name)
+            except Exception:
+                # Skip files that cannot be read
+                continue
+
+        return all_data
+
+    def setpassword(self, pwd: Optional[bytes]) -> None:
+        """
+        Set password for encrypted archive members.
+        Compatible with zipfile.ZipFile.setpassword().
+
+        Args:
+            pwd: Password as bytes, or None to clear password
+
+        Note:
+            This method sets the password for future operations.
+        """
+        # Store password for future use
+        if hasattr(self, "_password"):
+            self._password = pwd
+        else:
+            # For now, we'll store it as an instance variable
+            # Future versions could integrate this with config system
+            self._password = pwd
+
+    def comment(self) -> bytes:
+        """
+        Get archive comment.
+        Compatible with zipfile.ZipFile.comment.
+
+        Returns:
+            Archive comment as bytes (empty if no comment)
+        """
+        # 7z archives don't typically have comments like ZIP files
+        # Return empty bytes for compatibility
+        return b""
+
+    def setcomment(self, comment: bytes) -> None:
+        """
+        Set archive comment.
+        Compatible with zipfile.ZipFile.comment setter.
+
+        Args:
+            comment: Comment to set as bytes
+
+        Note:
+            7z format doesn't support comments like ZIP.
+            This method is provided for compatibility but has no effect.
+        """
+        # 7z format doesn't support comments
+        # This is a no-op for compatibility
+        pass
+
+    def copy_member(self, member_name: str, target_archive: "SevenZipFile") -> None:
+        """
+        Copy a member from this archive to another archive.
+
+        Args:
+            member_name: Name of the member to copy
+            target_archive: Target archive to copy to
+
+        Raises:
+            ValueError: If target archive is not in write mode
+            KeyError: If member is not found
+        """
+        if target_archive.mode == "r":
+            raise ValueError("Target archive must be opened in write mode")
+
+        if member_name not in self.namelist():
+            raise KeyError(f"Member '{member_name}' not found in archive")
+
+        # Read member data and write to target
+        member_data = self.read(member_name)
+        target_archive.writestr(member_name, member_data)
+
+    def rename_member(self, old_name: str, new_name: str) -> None:
+        """
+        Rename a member in the archive.
+
+        Args:
+            old_name: Current name of the member
+            new_name: New name for the member
+
+        Raises:
+            ValueError: If archive is in read mode
+            KeyError: If member is not found
+            NotImplementedError: This operation requires archive recreation
+        """
+        if self.mode == "r":
+            raise ValueError("Cannot rename members in read mode")
+
+        if old_name not in self.namelist():
+            raise KeyError(f"Member '{old_name}' not found in archive")
+
+        # This operation would require recreating the entire archive
+        # which is complex and potentially memory intensive
+        raise NotImplementedError(
+            "Member renaming requires archive recreation. "
+            "Consider extracting, renaming files, and recreating the archive."
+        )
+
+    def delete_member(self, name: str) -> None:
+        """
+        Delete a member from the archive.
+
+        Args:
+            name: Name of the member to delete
+
+        Raises:
+            ValueError: If archive is in read mode
+            KeyError: If member is not found
+            NotImplementedError: This operation requires archive recreation
+        """
+        if self.mode == "r":
+            raise ValueError("Cannot delete members in read mode")
+
+        if name not in self.namelist():
+            raise KeyError(f"Member '{name}' not found in archive")
+
+        # This operation would require recreating the entire archive
+        # which is complex and potentially memory intensive
+        raise NotImplementedError(
+            "Member deletion requires archive recreation. "
+            "Consider extracting desired files and recreating the archive."
+        )
+
+    def filter_members(self, filter_func: Callable[[str], bool]) -> List[str]:
+        """
+        Filter archive members using a custom function.
+
+        Args:
+            filter_func: Function that takes a member name and returns bool
+
+        Returns:
+            List of member names that match the filter
+
+        Example:
+            >>> # Get only .txt files
+            >>> txt_files = sz.filter_members(lambda name: name.endswith('.txt'))
+        """
+        return [name for name in self.namelist() if filter_func(name)]
+
+    def get_member_size(self, name: str) -> int:
+        """
+        Get the uncompressed size of a member.
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            Uncompressed size in bytes
+
+        Raises:
+            KeyError: If member is not found
+        """
+        member_info = self.getinfo(name)
+        return member_info.file_size if hasattr(member_info, "file_size") else 0
+
+    def get_member_compressed_size(self, name: str) -> int:
+        """
+        Get the compressed size of a member.
+
+        Args:
+            name: Name of the archive member
+
+        Returns:
+            Compressed size in bytes
+
+        Raises:
+            KeyError: If member is not found
+        """
+        member_info = self.getinfo(name)
+        return (
+            member_info.compressed_size
+            if hasattr(member_info, "compressed_size")
+            else 0
+        )
+
+
+class ArchiveFileReader:
+    """
+    File-like object for reading individual files from an archive.
+    Compatible with the file object returned by zipfile.ZipFile.open().
+    """
+
+    def __init__(self, archive: SevenZipFile, member_name: str):
+        """
+        Initialize archive file reader.
+
+        Args:
+            archive: SevenZipFile instance
+            member_name: Name of the member to read
+        """
+        self.archive = archive
+        self.member_name = member_name
+        self._data: Optional[bytes] = None
+        self._position = 0
+        self._closed = False
+
+    def read(self, size: int = -1) -> bytes:
+        """
+        Read bytes from the archive member.
+
+        Args:
+            size: Number of bytes to read (-1 for all)
+
+        Returns:
+            Bytes read from the member
+        """
+        if self._closed:
+            raise ValueError("I/O operation on closed file")
+
+        if self._data is None:
+            # Lazy load the data
+            self._data = self.archive.read(self.member_name)
+
+        if size == -1:
+            # Read all remaining data
+            result = self._data[self._position :]
+            self._position = len(self._data)
+        else:
+            # Read specified number of bytes
+            end_pos = min(self._position + size, len(self._data))
+            result = self._data[self._position : end_pos]
+            self._position = end_pos
+
+        return result
+
+    def readline(self, size: int = -1) -> bytes:
+        """
+        Read a line from the archive member.
+
+        Args:
+            size: Maximum number of bytes to read
+
+        Returns:
+            Line as bytes (including newline character)
+        """
+        if self._closed:
+            raise ValueError("I/O operation on closed file")
+
+        if self._data is None:
+            self._data = self.archive.read(self.member_name)
+
+        # Find next newline
+        start_pos = self._position
+        newline_pos = self._data.find(b"\n", start_pos)
+
+        # Include the newline character, or read to end if no newline found
+        end_pos = len(self._data) if newline_pos == -1 else newline_pos + 1
+
+        # Apply size limit if specified
+        if size > 0:
+            end_pos = min(end_pos, start_pos + size)
+
+        result = self._data[start_pos:end_pos]
+        self._position = end_pos
+        return result
+
+    def readlines(self) -> List[bytes]:
+        """
+        Read all lines from the archive member.
+
+        Returns:
+            List of lines as bytes
+        """
+        if self._data is None:
+            self._data = self.archive.read(self.member_name)
+
+        lines = []
+        while self._position < len(self._data):
+            line = self.readline()
+            if not line:
+                break
+            lines.append(line)
+
+        return lines
+
+    def seek(self, offset: int, whence: int = 0) -> int:
+        """
+        Seek to a position in the archive member.
+
+        Args:
+            offset: Offset to seek to
+            whence: Seek reference (0=start, 1=current, 2=end)
+
+        Returns:
+            New position
+        """
+        if self._closed:
+            raise ValueError("I/O operation on closed file")
+
+        if self._data is None:
+            self._data = self.archive.read(self.member_name)
+
+        if whence == 0:  # SEEK_SET
+            self._position = offset
+        elif whence == 1:  # SEEK_CUR
+            self._position += offset
+        elif whence == 2:  # SEEK_END
+            self._position = len(self._data) + offset
+        else:
+            raise ValueError("whence must be 0, 1, or 2")
+
+        # Clamp position to valid range
+        self._position = max(0, min(self._position, len(self._data)))
+        return self._position
+
+    def tell(self) -> int:
+        """
+        Get current position in the archive member.
+
+        Returns:
+            Current position
+        """
+        return self._position
+
+    def close(self) -> None:
+        """Close the file reader."""
+        self._closed = True
+        self._data = None
+
+    def __enter__(self) -> "ArchiveFileReader":
+        """Context manager entry."""
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
+        """Context manager exit."""
+        self.close()
+
+    def __iter__(self) -> Iterator[bytes]:
+        """Iterate over lines in the file."""
+        while True:
+            line = self.readline()
+            if not line:
+                break
+            yield line

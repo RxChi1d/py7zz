@@ -290,6 +290,310 @@ def test_archive(archive_path: Union[str, Path]) -> bool:
 
 # Async versions of simple functions (available if async_ops module is available)
 
+# Advanced convenience functions for batch operations and archive management
+
+
+def batch_create_archives(
+    operations: List[tuple],
+    preset: str = "balanced",
+    overwrite: bool = True,
+    create_dirs: bool = True,
+) -> None:
+    """
+    Create multiple archives in batch.
+
+    Args:
+        operations: List of (archive_path, file_list) tuples
+        preset: Compression preset for all archives
+        overwrite: Whether to overwrite existing archives
+        create_dirs: Whether to create output directories
+
+    Example:
+        >>> operations = [
+        ...     ("backup1.7z", ["documents/"]),
+        ...     ("backup2.7z", ["photos/", "videos/"]),
+        ...     ("config.7z", ["settings.json", "config.ini"])
+        ... ]
+        >>> py7zz.batch_create_archives(operations, preset="ultra")
+    """
+    for archive_path, file_list in operations:
+        archive_path = Path(archive_path)
+
+        # Create output directory if needed
+        if create_dirs:
+            archive_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Skip if archive exists and overwrite is False
+        if archive_path.exists() and not overwrite:
+            continue
+
+        create_archive(archive_path, file_list, preset=preset)
+
+
+def batch_extract_archives(
+    archive_paths: List[Union[str, Path]],
+    output_dir: Union[str, Path] = ".",
+    overwrite: bool = True,
+    create_dirs: bool = True,
+) -> None:
+    """
+    Extract multiple archives to the same output directory.
+
+    Args:
+        archive_paths: List of archive file paths
+        output_dir: Directory to extract all archives to
+        overwrite: Whether to overwrite existing files
+        create_dirs: Whether to create output directories
+
+    Example:
+        >>> archives = ["backup1.7z", "backup2.7z", "config.7z"]
+        >>> py7zz.batch_extract_archives(archives, "extracted/")
+    """
+    output_dir = Path(output_dir)
+
+    if create_dirs:
+        output_dir.mkdir(parents=True, exist_ok=True)
+
+    for archive_path in archive_paths:
+        if not Path(archive_path).exists():
+            raise FileNotFoundError(f"Archive not found: {archive_path}")
+        extract_archive(archive_path, output_dir, overwrite=overwrite)
+
+
+def copy_archive(
+    source_archive: Union[str, Path],
+    target_archive: Union[str, Path],
+    recompress: bool = False,
+    preset: str = "balanced",
+) -> None:
+    """
+    Copy an archive, optionally recompressing with different settings.
+
+    Args:
+        source_archive: Source archive path
+        target_archive: Target archive path
+        recompress: Whether to recompress during copy
+        preset: Compression preset if recompressing
+
+    Example:
+        >>> # Simple copy
+        >>> py7zz.copy_archive("backup.7z", "backup_copy.7z")
+
+        >>> # Copy with recompression
+        >>> py7zz.copy_archive("backup.zip", "backup.7z", recompress=True, preset="ultra")
+    """
+    source_path = Path(source_archive)
+    target_path = Path(target_archive)
+
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source archive not found: {source_archive}")
+
+    # Create target directory if needed
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if recompress:
+        # Extract to temporary directory and recompress
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            # Extract source archive
+            extract_archive(source_path, temp_dir)
+
+            # Get all files from temp directory
+            temp_path = Path(temp_dir)
+            extracted_files: List[Union[str, Path]] = [
+                p for p in temp_path.rglob("*") if p.is_file()
+            ]
+
+            # Create new archive with different compression
+            create_archive(target_path, extracted_files, preset=preset)
+    else:
+        # Simple file copy
+        import shutil
+
+        shutil.copy2(source_path, target_path)
+
+
+def get_compression_ratio(archive_path: Union[str, Path]) -> float:
+    """
+    Calculate the compression ratio of an archive.
+
+    Args:
+        archive_path: Path to the archive file
+
+    Returns:
+        Compression ratio as a float (0.0 to 1.0)
+
+    Example:
+        >>> ratio = py7zz.get_compression_ratio("backup.7z")
+        >>> print(f"Compression ratio: {ratio:.2%}")
+    """
+    archive_info = get_archive_info(archive_path)
+    compression_ratio = archive_info.get("compression_ratio", 0.0)
+    return float(compression_ratio) if compression_ratio is not None else 0.0
+
+
+def get_archive_format(archive_path: Union[str, Path]) -> str:
+    """
+    Detect the format of an archive file.
+
+    Args:
+        archive_path: Path to the archive file
+
+    Returns:
+        Archive format as string ("7z", "zip", "tar", etc.)
+
+    Example:
+        >>> format_type = py7zz.get_archive_format("backup.unknown")
+        >>> print(f"Archive format: {format_type}")
+    """
+    archive_info = get_archive_info(archive_path)
+    archive_format = archive_info.get("format", "unknown")
+    return str(archive_format) if archive_format is not None else "unknown"
+
+
+def compare_archives(
+    archive1: Union[str, Path],
+    archive2: Union[str, Path],
+    compare_content: bool = False,
+) -> bool:
+    """
+    Compare two archives for equality.
+
+    Args:
+        archive1: First archive path
+        archive2: Second archive path
+        compare_content: Whether to compare file contents (slower)
+
+    Returns:
+        True if archives are equivalent
+
+    Example:
+        >>> are_same = py7zz.compare_archives("original.7z", "backup.7z")
+        >>> if are_same:
+        ...     print("Archives are identical")
+    """
+    if not Path(archive1).exists() or not Path(archive2).exists():
+        return False
+
+    # Compare file lists
+    with SevenZipFile(archive1, "r") as sz1, SevenZipFile(archive2, "r") as sz2:
+        names1 = set(sz1.namelist())
+        names2 = set(sz2.namelist())
+
+        if names1 != names2:
+            return False
+
+        # If content comparison requested, compare file contents
+        if compare_content:
+            for name in names1:
+                try:
+                    content1 = sz1.read(name)
+                    content2 = sz2.read(name)
+                    if content1 != content2:
+                        return False
+                except Exception:
+                    return False
+
+    return True
+
+
+def convert_archive_format(
+    source_archive: Union[str, Path],
+    target_archive: Union[str, Path],
+    target_format: Optional[str] = None,
+    preset: str = "balanced",
+) -> None:
+    """
+    Convert an archive from one format to another.
+
+    Args:
+        source_archive: Source archive path
+        target_archive: Target archive path
+        target_format: Target format (auto-detected from extension if None)
+        preset: Compression preset for target archive
+
+    Example:
+        >>> # Convert ZIP to 7Z
+        >>> py7zz.convert_archive_format("data.zip", "data.7z", preset="ultra")
+
+        >>> # Convert with explicit format
+        >>> py7zz.convert_archive_format("data.tar.gz", "data.7z", "7z")
+    """
+    source_path = Path(source_archive)
+    target_path = Path(target_archive)
+
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source archive not found: {source_archive}")
+
+    # Auto-detect target format from extension if not specified
+    if target_format is None:
+        ext = target_path.suffix.lower().lstrip(".")
+        target_format = ext if ext in ["7z", "zip", "tar", "gz", "bz2"] else "7z"
+
+    # Create target directory if needed
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Use copy_archive with recompression
+    copy_archive(source_path, target_path, recompress=True, preset=preset)
+
+
+def recompress_archive(
+    archive_path: Union[str, Path],
+    new_preset: str,
+    backup_original: bool = True,
+    backup_suffix: str = ".backup",
+) -> None:
+    """
+    Recompress an archive with different settings.
+
+    Args:
+        archive_path: Path to the archive to recompress
+        new_preset: New compression preset
+        backup_original: Whether to create backup of original
+        backup_suffix: Suffix for backup file
+
+    Example:
+        >>> # Recompress with better compression
+        >>> py7zz.recompress_archive("large_file.7z", "ultra")
+
+        >>> # Recompress without backup
+        >>> py7zz.recompress_archive("temp.7z", "fast", backup_original=False)
+    """
+    archive_path = Path(archive_path)
+
+    if not archive_path.exists():
+        raise FileNotFoundError(f"Archive not found: {archive_path}")
+
+    # Create backup if requested
+    if backup_original:
+        backup_path = archive_path.with_suffix(archive_path.suffix + backup_suffix)
+        import shutil
+
+        shutil.copy2(archive_path, backup_path)
+
+    # Recompress using temporary file
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(
+        suffix=archive_path.suffix, delete=False
+    ) as temp_file:
+        temp_path = Path(temp_file.name)
+
+    try:
+        # Convert with new settings
+        convert_archive_format(archive_path, temp_path, preset=new_preset)
+
+        # Replace original with recompressed version
+        import shutil
+
+        shutil.move(temp_path, archive_path)
+
+    finally:
+        # Clean up temporary file if it still exists
+        temp_path.unlink(missing_ok=True)
+
+
 if _async_available:
 
     async def create_archive_async(

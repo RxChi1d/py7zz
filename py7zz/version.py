@@ -257,3 +257,149 @@ def get_version_info() -> Dict[str, Union[str, int, None]]:
         "build_number": parsed["build_number"],
         "base_version": parsed["base_version"],
     }
+
+
+def compare_versions(version1: str, version2: str) -> int:
+    """
+    Compare two version strings.
+
+    Args:
+        version1: First version string
+        version2: Second version string
+
+    Returns:
+        -1 if version1 < version2, 0 if equal, 1 if version1 > version2
+
+    Example:
+        >>> compare_versions('1.0.0', '1.0.1')
+        -1
+        >>> compare_versions('1.0.0', '1.0.0')
+        0
+        >>> compare_versions('1.0.1', '1.0.0')
+        1
+    """
+    v1 = parse_version(version1)
+    v2 = parse_version(version2)
+
+    # Compare major.minor.patch
+    v1_tuple = (v1["major"], v1["minor"], v1["patch"])
+    v2_tuple = (v2["major"], v2["minor"], v2["patch"])
+
+    if v1_tuple < v2_tuple:
+        return -1
+    elif v1_tuple > v2_tuple:
+        return 1
+
+    # Same base version, compare version types
+    type_order = {"dev": 0, "auto": 1, "stable": 2}
+    v1_type_priority = type_order.get(v1["version_type"], 2)
+    v2_type_priority = type_order.get(v2["version_type"], 2)
+
+    if v1_type_priority < v2_type_priority:
+        return -1
+    elif v1_type_priority > v2_type_priority:
+        return 1
+
+    # Same version type, compare build numbers
+    v1_build = v1["build_number"] or 0
+    v2_build = v2["build_number"] or 0
+
+    if v1_build < v2_build:
+        return -1
+    elif v1_build > v2_build:
+        return 1
+
+    return 0
+
+
+def is_newer_version(version1: str, version2: str) -> bool:
+    """
+    Check if version1 is newer than version2.
+
+    Args:
+        version1: First version string
+        version2: Second version string
+
+    Returns:
+        True if version1 is newer than version2
+
+    Example:
+        >>> is_newer_version('1.0.1', '1.0.0')
+        True
+        >>> is_newer_version('1.0.0', '1.0.1')
+        False
+    """
+    return compare_versions(version1, version2) > 0
+
+
+def get_version_components() -> Dict[str, Union[str, int, None]]:
+    """
+    Get comprehensive version component information.
+
+    Returns:
+        Dictionary with all version components and metadata
+
+    Example:
+        >>> get_version_components()
+        {
+            'py7zz_version': '0.1.0',
+            'major': 0,
+            'minor': 1,
+            'patch': 0,
+            'version_type': 'stable',
+            'build_number': None,
+            'base_version': '0.1.0',
+            'is_stable': True,
+            'is_development': False
+        }
+    """
+    current_version = get_version()
+    parsed = parse_version(current_version)
+    version_type = parsed["version_type"]
+
+    return {
+        "py7zz_version": current_version,
+        "major": parsed["major"],
+        "minor": parsed["minor"],
+        "patch": parsed["patch"],
+        "version_type": version_type,
+        "build_number": parsed["build_number"],
+        "base_version": parsed["base_version"],
+        "is_stable": version_type == "stable",
+        "is_development": version_type == "dev",
+        "is_auto_build": version_type == "auto",
+    }
+
+
+def format_version_for_display(
+    version_string: Optional[str] = None, include_type: bool = True
+) -> str:
+    """
+    Format version string for user display.
+
+    Args:
+        version_string: Version to format (defaults to current version)
+        include_type: Whether to include version type information
+
+    Returns:
+        Formatted version string
+
+    Example:
+        >>> format_version_for_display('1.0.0')
+        'py7zz 1.0.0 (stable)'
+        >>> format_version_for_display('1.0.0a1')
+        'py7zz 1.0.0a1 (auto-build)'
+        >>> format_version_for_display('1.0.0', include_type=False)
+        'py7zz 1.0.0'
+    """
+    if version_string is None:
+        version_string = get_version()
+
+    if not include_type:
+        return f"py7zz {version_string}"
+
+    version_type = get_version_type(version_string)
+    type_labels = {"stable": "stable", "auto": "auto-build", "dev": "development"}
+
+    type_label = type_labels.get(version_type, version_type)
+    return f"py7zz {version_string} ({type_label})"

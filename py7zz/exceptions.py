@@ -1,17 +1,52 @@
 """
-Custom exception classes for py7zz.
+Unified exception handling system for py7zz.
 
-Provides clear, actionable error messages for different failure scenarios.
+Provides comprehensive error handling with context tracking, suggestions,
+and decorator-based error handling across all API layers.
 """
 
+import subprocess
+from functools import wraps
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class Py7zzError(Exception):
-    """Base exception class for all py7zz errors."""
+    """Enhanced base exception class for all py7zz errors.
 
-    pass
+    Provides context tracking, error classification, and actionable suggestions.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        error_code: Optional[int] = None,
+        context: Optional[Dict[str, Any]] = None,
+        suggestions: Optional[List[str]] = None,
+    ):
+        super().__init__(message)
+        self.error_code = error_code
+        self.context = context or {}
+        self.suggestions = suggestions or []
+        self.error_type = self.__class__.__name__
+
+    def get_detailed_info(self) -> Dict[str, Any]:
+        """Get detailed error information for debugging."""
+        return {
+            "error_type": self.error_type,
+            "message": str(self),
+            "error_code": self.error_code,
+            "context": self.context,
+            "suggestions": self.suggestions,
+        }
+
+    def add_context(self, key: str, value: Any) -> None:
+        """Add context information to the error."""
+        self.context[key] = value
+
+    def add_suggestion(self, suggestion: str) -> None:
+        """Add an actionable suggestion to resolve the error."""
+        self.suggestions.append(suggestion)
 
 
 class FileNotFoundError(Py7zzError):
@@ -155,6 +190,176 @@ class FilenameCompatibilityError(Py7zzError):
         self.problematic_files = problematic_files or []
         self.sanitized = sanitized
         super().__init__(message)
+
+
+# Decorator-based error handling system
+def handle_7z_errors(func: Callable) -> Callable:
+    """Decorator to handle 7zz subprocess errors uniformly."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except subprocess.CalledProcessError as e:
+            # Analyze error output for specific error types
+            stderr = e.stderr.decode() if e.stderr else ""
+            stdout = e.stdout.decode() if e.stdout else ""
+
+            # Classify error based on output
+            if "Wrong password" in stderr or "Wrong password" in stdout:
+                raise InvalidPasswordError("Archive password is incorrect") from e
+            elif "Can not open" in stderr:
+                if "as archive" in stderr:
+                    raise CorruptedArchiveError(
+                        "Unknown",
+                        "Archive file appears to be corrupted or in unsupported format",
+                    ) from e
+                else:
+                    raise ArchiveNotFoundError("Archive file not found") from e
+            elif "No more files" in stderr:
+                raise ExtractionError(
+                    f"7zz extraction failed: {stderr}", e.returncode
+                ) from e
+            elif "Insufficient memory" in stderr:
+                raise OperationError(
+                    "Insufficient memory for operation",
+                    error_code=e.returncode,
+                    suggestions=[
+                        "Try reducing compression level",
+                        "Close other applications",
+                    ],
+                ) from e
+            else:
+                # Generic operation error
+                error_msg = (
+                    stderr
+                    or stdout
+                    or f"7zz command failed with exit code {e.returncode}"
+                )
+                raise OperationError(error_msg, error_code=e.returncode) from e
+        except FileNotFoundError as e:
+            raise ValidationError(f"File not found: {e.filename}") from e
+        except PermissionError as e:
+            raise ValidationError(f"Permission denied: {e.filename}") from e
+
+    return wrapper
+
+
+def handle_file_errors(func: Callable) -> Callable:
+    """Decorator to handle file system errors uniformly."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except FileNotFoundError as e:
+            raise ValidationError(
+                f"File or directory not found: {e.filename}",
+                suggestions=["Check if the path exists", "Verify file permissions"],
+            ) from e
+        except PermissionError as e:
+            raise ValidationError(
+                f"Permission denied: {e.filename}",
+                suggestions=[
+                    "Check file permissions",
+                    "Run with appropriate privileges",
+                ],
+            ) from e
+        except OSError as e:
+            raise OperationError(
+                f"System error: {e}",
+                suggestions=["Check disk space", "Verify path validity"],
+            ) from e
+
+    return wrapper
+
+
+def handle_validation_errors(func: Callable) -> Callable:
+    """Decorator to handle input validation errors uniformly."""
+
+    @wraps(func)
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
+        try:
+            return func(*args, **kwargs)
+        except (ValueError, TypeError) as e:
+            raise ValidationError(
+                f"Invalid input: {e}",
+                suggestions=[
+                    "Check parameter types and values",
+                    "Refer to API documentation",
+                ],
+            ) from e
+
+    return wrapper
+
+
+# Enhanced exception classes with automatic error analysis
+class ValidationError(Py7zzError):
+    """Raised when input validation fails."""
+
+    def __init__(
+        self, message: str, parameter: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        super().__init__(message, **kwargs)
+        if parameter:
+            self.add_context("parameter", parameter)
+
+
+class OperationError(Py7zzError):
+    """Raised when an operation fails during execution."""
+
+    def __init__(
+        self, message: str, operation: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        super().__init__(message, **kwargs)
+        if operation:
+            self.add_context("operation", operation)
+
+
+class CompatibilityError(Py7zzError):
+    """Raised when compatibility issues are encountered."""
+
+    def __init__(
+        self, message: str, platform: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        super().__init__(message, **kwargs)
+        if platform:
+            self.add_context("platform", platform)
+
+
+# Utility functions for error classification
+def classify_error_type(error: Exception) -> str:
+    """Classify error type for logging and debugging."""
+    if isinstance(error, ValidationError):
+        return "validation"
+    elif isinstance(error, OperationError):
+        return "operation"
+    elif isinstance(error, CompatibilityError):
+        return "compatibility"
+    elif isinstance(error, Py7zzError):
+        return "py7zz"
+    else:
+        return "system"
+
+
+def get_error_suggestions(error: Exception) -> List[str]:
+    """Get actionable suggestions for resolving the error."""
+    if hasattr(error, "suggestions"):
+        return list(error.suggestions)
+
+    # Default suggestions based on error type
+    if isinstance(error, FileNotFoundError):
+        return ["Check if the file path is correct", "Verify file exists"]
+    elif isinstance(error, PermissionError):
+        return ["Check file permissions", "Run with administrator privileges"]
+    elif isinstance(error, MemoryError):
+        return [
+            "Close other applications",
+            "Try with smaller files",
+            "Increase available memory",
+        ]
+    else:
+        return ["Check the error message for details", "Refer to documentation"]
 
 
 # Aliases for compatibility with standard library exceptions
