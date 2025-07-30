@@ -28,7 +28,7 @@ class TestArchiveFileReader:
         """Test ArchiveFileReader initialization."""
         mock_archive = Mock()
         mock_archive.read.return_value = b"Hello, World!"
-        
+
         reader = py7zz.ArchiveFileReader(mock_archive, "test.txt")
 
         assert reader.member_name == "test.txt"
@@ -40,7 +40,7 @@ class TestArchiveFileReader:
         content = b"Hello, World!"
         mock_archive = Mock()
         mock_archive.read.return_value = content
-        
+
         reader = py7zz.ArchiveFileReader(mock_archive, "test.txt")
 
         result = reader.read()

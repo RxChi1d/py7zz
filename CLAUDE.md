@@ -157,36 +157,45 @@ git commit -m "feat: add new feature"
 git push origin <branch-name>
 ```
 
-### 自動化品質檢查腳本（建議）
+### 🚀 本地 CI 模擬腳本（推薦）
 
-為了避免遺漏檢查步驟，可以建立一個檢查腳本：
+**重要更新**：現在提供完整的本地 CI 模擬腳本，與 GitHub Actions 100% 一致！
 
 ```bash
-# 建立 scripts/quality-check.sh
-#!/bin/bash
-set -e
-
-echo "=== py7zz 程式碼品質檢查 ==="
-
-echo "步驟 1/4: 格式化程式碼"
-uv run ruff format .
-
-echo "步驟 2/4: 檢查程式碼風格"
-uv run ruff check --fix .
-
-echo "步驟 3/4: 類型檢查"
-uv run mypy .
-
-echo "步驟 4/4: 執行測試套件"
-uv run pytest -v --tb=short
-
-echo "✅ 所有品質檢查通過！"
+# 執行完整的本地 CI 檢查（與 GitHub Actions 完全一致）
+./scripts/ci-local.sh
 ```
 
+**腳本特色**：
+- ✅ 完全模擬 `.github/workflows/ci.yml` 的檢查流程
+- ✅ 彩色輸出和詳細進度顯示
+- ✅ 環境檢查、依賴安裝、程式碼風格、測試和類型檢查
+- ✅ 執行時間統計和詳細錯誤報告
+- ✅ 提供修復建議和下一步指引
+
+**完整開發工作流程**：
 ```bash
-# 使用方式
-chmod +x scripts/quality-check.sh
-./scripts/quality-check.sh && git add . && git commit -m "your commit message"
+# 1. 開發程式碼...
+
+# 2. 執行本地 CI 檢查（與 GitHub Actions 完全一致）
+./scripts/ci-local.sh
+
+# 3. 只有在所有檢查通過後才允許提交
+git add .
+git commit -m "feat: add new feature"
+git push origin <branch-name>
+```
+
+### 快速品質檢查（舊版，保留參考）
+
+如果只需要快速檢查而不需要完整的 CI 模擬，可以使用：
+
+```bash
+# 快速品質檢查流程
+uv run ruff format .        # 1. 格式化程式碼
+uv run ruff check --fix .   # 2. 風格檢查並自動修正
+uv run mypy .               # 3. 類型檢查
+uv run pytest              # 4. 執行單元測試
 ```
 
 ## 架構
@@ -273,7 +282,18 @@ py7zz 遵循**分層 API 設計**以服務不同使用者需求和技能水準�
 
 ### 🔴 **強制執行順序**（與 CI 完全一致）
 
-**每次提交前必須按照以下確切順序執行，不可省略任何步驟：**
+**推薦方法**：使用本地 CI 模擬腳本（**一鍵完成所有檢查**）
+
+```bash
+# 🚀 最佳實踐：執行完整本地 CI 檢查
+./scripts/ci-local.sh
+
+# 只有在所有檢查通過後才允許提交
+git add .
+git commit -m "your message"
+```
+
+**替代方法**：手動執行每個步驟（與 CI 完全一致的順序）
 
 ```bash
 # 步驟 1: 格式化 (與 CI ruff format --check 對應)
@@ -302,6 +322,12 @@ git commit -m "your message"
 在提交程式碼前，**必須**確保：
 
 #### 🔧 程式碼品質 (自動化檢查)
+
+**推薦**：使用本地 CI 腳本一鍵檢查
+- [ ] `./scripts/ci-local.sh` 執行成功，所有檢查通過（環境檢查、依賴安裝、ruff、pytest、mypy）
+- [ ] **驗證**：腳本顯示綠色成功訊息和執行時間統計
+
+**或者**：手動執行每個步驟
 - [ ] `uv run ruff format .` 執行成功，程式碼格式化完成
 - [ ] `uv run ruff check --fix .` 無錯誤，所有 lint 規則通過（包含 SIM, E402 等規則）
 - [ ] `uv run mypy .` 無錯誤，所有類型檢查通過

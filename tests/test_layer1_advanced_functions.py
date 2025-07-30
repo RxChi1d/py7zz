@@ -100,7 +100,13 @@ class TestArchiveCopyOperation:
     @patch("pathlib.Path.exists", return_value=True)
     @patch("shutil.copy2")
     def test_copy_archive_simple(
-        self, mock_copy, mock_exists, mock_rmtree, mock_mkdtemp, mock_create, mock_extract
+        self,
+        mock_copy,
+        mock_exists,
+        mock_rmtree,
+        mock_mkdtemp,
+        mock_create,
+        mock_extract,
     ):
         """Test simple archive copy without recompression."""
         mock_mkdtemp.return_value = "/tmp/temp_dir"
@@ -120,17 +126,19 @@ class TestArchiveCopyOperation:
     def test_copy_archive_with_recompression(
         self, mock_temp_dir, mock_exists, mock_create, mock_extract
     ):
-        """Test archive copy with recompression."""  
+        """Test archive copy with recompression."""
         # Mock temporary directory context manager
         mock_temp_dir.return_value.__enter__.return_value = "/tmp/temp_dir"
-        
+
         # Mock Path.rglob to return some files
         with patch("pathlib.Path.rglob") as mock_rglob:
             mock_file = Mock()
             mock_file.is_file.return_value = True
             mock_rglob.return_value = [mock_file]
 
-            py7zz.copy_archive("source.7z", "target.7z", recompress=True, preset="ultra")
+            py7zz.copy_archive(
+                "source.7z", "target.7z", recompress=True, preset="ultra"
+            )
 
             # Should extract and create with specified preset
             mock_extract.assert_called_once()
