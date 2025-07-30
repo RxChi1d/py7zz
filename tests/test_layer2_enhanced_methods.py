@@ -149,9 +149,10 @@ class TestSevenZipFileEnhancedMethods:
     @patch("py7zz.core.run_7z")
     def test_open_method_invalid_mode(self, mock_run_7z):
         """Test open() with invalid mode."""
-        with py7zz.SevenZipFile("test.7z", "r") as sz:
-            with pytest.raises(ValueError, match="Invalid mode"):
-                sz.open("file.txt", "w")
+        with py7zz.SevenZipFile("test.7z", "r") as sz, pytest.raises(
+            ValueError, match="Invalid mode"
+        ):
+            sz.open("file.txt", "w")
 
     @patch("py7zz.core.run_7z")
     def test_open_method_write_mode_archive(self, mock_run_7z):

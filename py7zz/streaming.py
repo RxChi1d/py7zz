@@ -9,7 +9,7 @@ Supports standard Python I/O patterns for seamless integration.
 import io
 import tempfile
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from .core import SevenZipFile
 from .exceptions import FileNotFoundError, OperationError
@@ -130,7 +130,7 @@ class ArchiveStreamReader(io.BufferedIOBase):
         self._position = end_pos
         return result
 
-    def readlines(self, hint: int = -1) -> list[bytes]:
+    def readlines(self, hint: int = -1) -> List[bytes]:
         """Read and return a list of lines from the stream."""
         lines = []
         bytes_read = 0
@@ -250,9 +250,8 @@ class ArchiveStreamWriter(io.BufferedIOBase):
         self._closed = False
 
         # Create temporary file for buffering
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        self._temp_path = Path(temp_file.name)
-        temp_file.close()  # Close file handle but keep the file
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            self._temp_path = Path(temp_file.name)
 
         logger.debug(
             f"Initialized ArchiveStreamWriter for '{member_name}' with temp file: {self._temp_path}"

@@ -385,10 +385,11 @@ class TestConfigurationErrorHandling:
 
     def test_config_file_permissions(self):
         """Test handling of config file permission issues."""
-        with patch("builtins.open", side_effect=PermissionError("Access denied")):
-            with patch("warnings.warn") as mock_warn:
-                py7zz.GlobalConfig.save_user_config()
-                mock_warn.assert_called_once()
+        with patch(
+            "builtins.open", side_effect=PermissionError("Access denied")
+        ), patch("warnings.warn") as mock_warn:
+            py7zz.GlobalConfig.save_user_config()
+            mock_warn.assert_called_once()
 
     def test_malformed_config_recovery(self):
         """Test recovery from malformed configuration files."""
@@ -401,13 +402,13 @@ class TestConfigurationErrorHandling:
         ]
 
         for config_data in malformed_configs:
-            with patch("builtins.open", mock_open(read_data=config_data)):
-                with patch("os.path.exists", return_value=True):
-                    with patch("warnings.warn"):
-                        # Should not crash
-                        py7zz.GlobalConfig.load_user_config()
-                        # Should fall back to defaults
-                        assert py7zz.GlobalConfig._loaded_config == {}
+            with patch("builtins.open", mock_open(read_data=config_data)), patch(
+                "os.path.exists", return_value=True
+            ), patch("warnings.warn"):
+                # Should not crash
+                py7zz.GlobalConfig.load_user_config()
+                # Should fall back to defaults
+                assert py7zz.GlobalConfig._loaded_config == {}
 
 
 class TestAdvancedRecommendations:

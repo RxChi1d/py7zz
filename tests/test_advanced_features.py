@@ -133,7 +133,9 @@ class TestThreadSafeConfiguration:
         assert config.solid is True
 
         # Test immutability
-        with pytest.raises(AttributeError):  # dataclass frozen=True prevents modification
+        with pytest.raises(
+            AttributeError
+        ):  # dataclass frozen=True prevents modification
             config.level = 9
 
     def test_immutable_config_replace(self):
