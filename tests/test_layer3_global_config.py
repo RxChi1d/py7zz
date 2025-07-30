@@ -32,7 +32,7 @@ class TestGlobalConfig:
 
     def test_set_default_preset_invalid(self):
         """Test setting invalid default preset."""
-        with pytest.raises(ValueError, match="Invalid preset"):
+        with pytest.raises(ValueError, match="Unknown preset"):
             py7zz.GlobalConfig.set_default_preset("invalid_preset")
 
     def test_get_default_preset(self):
