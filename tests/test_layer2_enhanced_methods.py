@@ -14,7 +14,7 @@ Tests all the new enhanced methods added to SevenZipFile class:
 - ArchiveFileReader class
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
@@ -122,7 +122,9 @@ class TestArchiveFileReader:
         """Test ArchiveFileReader as context manager."""
         content = b"Hello, World!"
 
-        with py7zz.ArchiveFileReader(content) as reader:
+        mock_archive = Mock()
+        mock_archive.read.return_value = content
+        with py7zz.ArchiveFileReader(mock_archive, "test.txt") as reader:
             assert reader._closed is False
             data = reader.read()
             assert data == content
