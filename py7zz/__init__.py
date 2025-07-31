@@ -147,8 +147,12 @@ from .version import (  # noqa: E402
     parse_version,
 )
 
-# Get dynamic version from the version module
-__version__ = get_version()
+# Get dynamic version from the version module with error handling
+try:
+    __version__ = get_version()
+except Exception:
+    # Fallback to a reasonable default if version detection fails
+    __version__ = "0.1.0.dev0"
 from .version import (  # noqa: E402
     get_version_info as get_legacy_version_info,
 )

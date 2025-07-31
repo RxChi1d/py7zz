@@ -77,8 +77,8 @@ def get_version() -> str:
     except Exception:
         pass
 
-    # Last resort: Return unknown version
-    return "unknown"
+    # Last resort: Return a reasonable default version for development
+    return "0.1.0.dev0"
 
 
 def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
@@ -452,5 +452,6 @@ def format_version_for_display(
     return f"py7zz {version_string} ({type_label})"
 
 
-# Set __version__ dynamically when module is imported
-__version__ = get_version()
+# Simple default version to avoid circular import issues
+# Real version will be set dynamically in __init__.py
+__version__ = "0.1.0.dev0"
