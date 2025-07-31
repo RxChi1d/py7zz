@@ -1,36 +1,46 @@
 ---
-name: Feature Request
-about: Suggest an idea for this project
-title: 'feat: [brief description of the feature]'
-labels: ['enhancement']
+name: Feature request
+about: Suggest a new feature or enhancement
+title: ''
+labels: 'enhancement'
 assignees: ''
 
 ---
 
-## Feature Description
+## Summary
 
-A clear and concise description of what the feature is.
+Brief description of the feature request.
 
-## Problem Statement
+## Motivation
 
-What problem does this feature solve? Is your feature request related to a problem? Please describe.
+Why is this feature needed? What problem does it solve?
 
-## Proposed Solution
+## Detailed Description
 
-A clear and concise description of what you want to happen.
+Describe the feature in detail. Include:
+- How it should work
+- What the API might look like
+- Any configuration options
+
+## Example Usage
+
+```python
+# Show how the feature would be used
+import py7zz
+
+# Example code
+```
 
 ## Alternatives Considered
 
-A clear and concise description of any alternative solutions or features you've considered.
-
-## Use Cases
-
-Describe the use cases where this feature would be helpful.
+Have you considered any alternative solutions or workarounds?
 
 ## Additional Context
 
-Add any other context or screenshots about the feature request here.
+- Related issues or discussions
+- Links to similar features in other projects
+- Any other relevant information
 
-## Implementation Notes
+## Implementation Ideas
 
-If you have ideas about how this could be implemented, please share them here.
+If you have thoughts on how this could be implemented.
