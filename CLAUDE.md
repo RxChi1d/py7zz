@@ -19,6 +19,7 @@
 - 專案文檔、說明文字、文件模板：遵循 Google 風格。
 - Commit與PR訊息：遵循 Convential Commit 格式與 Google 風格/格式。
 - Changelog: 遵循 Keep a Changelog 格式。
+- 分支名稱：遵循 Conventional Branch Naming。
 
 ## 專案概述
 
@@ -98,3 +99,4 @@ uv run pytest              # 4. 執行單元測試
 - **在程式碼或測試中引用檔案路徑或模組名稱前，務必確認其存在。**
 - **除非有明確指示，或任務需求（見 `TASK.md`），**否則**不得刪除或覆蓋現有程式碼。**
 - **需要分析或拆解問題，通過 sequential thinking 進行更深度思考**
+- 與 Github 互動**需使用 gh CLI**
