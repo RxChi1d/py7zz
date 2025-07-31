@@ -88,7 +88,7 @@ class TestStreamingInterface:
             assert writer.closed
 
             # Verify archive.add was called
-            mock_archive.add.assert_called_once()  # type: ignore[unreachable]
+            mock_archive.add.assert_called_once()
 
     def test_archive_stream_writer_context_manager(self):
         """Test ArchiveStreamWriter as context manager."""
@@ -99,7 +99,7 @@ class TestStreamingInterface:
             writer.write(b"test content")
 
         assert writer.closed
-        mock_archive.add.assert_called_once()  # type: ignore[unreachable]
+        mock_archive.add.assert_called_once()
 
     def test_streaming_io_compatibility(self):
         """Test compatibility with io.BufferedIOBase interface."""

@@ -94,7 +94,7 @@ def parse_7zz_slt_output(output: str) -> List[ArchiveInfo]:
                 # Save previous member if exists
                 if current_member is not None:
                     members.append(current_member)
-                
+
                 # Start new member
                 current_member = ArchiveInfo(value)
                 continue
