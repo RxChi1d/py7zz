@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 # Global logging configuration state
 _logging_config = {
@@ -85,6 +85,7 @@ def setup_logging(
     numeric_level = getattr(logging, level.upper(), logging.INFO)
 
     # Create formatters
+    formatter: logging.Formatter
     if structured:
         formatter = StructuredFormatter()
     else:
@@ -150,11 +151,13 @@ class StructuredFormatter(logging.Formatter):
 
         # Add exception info if present
         if record.exc_info and isinstance(record.exc_info, tuple):
-            log_data["exception"] = {
-                "type": record.exc_info[0].__name__,
-                "message": str(record.exc_info[1]),
-                "traceback": traceback.format_exception(*record.exc_info),
-            }
+            exc_type, exc_value, exc_traceback = record.exc_info
+            if exc_type is not None:
+                log_data["exception"] = {
+                    "type": exc_type.__name__,
+                    "message": str(exc_value),
+                    "traceback": traceback.format_exception(*record.exc_info),
+                }
 
         # Add extra fields from record
         for key, value in record.__dict__.items():
@@ -181,8 +184,11 @@ class StructuredFormatter(logging.Formatter):
                 "exc_text",
                 "stack_info",
             ):
-                log_data["extra"] = log_data.get("extra", {})
-                log_data["extra"][key] = value
+                if "extra" not in log_data:
+                    log_data["extra"] = {}
+                extra_dict = log_data["extra"]
+                if isinstance(extra_dict, dict):
+                    extra_dict[key] = str(value) if value is not None else None
 
         return json.dumps(log_data, ensure_ascii=False)
 
@@ -199,6 +205,7 @@ def _setup_filename_warnings(
     sanitizer_logger.handlers.clear()
 
     # Create formatter for warnings
+    warning_formatter: logging.Formatter
     if structured:
         warning_formatter = StructuredFormatter()
     else:
@@ -217,8 +224,12 @@ def _setup_filename_warnings(
             log_path = Path(log_file)
             file_warning_handler = logging.handlers.RotatingFileHandler(
                 log_path,
-                maxBytes=_logging_config["max_file_size"],
-                backupCount=_logging_config["backup_count"],
+                maxBytes=int(_logging_config["max_file_size"])
+                if isinstance(_logging_config["max_file_size"], (int, str))
+                else 10 * 1024 * 1024,
+                backupCount=int(_logging_config["backup_count"])
+                if isinstance(_logging_config["backup_count"], (int, str))
+                else 5,
                 encoding="utf-8",
             )
             file_warning_handler.setFormatter(warning_formatter)
@@ -235,6 +246,7 @@ def _setup_performance_logging(numeric_level: int, structured: bool) -> None:
     perf_logger.handlers.clear()
 
     # Create performance-specific formatter
+    perf_formatter: logging.Formatter
     if structured:
         perf_formatter = StructuredFormatter()
     else:
@@ -251,11 +263,15 @@ def _setup_performance_logging(numeric_level: int, structured: bool) -> None:
         perf_logger.addHandler(perf_console_handler)
 
     if "file" in _active_handlers:
-        log_path = Path(_logging_config["file_path"])
+        log_path = Path(str(_logging_config["file_path"]))
         perf_file_handler = logging.handlers.RotatingFileHandler(
             log_path,
-            maxBytes=_logging_config["max_file_size"],
-            backupCount=_logging_config["backup_count"],
+            maxBytes=int(_logging_config["max_file_size"])
+            if isinstance(_logging_config["max_file_size"], (int, str))
+            else 10 * 1024 * 1024,
+            backupCount=int(_logging_config["backup_count"])
+            if isinstance(_logging_config["backup_count"], (int, str))
+            else 5,
             encoding="utf-8",
         )
         perf_file_handler.setFormatter(perf_formatter)
@@ -354,28 +370,28 @@ def enable_file_logging(
         max_size: Maximum file size before rotation
         backup_count: Number of backup files to keep
     """
-    current_level = level or _logging_config["level"]
+    current_level = level or str(_logging_config["level"])
     setup_logging(
         level=current_level,
-        enable_filename_warnings=_logging_config["filename_warnings"],
-        console_output=_logging_config["console_enabled"],
+        enable_filename_warnings=bool(_logging_config["filename_warnings"]),
+        console_output=bool(_logging_config["console_enabled"]),
         log_file=log_file,
         max_file_size=max_size,
         backup_count=backup_count,
-        structured=_logging_config["structured_logging"],
-        performance_monitoring=_logging_config["performance_logging"],
+        structured=bool(_logging_config["structured_logging"]),
+        performance_monitoring=bool(_logging_config["performance_logging"]),
     )
 
 
 def disable_file_logging() -> None:
     """Disable file logging while keeping console logging."""
     setup_logging(
-        level=_logging_config["level"],
-        enable_filename_warnings=_logging_config["filename_warnings"],
-        console_output=_logging_config["console_enabled"],
+        level=str(_logging_config["level"]),
+        enable_filename_warnings=bool(_logging_config["filename_warnings"]),
+        console_output=bool(_logging_config["console_enabled"]),
         log_file=None,
-        structured=_logging_config["structured_logging"],
-        performance_monitoring=_logging_config["performance_logging"],
+        structured=bool(_logging_config["structured_logging"]),
+        performance_monitoring=bool(_logging_config["performance_logging"]),
     )
 
 
@@ -386,15 +402,20 @@ def enable_structured_logging(enable: bool = True) -> None:
     Args:
         enable: Whether to enable structured logging
     """
+    file_path = _logging_config["file_path"]
     setup_logging(
-        level=_logging_config["level"],
-        enable_filename_warnings=_logging_config["filename_warnings"],
-        console_output=_logging_config["console_enabled"],
-        log_file=_logging_config["file_path"],
-        max_file_size=_logging_config["max_file_size"],
-        backup_count=_logging_config["backup_count"],
+        level=str(_logging_config["level"]),
+        enable_filename_warnings=bool(_logging_config["filename_warnings"]),
+        console_output=bool(_logging_config["console_enabled"]),
+        log_file=str(file_path) if file_path else None,
+        max_file_size=int(_logging_config["max_file_size"])
+        if isinstance(_logging_config["max_file_size"], (int, str))
+        else 10 * 1024 * 1024,
+        backup_count=int(_logging_config["backup_count"])
+        if isinstance(_logging_config["backup_count"], (int, str))
+        else 5,
         structured=enable,
-        performance_monitoring=_logging_config["performance_logging"],
+        performance_monitoring=bool(_logging_config["performance_logging"]),
     )
 
 
@@ -405,14 +426,19 @@ def enable_performance_monitoring(enable: bool = True) -> None:
     Args:
         enable: Whether to enable performance logging
     """
+    file_path = _logging_config["file_path"]
     setup_logging(
-        level=_logging_config["level"],
-        enable_filename_warnings=_logging_config["filename_warnings"],
-        console_output=_logging_config["console_enabled"],
-        log_file=_logging_config["file_path"],
-        max_file_size=_logging_config["max_file_size"],
-        backup_count=_logging_config["backup_count"],
-        structured=_logging_config["structured_logging"],
+        level=str(_logging_config["level"]),
+        enable_filename_warnings=bool(_logging_config["filename_warnings"]),
+        console_output=bool(_logging_config["console_enabled"]),
+        log_file=str(file_path) if file_path else None,
+        max_file_size=int(_logging_config["max_file_size"])
+        if isinstance(_logging_config["max_file_size"], (int, str))
+        else 10 * 1024 * 1024,
+        backup_count=int(_logging_config["backup_count"])
+        if isinstance(_logging_config["backup_count"], (int, str))
+        else 5,
+        structured=bool(_logging_config["structured_logging"]),
         performance_monitoring=enable,
     )
 
@@ -458,12 +484,15 @@ def get_log_statistics() -> Dict:
     # Get information about py7zz loggers
     for logger_name in ["py7zz", "py7zz.filename_sanitizer", "py7zz.performance"]:
         logger = logging.getLogger(logger_name)
-        stats["loggers"][logger_name] = {
+        logger_stats = {
             "level": logging.getLevelName(logger.level),
             "effective_level": logging.getLevelName(logger.getEffectiveLevel()),
             "handler_count": len(logger.handlers),
             "propagate": logger.propagate,
         }
+        loggers_dict = stats["loggers"]
+        if isinstance(loggers_dict, dict):
+            loggers_dict[logger_name] = logger_stats
 
     return stats
 
@@ -471,28 +500,33 @@ def get_log_statistics() -> Dict:
 class PerformanceLogger:
     """Context manager for performance logging."""
 
-    def __init__(self, operation: str, logger_name: str = "py7zz.performance"):
+    def __init__(self, operation: str, logger_name: str = "py7zz.performance") -> None:
         self.operation = operation
         self.logger = logging.getLogger(logger_name)
-        self.start_time = None
+        self.start_time: Optional[float] = None
 
-    def __enter__(self):
+    def __enter__(self) -> "PerformanceLogger":
         import time
 
         self.start_time = time.perf_counter()
         self.logger.debug(f"Started: {self.operation}")
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[type],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[object],
+    ) -> None:
         import time
 
         end_time = time.perf_counter()
-        duration = end_time - self.start_time
+        duration = end_time - (self.start_time or 0.0)
 
         if exc_type:
             self.logger.error(
                 f"Failed: {self.operation} (duration: {duration:.4f}s)",
-                exc_info=(exc_type, exc_val, exc_tb),
+                exc_info=True,
             )
         else:
             self.logger.debug(
@@ -500,7 +534,9 @@ class PerformanceLogger:
             )
 
 
-def log_performance(operation: str):
+def log_performance(
+    operation: str,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
     Decorator for performance logging.
 
@@ -508,8 +544,8 @@ def log_performance(operation: str):
         operation: Description of the operation being logged
     """
 
-    def decorator(func):
-        def wrapper(*args, **kwargs):
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
             with PerformanceLogger(operation):
                 return func(*args, **kwargs)
 

@@ -49,7 +49,7 @@ class ImmutableConfig:
     preset_name: str = "balanced"
     created_at: Optional[str] = None
 
-    def replace(self, **changes) -> "ImmutableConfig":
+    def replace(self, **changes: Any) -> "ImmutableConfig":
         """
         Create a new config with specified changes.
 
@@ -161,7 +161,7 @@ class ThreadSafeGlobalConfig:
             logger.debug(f"Updated global configuration: {config.preset_name}")
 
     @classmethod
-    def update_config(cls, **changes) -> ImmutableConfig:
+    def update_config(cls, **changes: Any) -> ImmutableConfig:
         """
         Update global configuration with changes (thread-safe).
 
@@ -179,7 +179,7 @@ class ThreadSafeGlobalConfig:
     @classmethod
     @contextlib.contextmanager
     def temporary_config(
-        cls, config: Optional[ImmutableConfig] = None, **changes
+        cls, config: Optional[ImmutableConfig] = None, **changes: Any
     ) -> Generator[ImmutableConfig, None, None]:
         """
         Context manager for temporary configuration changes.

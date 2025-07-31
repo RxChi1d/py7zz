@@ -12,7 +12,7 @@ A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented in
 - **🔧 Industry Standard API Compatibility** - Complete `zipfile.ZipFile` and `tarfile.TarFile` API compatibility
 - **🚀 5-Layer API Design** - From simple one-liners to expert-level control
 - **⚡ Batch Operations** - Multiple archive operations, format conversion, comparison tools
-- **📦 50+ archive formats** - ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, LZ4, ZSTD, and more
+- **📦 Multiple formats** - ZIP, 7Z, TAR, GZIP, BZIP2, XZ, LZ4, and more
 - **🌐 Cross-platform** - Works on macOS, Linux, and Windows
 - **🔄 Async operations** - Non-blocking operations with progress reporting
 - **🔒 Secure** - Bundled 7zz binaries, no system dependencies
@@ -21,10 +21,7 @@ A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented in
 - **🪟 Windows filename compatibility** - Automatic handling of Unix archive filenames on Windows
 - **📊 Archive information** - Detailed metadata with compression ratios and file attributes
 - **🛠️ Exception handling** - Structured error context with actionable suggestions
-- **☁️ Cloud integration** - Streaming interface for S3/Azure Blob/GCS direct read/write
-- **🔒 Thread-safe configuration** - Immutable config objects with context managers
-- **📈 Structured progress callbacks** - Progress information with speed, timing, and metadata
-- **📝 Logging integration** - Standard Python logging.getLogger("py7zz") hierarchy support
+- **📝 Logging integration** - Standard Python logging support
 
 ## Quick Start
 
@@ -95,169 +92,16 @@ import py7zz
 import asyncio
 
 async def main():
-    # Async operations with progress reporting
-    async def progress_handler(info):
-        print(f"Progress: {info.percentage:.1f}% - {info.current_file}")
-    
-    await py7zz.create_archive_async(
-        'large_backup.7z',
-        ['big_folder/'],
-        preset='balanced',
-        progress_callback=progress_handler
-    )
-    
-    await py7zz.extract_archive_async(
-        'large_backup.7z',
-        'extracted/',
-        progress_callback=progress_handler
-    )
+    # Async operations 
+    await py7zz.create_archive_async('backup.7z', ['folder/'])
+    await py7zz.extract_archive_async('backup.7z', 'extracted/')
 
 asyncio.run(main())
 ```
 
-### Cloud Integration & Streaming
-
-```python
-import py7zz
-import boto3  # for AWS S3 example
-
-# Streaming interface for cloud services (io.BufferedIOBase compatible)
-with py7zz.SevenZipFile('large_archive.7z', 'r') as sz:
-    # Stream file directly to S3 without local disk
-    with sz.open_stream('big_data.csv') as stream:
-        s3_client = boto3.client('s3')
-        s3_client.upload_fileobj(stream, 'my-bucket', 'data/big_data.csv')
-    
-    # Stream multiple files to cloud storage
-    for member in sz.infolist():
-        if member.filename.endswith('.log'):
-            with sz.open_stream(member.filename) as stream:
-                # Direct streaming to Azure Blob, GCS, etc.
-                cloud_upload(stream, member.filename)
-
-# Create archives with cloud streaming
-with py7zz.SevenZipFile('cloud_backup.7z', 'w') as sz:
-    # Stream data directly from cloud to archive
-    with sz.open_stream_writer('backup_data.json') as writer:
-        cloud_data = download_from_cloud('backup_data.json')
-        writer.write(cloud_data)
-```
-
-### Thread-Safe Enterprise Configuration
-
-```python
-import py7zz
-import threading
-
-# Thread-safe global configuration management
-def worker_thread(thread_id):
-    # Each thread can safely access global config
-    config = py7zz.ThreadSafeGlobalConfig.get_config()
-    print(f"Thread {thread_id} using preset: {config.preset_name}")
-    
-    # Temporary configuration changes per thread
-    with py7zz.ThreadSafeGlobalConfig.temporary_config(level=9, solid=False):
-        # Operations in this context use the temporary config
-        py7zz.create_archive(f'output_{thread_id}.7z', [f'data_{thread_id}/'])
-    # Original config restored automatically
-
-# Immutable configuration objects
-config = py7zz.ImmutableConfig(
-    level=7,
-    compression="lzma2",
-    solid=True,
-    threads=4
-)
-
-# Safe to share across threads - cannot be modified
-production_config = config.replace(level=9, preset_name="production")
-
-# Context manager for preset-based operations
-with py7zz.with_preset("ultra"):
-    # All operations use ultra compression settings
-    py7zz.create_archive('high_compression.7z', ['important_data/'])
-```
-
-### Advanced Progress Monitoring
-
-```python
-import py7zz
-
-# Structured progress callbacks
-def progress_callback(progress: py7zz.ProgressInfo):
-    # Progress information structure
-    print(f"Operation: {progress.operation_type.value}")
-    print(f"Stage: {progress.operation_stage.value}")
-    print(f"Progress: {progress.percentage:.2f}%")
-    print(f"Speed: {progress.format_speed()}")
-    print(f"ETA: {progress.format_time(progress.estimated_remaining)}")
-    print(f"Current file: {progress.current_file}")
-    print(f"Files: {progress.files_processed}/{progress.total_files}")
-    
-    # Custom metadata available
-    if progress.metadata.get('custom_tracking_id'):
-        print(f"Tracking ID: {progress.metadata['custom_tracking_id']}")
-
-# Multiple callback styles available
-py7zz.create_archive('data.7z', ['files/'], 
-                    progress_callback=py7zz.create_callback("detailed"))
-py7zz.create_archive('logs.7z', ['logs/'], 
-                    progress_callback=py7zz.create_callback("json"))
-
-# Manual progress tracking for custom operations
-tracker = py7zz.ProgressTracker(
-    operation_type=py7zz.OperationType.COMPRESS,
-    callback=enterprise_progress_callback,
-    total_bytes=1000000
-)
-
-# Update progress as operation proceeds
-tracker.update(bytes_processed=250000, current_file="data1.txt")
-tracker.update(bytes_processed=500000, current_file="data2.txt") 
-tracker.complete()
-```
-
-### Enterprise Logging Integration
-
-```python
-import logging
-import py7zz
-
-# Standard Python logging integration
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('app.log'),
-        logging.StreamHandler()
-    ]
-)
-
-# py7zz integrates with your logging hierarchy
-logger = logging.getLogger('myapp.archiving')
-logger.info("Starting archive operations")
-
-# py7zz respects your logging configuration
-py7zz.setup_logging("INFO", structured=True, performance_monitoring=True)
-
-# File logging with rotation
-py7zz.enable_file_logging('py7zz.log', max_size=10*1024*1024, backup_count=5)
-
-# Structured JSON logging for analysis
-py7zz.enable_structured_logging(True)
-
-# Performance monitoring
-with py7zz.PerformanceLogger("bulk_compression"):
-    py7zz.batch_create_archives([
-        ('backup1.7z', ['data1/']),
-        ('backup2.7z', ['data2/']),
-        ('backup3.7z', ['data3/'])
-    ])
-```
-
 ## API Overview
 
-py7zz provides a **6-layer API architecture** designed for progressive complexity:
+py7zz provides a **layered API architecture** designed for progressive complexity:
 
 ### Layer 1: Simple Function API (80% of use cases)
 ```python
@@ -303,94 +147,23 @@ print(f"Compression: {info.get_compression_ratio():.1%}")  # 🚀 Enhanced featu
 
 ### Layer 3: Advanced Control API (power users)
 ```python
-# Custom configurations and fine-grained control
-config = py7zz.create_custom_config(
-    level=7,
-    method='LZMA2',
-    dictionary_size='64m',
-    solid=True
-)
+# Custom configurations
+config = py7zz.Config(level=7, compression='lzma2', solid=True)
 with py7zz.SevenZipFile('archive.7z', 'w', config=config) as sz:
     sz.add('data/')
-
-# Global configuration management
-py7zz.GlobalConfig.set_default_preset('ultra')
-recommended = py7zz.GlobalConfig.get_smart_recommendation(
-    ['documents/', 'photos/'], 
-    usage_type='backup',
-    priority='compression'
-)
-
-# Intelligent preset recommendations
-analysis = py7zz.PresetRecommender.analyze_content(['project/'])
-optimal_preset = py7zz.PresetRecommender.recommend_for_content(['mixed_data/'])
 ```
 
 ### Layer 4: Async API (concurrent operations)
 ```python
-# Non-blocking operations with progress
-await py7zz.batch_compress_async(
-    [('backup1.7z', ['folder1/']), ('backup2.7z', ['folder2/'])],
-    progress_callback=progress_handler
-)
-
-# Complete async SevenZipFile interface
-async with py7zz.AsyncSevenZipFile('archive.7z', 'r') as asz:
-    names = await asz.namelist()
-    content = await asz.read('file.txt')
-    await asz.extractall('output/', progress_callback=progress_handler)
+# Non-blocking operations
+await py7zz.create_archive_async('backup.7z', ['folder/'])
 ```
 
 ### Layer 5: Expert API (direct 7zz access)
 ```python
-# Direct 7zz command access for maximum flexibility
-result = py7zz.run_7z(['a', 'archive.7z', 'files/', '-mx=9', '-ms=on'])
+# Direct 7zz command access
+result = py7zz.run_7z(['a', 'archive.7z', 'files/', '-mx=9'])
 print(f"Exit code: {result.returncode}")
-```
-
-### Layer 6: Cloud Integration API
-```python
-# Cloud streaming interface
-import py7zz
-import boto3
-
-# Thread-safe configuration management
-with py7zz.ThreadSafeGlobalConfig.temporary_config(
-    level=9,
-    threads=8,
-    preset_name="production_backup"
-):
-    # Streaming to cloud storage
-    with py7zz.SevenZipFile('enterprise_backup.7z', 'w') as sz:
-        # Stream data directly from S3 to archive
-        s3_client = boto3.client('s3')
-        
-        with sz.open_stream_writer('data/large_dataset.csv') as writer:
-            s3_obj = s3_client.get_object(Bucket='data-lake', Key='raw/dataset.csv')
-            for chunk in s3_obj['Body'].iter_chunks(1024*1024):
-                writer.write(chunk)
-
-# Structured progress monitoring
-def monitoring_callback(progress: py7zz.ProgressInfo):
-    # Send metrics to monitoring system
-    metrics.gauge('compression.progress', progress.percentage)
-    metrics.gauge('compression.speed_mbps', progress.speed_bps / 1024 / 1024)
-    
-    # Log structured data for analysis
-    logger.info("Compression progress", extra={
-        'operation_id': progress.metadata.get('operation_id'),
-        'stage': progress.operation_stage.value,
-        'percentage': progress.percentage,
-        'current_file': progress.current_file
-    })
-
-# Logging with performance monitoring
-py7zz.setup_logging(
-    "INFO",
-    structured=True,
-    performance_monitoring=True,
-    log_file="/var/log/archiving/py7zz.log"
-)
 ```
 
 **📚 [Complete API Documentation](docs/API.md)** - Detailed reference with all classes, methods, parameters, and advanced usage examples.
@@ -408,11 +181,11 @@ py7zz supports reading and writing many archive formats:
 | BZIP2 | ✅ | ✅ | Better compression than gzip |
 | XZ | ✅ | ✅ | Excellent compression |
 | LZ4 | ✅ | ✅ | Very fast compression |
-| ZSTD | ✅ | ✅ | Modern, fast compression |
+| ZSTD | ❌ | ❌ | Not supported by 7zz binary |
 | RAR | ✅ | ❌ | Extract only |
 | CAB | ✅ | ❌ | Windows cabinet files |
 | ISO | ✅ | ❌ | Disc images |
-| And 40+ more... | ✅ | Various | See full list in docs |
+| Others | ✅ | Various | RAR (read-only), CAB, ISO, and more |
 
 ## Migration from zipfile/tarfile
 
@@ -469,160 +242,28 @@ with py7zz.SevenZipFile('archive.tar.gz', 'r') as sz:
 
 ## Advanced Features
 
-py7zz includes features for production environments and cloud integration:
-
-### Cloud Integration & Streaming Interface
-
-Stream archives directly to/from cloud storage without local disk space:
-
-```python
-import py7zz
-import boto3
-
-# Stream files from archive directly to S3
-with py7zz.SevenZipFile('backup.7z', 'r') as sz:
-    with sz.open_stream('large_data.csv') as stream:
-        # io.BufferedIOBase compatible - works with any cloud SDK
-        s3_client.upload_fileobj(stream, 'my-bucket', 'data/large_data.csv')
-
-# Create archives from cloud data streams
-with py7zz.SevenZipFile('cloud_backup.7z', 'w') as sz:
-    with sz.open_stream_writer('backup_data.json') as writer:
-        # Stream directly from cloud to archive
-        for chunk in cloud_data_stream():
-            writer.write(chunk)
-```
-
-**Supported Cloud Services:**
-- Amazon S3 (`boto3`)
-- Azure Blob Storage (`azure-storage-blob`)
-- Google Cloud Storage (`google-cloud-storage`)
-- Any service supporting `io.BufferedIOBase`
-
-### Thread-Safe Configuration Management
-
-Safe concurrent access with immutable configuration objects:
-
-```python
-import py7zz
-from concurrent.futures import ThreadPoolExecutor
-
-# Thread-safe global configuration
-py7zz.ThreadSafeGlobalConfig.set_config(
-    py7zz.ImmutableConfig(level=7, threads=4, preset_name="production")
-)
-
-def worker_task(data_folder):
-    # Each thread safely accesses global config
-    config = py7zz.ThreadSafeGlobalConfig.get_config()
-    
-    # Temporary config changes per operation
-    with py7zz.ThreadSafeGlobalConfig.temporary_config(level=9):
-        py7zz.create_archive(f'{data_folder}.7z', [data_folder])
-
-# Safe concurrent execution
-with ThreadPoolExecutor(max_workers=8) as executor:
-    tasks = [f'data_{i}' for i in range(20)]
-    executor.map(worker_task, tasks)
-```
-
-### Structured Progress Monitoring
-
-Rich progress information for monitoring and analytics:
+### Configuration Management
 
 ```python
 import py7zz
 
-def monitoring_callback(progress: py7zz.ProgressInfo):
-    # Rich structured progress data
-    metrics = {
-        'operation': progress.operation_type.value,
-        'stage': progress.operation_stage.value,
-        'percentage': progress.percentage,
-        'speed_mbps': progress.speed_bps / 1024 / 1024 if progress.speed_bps else 0,
-        'eta_seconds': progress.estimated_remaining,
-        'files_processed': progress.files_processed,
-        'current_file': progress.current_file
-    }
-    
-    # Send to monitoring system (Prometheus, DataDog, etc.)
-    send_metrics(metrics)
-    
-    # Structured logging for analysis
-    logger.info("Archive progress", extra=metrics)
+# Custom configuration
+config = py7zz.Config(level=9, compression='lzma2', solid=True)
+py7zz.create_archive('archive.7z', ['files/'], config=config)
 
-# Multiple callback styles for different needs
-py7zz.create_archive('data.7z', ['files/'], 
-                    progress_callback=py7zz.create_callback("json"))  # JSON output
-py7zz.create_archive('logs.7z', ['logs/'], 
-                    progress_callback=monitoring_callback)  # Custom monitoring
+# Preset configurations
+py7zz.create_archive('backup.7z', ['data/'], preset='ultra')
 ```
 
-### Enhanced Logging Integration
-
-Professional logging integration with Python's standard logging:
+### Logging Integration
 
 ```python
 import logging
 import py7zz
 
-# Standard Python logging setup
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-
-# py7zz integrates seamlessly with your logging hierarchy
-app_logger = logging.getLogger('myapp.archiving')
-app_logger.info("Starting batch compression")
-
-# Enterprise logging features
-py7zz.setup_logging(
-    level="INFO",
-    structured=True,              # JSON structured logs
-    performance_monitoring=True,  # Performance metrics
-    log_file="py7zz.log",        # File logging with rotation
-    max_file_size=50*1024*1024   # 50MB max file size
-)
-
-# Performance monitoring context manager
-with py7zz.PerformanceLogger("batch_compression"):
-    py7zz.batch_create_archives([
-        ('backup1.7z', ['data1/']),
-        ('backup2.7z', ['data2/']),
-        ('backup3.7z', ['data3/'])
-    ])
-```
-
-### Configuration Management
-
-Persistent configuration with validation and presets:
-
-```python
-import py7zz
-
-# Load/save user configuration
-py7zz.ThreadSafeGlobalConfig.load_user_config()   # Load from ~/.config/py7zz/config.json
-py7zz.ThreadSafeGlobalConfig.save_user_config()   # Save current config
-
-# Enterprise preset management
-enterprise_config = py7zz.ImmutableConfig(
-    preset_name="production_backup",
-    level=8,
-    compression="lzma2",
-    dictionary_size="128m",
-    threads=None,  # Auto-detect
-    solid=True
-)
-
-# Validate configuration
-warnings = enterprise_config.validate()
-if warnings:
-    for warning in warnings:
-        logger.warning(f"Config warning: {warning}")
-
-# Apply configuration globally
-py7zz.ThreadSafeGlobalConfig.set_config(enterprise_config)
+# Standard Python logging
+logging.basicConfig(level=logging.INFO)
+py7zz.setup_logging("INFO")
 ```
 
 ## Compression Presets

@@ -69,7 +69,7 @@ class ProgressInfo:
     # Additional metadata
     metadata: Dict[str, Any]  # Extensible metadata dictionary
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Validate progress info after initialization."""
         if not 0.0 <= self.percentage <= 100.0:
             raise ValueError(f"Percentage must be 0.0-100.0, got {self.percentage}")
@@ -222,7 +222,7 @@ class ProgressTracker:
         current_file: Optional[str] = None,
         stage: Optional[OperationStage] = None,
         force_callback: bool = False,
-        **metadata,
+        **metadata: Any,
     ) -> None:
         """
         Update progress and potentially invoke callback.
@@ -431,7 +431,7 @@ def json_progress_callback(progress: ProgressInfo) -> None:
 
 
 # Factory function for creating callbacks
-def create_callback(callback_type: str = "console", **options) -> ProgressCallback:
+def create_callback(callback_type: str = "console", **options: Any) -> ProgressCallback:
     """
     Factory function for creating progress callbacks.
 

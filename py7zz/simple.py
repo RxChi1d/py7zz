@@ -411,7 +411,7 @@ def copy_archive(
         # Simple file copy
         import shutil
 
-        shutil.copy2(source_path, target_path)
+        shutil.copy2(str(source_path), str(target_path))
 
 
 def get_compression_ratio(archive_path: Union[str, Path]) -> float:
@@ -429,8 +429,20 @@ def get_compression_ratio(archive_path: Union[str, Path]) -> float:
         >>> print(f"Compression ratio: {ratio:.2%}")
     """
     archive_info = get_archive_info(archive_path)
-    compression_ratio = archive_info.get("compression_ratio", 0.0)
-    return float(compression_ratio) if compression_ratio is not None else 0.0
+
+    # Try to get pre-calculated compression ratio first
+    compression_ratio = archive_info.get("compression_ratio")
+    if compression_ratio is not None and compression_ratio != 0.0:
+        return float(compression_ratio)
+
+    # Calculate manually if not available or zero
+    uncompressed_size = archive_info.get("uncompressed_size", 0)
+    compressed_size = archive_info.get("compressed_size", 0)
+
+    if uncompressed_size > 0:
+        return float((uncompressed_size - compressed_size) / uncompressed_size)
+
+    return 0.0
 
 
 def get_archive_format(archive_path: Union[str, Path]) -> str:
@@ -441,15 +453,56 @@ def get_archive_format(archive_path: Union[str, Path]) -> str:
         archive_path: Path to the archive file
 
     Returns:
-        Archive format as string ("7z", "zip", "tar", etc.)
+        Archive format as string ("7z", "zip", "tar", etc.")
 
     Example:
         >>> format_type = py7zz.get_archive_format("backup.unknown")
         >>> print(f"Archive format: {format_type}")
     """
-    archive_info = get_archive_info(archive_path)
-    archive_format = archive_info.get("format", "unknown")
-    return str(archive_format) if archive_format is not None else "unknown"
+    from .core import run_7z
+
+    # Check if file exists first
+    if not Path(archive_path).exists():
+        raise FileNotFoundError(f"Archive not found: {archive_path}")
+
+    try:
+        # Use 7z to detect archive format
+        result = run_7z(["l", str(archive_path)])
+        if result.returncode == 0:
+            # Parse output to extract archive type
+            output = result.stdout.lower()
+            if "archive type = 7z" in output:
+                return "7z"
+            elif "archive type = zip" in output:
+                return "zip"
+            elif "archive type = tar" in output:
+                return "tar"
+            elif "archive type = rar" in output:
+                return "rar"
+            elif "archive type = gzip" in output:
+                return "gz"
+            elif "archive type = bzip2" in output:
+                return "bz2"
+            else:
+                # Try to extract format from other patterns
+                import re
+
+                match = re.search(r"archive type = (\w+)", output)
+                if match:
+                    return match.group(1)
+
+        # Fallback: try to get from get_archive_info
+        try:
+            archive_info = get_archive_info(archive_path)
+            archive_format = archive_info.get("format", "unknown")
+            return str(archive_format) if archive_format is not None else "unknown"
+        except Exception:
+            pass
+
+    except Exception:
+        pass
+
+    return "unknown"
 
 
 def compare_archives(
@@ -473,29 +526,81 @@ def compare_archives(
         >>> if are_same:
         ...     print("Archives are identical")
     """
-    if not Path(archive1).exists() or not Path(archive2).exists():
-        return False
+    try:
+        # Try to use get_archive_info for basic comparison first
+        info1 = get_archive_info(archive1)
+        info2 = get_archive_info(archive2)
 
-    # Compare file lists
-    with SevenZipFile(archive1, "r") as sz1, SevenZipFile(archive2, "r") as sz2:
-        names1 = set(sz1.namelist())
-        names2 = set(sz2.namelist())
+        # Compare file lists if available
+        files1 = info1.get("files")
+        files2 = info2.get("files")
 
-        if names1 != names2:
+        if files1 is not None and files2 is not None:
+            if set(files1) != set(files2):
+                return False
+
+            # If not comparing content, basic file list match is enough
+            if not compare_content:
+                return True
+
+        # Fallback to direct archive reading for content comparison
+        # or if file lists not available in info
+        if not Path(archive1).exists() or not Path(archive2).exists():
             return False
 
-        # If content comparison requested, compare file contents
-        if compare_content:
-            for name in names1:
-                try:
-                    content1 = sz1.read(name)
-                    content2 = sz2.read(name)
-                    if content1 != content2:
+        # Compare file lists using SevenZipFile
+        import py7zz
+
+        with py7zz.SevenZipFile(archive1, "r") as sz1, py7zz.SevenZipFile(
+            archive2, "r"
+        ) as sz2:
+            names1 = set(sz1.namelist())
+            names2 = set(sz2.namelist())
+
+            if names1 != names2:
+                return False
+
+            # If content comparison requested, compare file contents
+            if compare_content:
+                for name in names1:
+                    try:
+                        content1 = sz1.read(name)
+                        content2 = sz2.read(name)
+                        if content1 != content2:
+                            return False
+                    except Exception:
                         return False
-                except Exception:
+
+        return True
+
+    except Exception:
+        # Fallback to basic comparison if get_archive_info fails
+        try:
+            import py7zz
+
+            with py7zz.SevenZipFile(archive1, "r") as sz1, py7zz.SevenZipFile(
+                archive2, "r"
+            ) as sz2:
+                names1 = set(sz1.namelist())
+                names2 = set(sz2.namelist())
+
+                if names1 != names2:
                     return False
 
-    return True
+                # If content comparison requested, compare file contents
+                if compare_content:
+                    for name in names1:
+                        try:
+                            content1 = sz1.read(name)
+                            content2 = sz2.read(name)
+                            if content1 != content2:
+                                return False
+                        except Exception:
+                            return False
+
+                return True
+        except Exception:
+            return False
 
 
 def convert_archive_format(

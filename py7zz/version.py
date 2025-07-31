@@ -292,8 +292,10 @@ def compare_versions(version1: str, version2: str) -> int:
 
     # Same base version, compare version types
     type_order = {"dev": 0, "auto": 1, "stable": 2}
-    v1_type_priority = type_order.get(v1["version_type"], 2)
-    v2_type_priority = type_order.get(v2["version_type"], 2)
+    v1_type = v1["version_type"]
+    v2_type = v2["version_type"]
+    v1_type_priority = type_order.get(str(v1_type) if v1_type else "stable", 2)
+    v2_type_priority = type_order.get(str(v2_type) if v2_type else "stable", 2)
 
     if v1_type_priority < v2_type_priority:
         return -1
@@ -301,8 +303,12 @@ def compare_versions(version1: str, version2: str) -> int:
         return 1
 
     # Same version type, compare build numbers
-    v1_build = v1["build_number"] or 0
-    v2_build = v2["build_number"] or 0
+    v1_build_raw = v1["build_number"]
+    v2_build_raw = v2["build_number"]
+
+    # Convert to int, handle None and str cases
+    v1_build = int(v1_build_raw) if v1_build_raw is not None else 0
+    v2_build = int(v2_build_raw) if v2_build_raw is not None else 0
 
     if v1_build < v2_build:
         return -1

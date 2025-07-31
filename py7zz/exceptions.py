@@ -247,29 +247,37 @@ def handle_7z_errors(func: Callable) -> Callable:
 
 def handle_file_errors(func: Callable) -> Callable:
     """Decorator to handle file system errors uniformly."""
+    import builtins  # Import builtins to access the built-in FileNotFoundError
 
     @wraps(func)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
             return func(*args, **kwargs)
-        except FileNotFoundError as e:
-            raise ValidationError(
-                f"File or directory not found: {e.filename}",
-                suggestions=["Check if the path exists", "Verify file permissions"],
-            ) from e
-        except PermissionError as e:
-            raise ValidationError(
-                f"Permission denied: {e.filename}",
-                suggestions=[
-                    "Check file permissions",
-                    "Run with appropriate privileges",
-                ],
-            ) from e
-        except OSError as e:
-            raise OperationError(
-                f"System error: {e}",
-                suggestions=["Check disk space", "Verify path validity"],
-            ) from e
+        except Exception as e:
+            # Use built-in exception classes instead of any custom ones
+            if isinstance(e, builtins.FileNotFoundError):
+                filename = getattr(e, "filename", None) or str(e)
+                raise ValidationError(
+                    f"File or directory not found: {filename}",
+                    suggestions=["Check if the path exists", "Verify file permissions"],
+                ) from e
+            elif isinstance(e, builtins.PermissionError):
+                filename = getattr(e, "filename", None) or str(e)
+                raise ValidationError(
+                    f"Permission denied: {filename}",
+                    suggestions=[
+                        "Check file permissions",
+                        "Run with appropriate privileges",
+                    ],
+                ) from e
+            elif isinstance(e, OSError):
+                # OSError should be after more specific subclasses like FileNotFoundError and PermissionError
+                raise OperationError(
+                    f"System error: {e}",
+                    suggestions=["Check disk space", "Verify path validity"],
+                ) from e
+            else:
+                raise  # Re-raise other exceptions unchanged
 
     return wrapper
 
@@ -344,13 +352,16 @@ def classify_error_type(error: Exception) -> str:
 
 def get_error_suggestions(error: Exception) -> List[str]:
     """Get actionable suggestions for resolving the error."""
+    import builtins  # Import builtins to access built-in exceptions
+
     if hasattr(error, "suggestions"):
         return list(error.suggestions)
 
     # Default suggestions based on error type
-    if isinstance(error, FileNotFoundError):
+    # Check both built-in and custom exceptions
+    if isinstance(error, (builtins.FileNotFoundError, FileNotFoundError)):
         return ["Check if the file path is correct", "Verify file exists"]
-    elif isinstance(error, PermissionError):
+    elif isinstance(error, (builtins.PermissionError, PermissionError)):
         return ["Check file permissions", "Run with administrator privileges"]
     elif isinstance(error, MemoryError):
         return [

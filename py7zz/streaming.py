@@ -9,7 +9,7 @@ Supports standard Python I/O patterns for seamless integration.
 import io
 import tempfile
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import Any, List, Optional, Union
 
 from .core import SevenZipFile
 from .exceptions import FileNotFoundError, OperationError
@@ -42,7 +42,11 @@ class ArchiveStreamReader(io.BufferedIOBase):
     """
 
     def __init__(
-        self, archive: SevenZipFile, member_name: str, encoding: Optional[str] = None
+        self,
+        archive: SevenZipFile,
+        member_name: str,
+        encoding: Optional[str] = None,
+        manage_archive_lifecycle: bool = False,
     ):
         """
         Initialize archive stream reader.
@@ -51,6 +55,7 @@ class ArchiveStreamReader(io.BufferedIOBase):
             archive: SevenZipFile instance
             member_name: Name of the member to read
             encoding: Optional text encoding for text mode
+            manage_archive_lifecycle: Whether to close the archive when this stream is closed
         """
         self._archive = archive
         self._member_name = member_name
@@ -58,6 +63,7 @@ class ArchiveStreamReader(io.BufferedIOBase):
         self._position = 0
         self._content: Optional[bytes] = None
         self._closed = False
+        self._manage_archive_lifecycle = manage_archive_lifecycle
 
         # Validate member exists
         if member_name not in archive.namelist():
@@ -78,12 +84,15 @@ class ArchiveStreamReader(io.BufferedIOBase):
                     f"Failed to read '{self._member_name}': {e}"
                 ) from e
 
-    def read(self, size: int = -1) -> bytes:
+    def read(self, size: Optional[int] = -1) -> bytes:
         """Read up to size bytes from the stream."""
         self._check_closed()
         self._ensure_content_loaded()
 
-        if size == -1:
+        # At this point _content is guaranteed to be not None
+        assert self._content is not None
+
+        if size is None or size == -1:
             # Read all remaining content
             result = self._content[self._position :]
             self._position = len(self._content)
@@ -99,7 +108,7 @@ class ArchiveStreamReader(io.BufferedIOBase):
         """Read up to size bytes (same as read for archives)."""
         return self.read(size)
 
-    def readinto(self, b: memoryview) -> int:
+    def readinto(self, b) -> int:  # type: ignore[no-untyped-def]
         """Read data into a pre-allocated buffer."""
         self._check_closed()
         data = self.read(len(b))
@@ -107,10 +116,13 @@ class ArchiveStreamReader(io.BufferedIOBase):
         b[:bytes_read] = data
         return bytes_read
 
-    def readline(self, size: int = -1) -> bytes:
+    def readline(self, size: Optional[int] = -1) -> bytes:
         """Read and return one line from the stream."""
         self._check_closed()
         self._ensure_content_loaded()
+
+        # At this point _content is guaranteed to be not None
+        assert self._content is not None
 
         start_pos = self._position
         if start_pos >= len(self._content):
@@ -118,7 +130,7 @@ class ArchiveStreamReader(io.BufferedIOBase):
 
         # Find next newline
         search_end = len(self._content)
-        if size > 0:
+        if size is not None and size > 0:
             search_end = min(start_pos + size, len(self._content))
 
         newline_pos = self._content.find(b"\n", start_pos, search_end)
@@ -153,6 +165,9 @@ class ArchiveStreamReader(io.BufferedIOBase):
         self._check_closed()
         self._ensure_content_loaded()
 
+        # At this point _content is guaranteed to be not None
+        assert self._content is not None
+
         if whence == io.SEEK_SET:
             new_pos = offset
         elif whence == io.SEEK_CUR:
@@ -176,6 +191,14 @@ class ArchiveStreamReader(io.BufferedIOBase):
         if not self._closed:
             self._closed = True
             self._content = None
+
+            # Close the underlying archive if we're managing its lifecycle
+            if self._manage_archive_lifecycle and hasattr(self._archive, "close"):
+                try:
+                    self._archive.close()
+                except Exception as e:
+                    logger.warning(f"Failed to close underlying archive: {e}")
+
             logger.debug(f"Closed ArchiveStreamReader for '{self._member_name}'")
 
     def _check_closed(self) -> None:
@@ -195,10 +218,10 @@ class ArchiveStreamReader(io.BufferedIOBase):
         """Return whether the stream supports seeking."""
         return not self._closed
 
-    def __enter__(self):
+    def __enter__(self) -> "ArchiveStreamReader":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
 
     @property
@@ -234,7 +257,11 @@ class ArchiveStreamWriter(io.BufferedIOBase):
     """
 
     def __init__(
-        self, archive: SevenZipFile, member_name: str, encoding: Optional[str] = None
+        self,
+        archive: SevenZipFile,
+        member_name: str,
+        encoding: Optional[str] = None,
+        manage_archive_lifecycle: bool = False,
     ):
         """
         Initialize archive stream writer.
@@ -243,11 +270,13 @@ class ArchiveStreamWriter(io.BufferedIOBase):
             archive: SevenZipFile instance
             member_name: Name of the member to write
             encoding: Optional text encoding for text mode
+            manage_archive_lifecycle: Whether to close the archive when this stream is closed
         """
         self._archive = archive
         self._member_name = member_name
         self._encoding = encoding
         self._closed = False
+        self._manage_archive_lifecycle = manage_archive_lifecycle
 
         # Create temporary file for buffering
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -257,7 +286,7 @@ class ArchiveStreamWriter(io.BufferedIOBase):
             f"Initialized ArchiveStreamWriter for '{member_name}' with temp file: {self._temp_path}"
         )
 
-    def write(self, data: Union[bytes, bytearray, memoryview]) -> int:
+    def write(self, data) -> int:  # type: ignore[no-untyped-def]
         """Write data to the stream."""
         self._check_closed()
 
@@ -272,7 +301,7 @@ class ArchiveStreamWriter(io.BufferedIOBase):
 
         return bytes_written
 
-    def writelines(self, lines) -> None:
+    def writelines(self, lines) -> None:  # type: ignore[no-untyped-def]
         """Write a list of lines to the stream."""
         for line in lines:
             self.write(line)
@@ -309,6 +338,13 @@ class ArchiveStreamWriter(io.BufferedIOBase):
 
                 self._closed = True
 
+                # Close the underlying archive if we're managing its lifecycle
+                if self._manage_archive_lifecycle and hasattr(self._archive, "close"):
+                    try:
+                        self._archive.close()
+                    except Exception as e:
+                        logger.warning(f"Failed to close underlying archive: {e}")
+
     def _check_closed(self) -> None:
         """Check if stream is closed and raise ValueError if so."""
         if self._closed:
@@ -329,17 +365,20 @@ class ArchiveStreamWriter(io.BufferedIOBase):
     def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
         """Seek to a position in the temp file."""
         self._check_closed()
-        return self._temp_file.seek(offset, whence)
+        # For simplicity, we don't support seeking in write mode
+        # as we append to file for each write
+        raise OSError("Seeking not supported in write mode")
 
     def tell(self) -> int:
         """Return current position in temp file."""
         self._check_closed()
-        return self._temp_file.tell()
+        # Return the current file size as position
+        return self._temp_path.stat().st_size if self._temp_path.exists() else 0
 
-    def __enter__(self):
+    def __enter__(self) -> "ArchiveStreamWriter":
         return self
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         self.close()
 
     @property
@@ -353,7 +392,7 @@ class ArchiveStreamWriter(io.BufferedIOBase):
 
 
 def create_stream_reader(
-    archive_path: Union[str, Path], member_name: str, password: Optional[str] = None
+    archive_path: Union[str, Path], member_name: str
 ) -> ArchiveStreamReader:
     """
     Convenience function to create a stream reader for an archive member.
@@ -361,7 +400,6 @@ def create_stream_reader(
     Args:
         archive_path: Path to the archive file
         member_name: Name of the member to read
-        password: Optional password for encrypted archives
 
     Returns:
         ArchiveStreamReader instance
@@ -373,15 +411,14 @@ def create_stream_reader(
         ...     for chunk in iter(lambda: reader.read(8192), b''):
         ...         process_chunk(chunk)
     """
-    archive = SevenZipFile(archive_path, "r", password=password)
-    return ArchiveStreamReader(archive, member_name)
+    archive = SevenZipFile(archive_path, "r")
+    return ArchiveStreamReader(archive, member_name, manage_archive_lifecycle=True)
 
 
 def create_stream_writer(
     archive_path: Union[str, Path],
     member_name: str,
     mode: str = "w",
-    password: Optional[str] = None,
 ) -> ArchiveStreamWriter:
     """
     Convenience function to create a stream writer for an archive member.
@@ -390,7 +427,6 @@ def create_stream_writer(
         archive_path: Path to the archive file
         member_name: Name of the member to write
         mode: Archive open mode ('w' or 'a')
-        password: Optional password for encrypted archives
 
     Returns:
         ArchiveStreamWriter instance
@@ -401,15 +437,15 @@ def create_stream_writer(
         ...     # Stream from S3 or other cloud storage
         ...     s3.download_fileobj('bucket', 'source.json', writer)
     """
-    archive = SevenZipFile(archive_path, mode, password=password)
-    return ArchiveStreamWriter(archive, member_name)
+    archive = SevenZipFile(archive_path, mode)
+    return ArchiveStreamWriter(archive, member_name, manage_archive_lifecycle=True)
 
 
 # Add streaming methods to SevenZipFile class
-def _add_streaming_methods():
+def _add_streaming_methods() -> None:
     """Add streaming methods to SevenZipFile class."""
 
-    def open_stream_reader(self, member_name: str) -> ArchiveStreamReader:
+    def open_stream_reader(self: Any, member_name: str) -> ArchiveStreamReader:
         """
         Open a stream reader for an archive member.
 
@@ -421,7 +457,7 @@ def _add_streaming_methods():
         """
         return ArchiveStreamReader(self, member_name)
 
-    def open_stream_writer(self, member_name: str) -> ArchiveStreamWriter:
+    def open_stream_writer(self: Any, member_name: str) -> ArchiveStreamWriter:
         """
         Open a stream writer for an archive member.
 
@@ -434,8 +470,8 @@ def _add_streaming_methods():
         return ArchiveStreamWriter(self, member_name)
 
     # Add methods to SevenZipFile
-    SevenZipFile.open_stream_reader = open_stream_reader
-    SevenZipFile.open_stream_writer = open_stream_writer
+    SevenZipFile.open_stream_reader = open_stream_reader  # type: ignore[attr-defined]
+    SevenZipFile.open_stream_writer = open_stream_writer  # type: ignore[attr-defined]
 
 
 # Initialize streaming methods

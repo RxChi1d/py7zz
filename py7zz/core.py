@@ -312,8 +312,8 @@ class SevenZipFile:
             # Add configuration arguments
             args.extend(self.config.to_7z_args())
 
-            # Add archive path
-            args.append(str(self.file))
+            # Add archive path (use absolute path to avoid issues with cwd)
+            args.append(str(Path(self.file).resolve()))
 
             # Change to temp directory and add the file with relative path
             # This ensures the archive name is correct
@@ -592,12 +592,57 @@ class SevenZipFile:
                 elif in_file_list and "---" in line:
                     break
                 elif in_file_list and line.strip():
-                    # Extract filename from the line (last column)
+                    # Skip summary lines (e.g., "7 files, 5 folders", "1 files")
+                    if ("files," in line and "folders" in line) or (
+                        line.strip().endswith("files")
+                        and line.strip().split()[0].isdigit()
+                    ):
+                        continue
+
+                    # Extract filename from the line
+                    # 7zz output format variations:
+                    # Standard: Date Time Attr Size [Compressed] Name
+                    # Nested archives: ..... [Size [Compressed]] Name
+
+                    # Split line preserving whitespace structure for better parsing
                     parts = line.split()
-                    if len(parts) >= 6:  # Ensure we have enough columns
-                        filename = " ".join(
-                            parts[5:]
-                        )  # Join in case filename has spaces
+
+                    # Handle different output formats
+                    if len(parts) >= 5 and parts[0] != ".....":
+                        # Standard format: Date Time Attr Size [Compressed] Name
+                        if len(parts) >= 6:
+                            # Format: Date Time Attr Size Compressed Name
+                            filename = " ".join(parts[5:])
+                        else:
+                            # Format: Date Time Attr Size Name (no Compressed column)
+                            filename = " ".join(parts[4:])
+                    elif "...." in line or parts[0] == ".....":
+                        # Nested archive format - find filename after numeric fields
+                        # Examples:
+                        # "                    .....                            test_bzip2.tar"
+                        # "                    .....           36           88  test_xz.tar"
+
+                        # Find the rightmost non-numeric part as filename
+                        filename = None
+                        for i in range(len(parts) - 1, -1, -1):
+                            part = parts[i]
+                            # Skip numeric parts (sizes) and dots
+                            if not part.replace(".", "").isdigit() and part != ".....":
+                                # Found filename, include this and any remaining parts
+                                filename = " ".join(parts[i:])
+                                break
+
+                        # Fallback: if no filename found, take last part
+                        if not filename and len(parts) > 1:
+                            filename = parts[-1]
+                    else:
+                        # Try fallback: assume last part is filename if line has content
+                        if len(parts) >= 1:
+                            filename = " ".join(parts[-1:])
+                        else:
+                            continue
+
+                    if filename and filename != "....." and filename.strip():
                         files.append(filename)
 
             return files
@@ -897,8 +942,8 @@ class SevenZipFile:
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Extract specific file to temporary directory
-            args = ["e", str(self.file), f"-o{tmpdir}", name, "-y"]
+            # Extract specific file to temporary directory with full paths
+            args = ["x", str(self.file), f"-o{tmpdir}", name, "-y"]
 
             try:
                 run_7z(args)

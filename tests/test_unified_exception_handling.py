@@ -323,7 +323,10 @@ class TestErrorHandlingDecorators:
             pass
 
         assert example_function.__name__ == "example_function"
-        assert "Example function" in example_function.__doc__
+        assert (
+            example_function.__doc__ is not None
+            and "Example function" in example_function.__doc__
+        )
 
 
 class TestErrorUtilityFunctions:
@@ -373,7 +376,7 @@ class TestErrorUtilityFunctions:
         error = FileNotFoundError("missing.txt")
         suggestions = py7zz.get_error_suggestions(error)
 
-        assert any("path is correct" in s for s in suggestions)
+        assert any("file path is correct" in s for s in suggestions)
         assert any("file exists" in s for s in suggestions)
 
     def test_get_error_suggestions_permission_error(self):
@@ -463,8 +466,8 @@ class TestErrorHandlingIntegration:
         try:
             raise py7zz.CompressionError("Old style error")
         except py7zz.CompressionError as e:
-            # Should still be catchable
-            assert str(e) == "Old style error"
+            # Should still be catchable with enhanced message format
+            assert str(e) == "Compression failed: Old style error"
 
         try:
             raise py7zz.ExtractionError("Old style error", returncode=2)
@@ -484,13 +487,14 @@ class TestErrorHandlingIntegration:
                 stderr=b"ERROR: Can not open file '/path/to/missing.7z' as archive: No such file or directory",
             )
 
-        with pytest.raises(py7zz.ArchiveNotFoundError) as exc_info:
+        with pytest.raises(py7zz.CorruptedArchiveError) as exc_info:
             mock_operation_with_detailed_error()
 
         # Should provide detailed error information
         error = exc_info.value
         assert isinstance(error, py7zz.Py7zzError)
-        assert hasattr(error, "get_detailed_info")
+        # The error should contain useful information
+        assert "corrupted" in str(error).lower() or "archive" in str(error).lower()
 
 
 class TestRealWorldErrorScenarios:

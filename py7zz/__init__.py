@@ -191,11 +191,13 @@ except ImportError:
 try:
     from .async_ops import (
         AsyncSevenZipFile,  # noqa: F401
-        ProgressInfo,  # noqa: F401
         batch_compress_async,  # noqa: F401
         batch_extract_async,  # noqa: F401
         compress_async,  # noqa: F401
         extract_async,  # noqa: F401
+    )
+    from .async_ops import (
+        ProgressInfo as AsyncProgressInfo,  # noqa: F401
     )
 
     _async_available = True

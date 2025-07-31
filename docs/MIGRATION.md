@@ -1,6 +1,6 @@
 # Migration Guide: From zipfile/tarfile to py7zz
 
-This guide helps you migrate from Python's standard library `zipfile` and `tarfile` modules to py7zz, which provides compression support for dozens of archive formats with a familiar interface and automatic Windows filename compatibility.
+This guide helps you migrate from Python's standard library `zipfile` and `tarfile` modules to py7zz, which provides compression support for multiple archive formats with a familiar interface and automatic Windows filename compatibility.
 
 ## Quick Start
 
