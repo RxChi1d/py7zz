@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to build (e.g., v0.1.0, v0.1.0a1, v0.2.0.dev1)'
+        description: 'Tag to build (e.g., v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1)'
         required: true
         type: string
 
@@ -76,7 +76,7 @@ jobs:
         uv sync --dev
         uv pip install -e .
     
-    - name: Validate tag format and get 7zz version
+    - name: Validate tag format and determine release type
       id: validate_tag
       shell: bash
       run: |
@@ -90,13 +90,22 @@ jobs:
         echo "Git tag: $TAG"
         
         # Validate tag format (PEP 440 compliant)
-        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$ ]]; then
+        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?$ ]]; then
           echo "✓ Tag format is valid: $TAG"
         else
           echo "✗ Invalid tag format: $TAG"
-          echo "Expected format: v{major}.{minor}.{patch}[.dev{N}|a{N}]"
-          echo "Examples: v1.0.0, v1.0.0a1, v1.0.0.dev1"
+          echo "Expected format: v{major}.{minor}.{patch}[a{N}|b{N}|rc{N}]"
+          echo "Examples: v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1"
           exit 1
+        fi
+        
+        # Determine if this is a stable release (no suffix) or pre-release
+        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          RELEASE_TYPE="stable"
+          echo "Release type: Stable"
+        else
+          RELEASE_TYPE="pre-release"
+          echo "Release type: Pre-release"
         fi
         
         # Get 7zz version (hardcoded for stability)
@@ -106,6 +115,26 @@ jobs:
         # Set outputs
         echo "git_tag=$TAG" >> $GITHUB_OUTPUT
         echo "seven_zz_version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
+        echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+    
+    - name: Validate stable release ancestry (for stable releases only)
+      if: steps.validate_tag.outputs.release_type == 'stable'
+      shell: bash
+      run: |
+        echo "Validating stable release ancestry..."
+        
+        # Fetch origin/main to ensure we have latest main branch
+        git fetch origin main
+        
+        # Check if current tag commit is an ancestor of main
+        if git merge-base --is-ancestor $GITHUB_SHA origin/main; then
+          echo "✓ Tag commit is an ancestor of main branch - valid for stable release"
+        else
+          echo "✗ Tag commit is not an ancestor of main branch - stable releases must come from main"
+          echo "Current commit: $GITHUB_SHA"
+          echo "Main branch head: $(git rev-parse origin/main)"
+          exit 1
+        fi
     
     - name: Download 7zz binary
       shell: bash
@@ -262,7 +291,7 @@ jobs:
         fi
         
         # Verify version format is PEP 440 compliant
-        if [[ $GENERATED_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$ ]]; then
+        if [[ $GENERATED_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?$ ]]; then
           echo "✓ Generated version is PEP 440 compliant: $GENERATED_VERSION"
         else
           echo "✗ Generated version is not PEP 440 compliant: $GENERATED_VERSION"
@@ -419,26 +448,26 @@ jobs:
       uses: release-drafter/release-drafter@v6
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # Only run for stable releases (merged to main)
-      if: ${{ !contains(github.ref_name, 'dev') && !contains(github.ref_name, 'a') }}
+      # Only run for stable releases
+      if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
     
-    - name: Generate dev release notes
-      id: dev_release_notes
-      if: ${{ contains(github.ref_name, 'dev') || contains(github.ref_name, 'a') }}
+    - name: Generate pre-release notes
+      id: pre_release_notes
+      if: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
       run: |
-        # Get commits since last tag
-        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        # Get commits since last pre-release tag
+        LAST_PRE_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null | grep -E "(a|b|rc)" || echo "")
         
-        if [ -n "$LAST_TAG" ]; then
+        if [ -n "$LAST_PRE_TAG" ]; then
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          git log --format="* %s" --no-merges ${LAST_TAG}..HEAD >> release_notes.md
+          git log --format="* %s" --no-merges ${LAST_PRE_TAG}..HEAD >> release_notes.md
           echo "" >> release_notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ github.ref_name }}" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_PRE_TAG}...${{ github.ref_name }}" >> release_notes.md
         else
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          echo "* Initial development release" >> release_notes.md
+          echo "* Initial pre-release" >> release_notes.md
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}" >> release_notes.md
         fi
@@ -448,13 +477,13 @@ jobs:
         cat release_notes.md >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT
 
-    - name: Create GitHub Release (Dev/Alpha)
+    - name: Create GitHub Release (Pre-release)
       uses: ncipollo/release-action@v1
-      if: ${{ contains(github.ref_name, 'dev') || contains(github.ref_name, 'a') }}
+      if: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
       with:
         tag: ${{ github.ref_name }}
         name: "py7zz ${{ github.ref_name }}"
-        body: ${{ steps.dev_release_notes.outputs.notes }}
+        body: ${{ steps.pre_release_notes.outputs.notes }}
         artifacts: "dist/*.whl"
         draft: false
         prerelease: true
@@ -465,7 +494,7 @@ jobs:
 
     - name: Create GitHub Release (Stable)
       uses: ncipollo/release-action@v1
-      if: ${{ !contains(github.ref_name, 'dev') && !contains(github.ref_name, 'a') }}
+      if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
       with:
         tag: ${{ github.ref_name }}
         name: "py7zz ${{ github.ref_name }}"
