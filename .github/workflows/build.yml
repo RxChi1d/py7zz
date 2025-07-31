@@ -12,103 +12,7 @@ on:
         type: string
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-      fail-fast: false
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
-        enable-cache: true
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv pip install -e .
-    
-    - name: Run ruff check
-      run: uv run ruff check . --output-format=github
-    
-    - name: Run ruff format check
-      run: uv run ruff format --check --diff .
-
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-      fail-fast: false
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v3
-      with:
-        version: "latest"
-        enable-cache: true
-    
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv pip install -e .
-    
-    - name: Download 7zz binary for testing
-      run: |
-        # Download official 7zz binary (same as build workflow)
-        VERSION="25.00"
-        VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # 25.00 -> 2500
-        ASSET_NAME="7z${VERSION_FOR_ASSET}-linux-x64.tar.xz"
-        DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
-        
-        echo "Downloading 7zz from: $DOWNLOAD_URL"
-        TEMP_DIR=$(mktemp -d)
-        curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
-        cd "${TEMP_DIR}"
-        tar -xf "${ASSET_NAME}"
-        
-        # Find and install the 7zz binary
-        BINARY_PATH=$(find . -name "7zz" -type f | head -1)
-        if [ -n "$BINARY_PATH" ]; then
-          sudo cp "$BINARY_PATH" /usr/local/bin/7zz
-          sudo chmod +x /usr/local/bin/7zz
-          echo "7zz binary installed successfully"
-          
-          # Set environment variable for tests
-          echo "PY7ZZ_BINARY=/usr/local/bin/7zz" >> $GITHUB_ENV
-          
-          # Verify installation
-          /usr/local/bin/7zz --help > /dev/null && echo "7zz verification passed" || exit 1
-        else
-          echo "Error: 7zz binary not found in downloaded package"
-          exit 1
-        fi
-        
-        # Clean up
-        cd "$GITHUB_WORKSPACE"
-        rm -rf "${TEMP_DIR}"
-    
-    - name: Run pytest
-      run: uv run pytest -v --tb=short
-    
-    - name: Run mypy
-      run: uv run mypy .
-
   build:
-    needs: [lint, test]  # Only build after lint and test jobs pass
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -128,6 +32,38 @@ jobs:
     
     steps:
     - uses: actions/checkout@v4
+    
+    - name: Verify CI status
+      run: |
+        echo "Verifying CI workflow status for commit: $GITHUB_SHA"
+        
+        # Get CI workflow status using GitHub API
+        CI_STATUS=$(gh api \
+          -H "Accept: application/vnd.github.v3+json" \
+          "/repos/$GITHUB_REPOSITORY/actions/runs" \
+          --jq ".workflow_runs[] | select(.head_sha == \"$GITHUB_SHA\" and .name == \"CI\") | .conclusion" \
+          | head -1)
+        
+        echo "CI workflow status: $CI_STATUS"
+        
+        if [ "$CI_STATUS" = "success" ]; then
+          echo "✅ CI workflow passed - proceeding with build"
+        elif [ "$CI_STATUS" = "failure" ]; then
+          echo "❌ CI workflow failed - aborting build"
+          echo "Please ensure all CI checks pass before building"
+          exit 1
+        elif [ -z "$CI_STATUS" ]; then
+          echo "⚠️ No CI workflow found for this commit"
+          echo "This may indicate the commit was not properly tested"
+          echo "Please ensure CI workflow runs and passes before building"
+          exit 1
+        else
+          echo "⏳ CI workflow status: $CI_STATUS"
+          echo "Please wait for CI workflow to complete successfully before building"
+          exit 1
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Install uv
       uses: astral-sh/setup-uv@v3
@@ -438,7 +374,7 @@ jobs:
         path: dist/*.whl
 
   publish:
-    needs: [lint, test, build]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     environment: pypi
@@ -493,7 +429,7 @@ jobs:
         packages-dir: dist/
 
   github-release:
-    needs: [lint, test, build]
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
