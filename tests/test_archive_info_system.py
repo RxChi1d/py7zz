@@ -16,6 +16,7 @@ Consolidated from:
 
 import datetime
 from pathlib import Path
+from typing import List
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -914,7 +915,7 @@ class TestGetArchiveInfoFunction:
         mock_archive_path = Path("/mock/empty.7z")
 
         # Empty members list
-        mock_members: list[ArchiveInfo] = []
+        mock_members: List[ArchiveInfo] = []
 
         mock_stat = MagicMock()
         mock_stat.st_size = 22  # Minimal archive overhead

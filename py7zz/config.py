@@ -413,7 +413,7 @@ class GlobalConfig:
                     cls._loaded_config = json.load(f)
 
                     # Update default preset if specified
-                    if "default_preset" in cls._loaded_config:
+                    if cls._loaded_config and "default_preset" in cls._loaded_config:
                         cls._default_preset = cls._loaded_config["default_preset"]
 
             except (json.JSONDecodeError, OSError) as e:
