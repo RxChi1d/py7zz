@@ -8,7 +8,7 @@ for progress monitoring, error handling, and operation feedback.
 import time
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Dict, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol
 
 from .logging_config import get_logger
 
@@ -212,7 +212,7 @@ class ProgressTracker:
         # Speed calculation
         self._last_speed_update = self.start_time
         self._last_bytes_for_speed = 0
-        self._speed_samples: list[float] = []
+        self._speed_samples: List[float] = []
         self._max_speed_samples = 10
 
     def update(

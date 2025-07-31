@@ -8,7 +8,7 @@ comprehensive metadata about archive members.
 import re
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from .archive_info import ArchiveInfo
 from .logging_config import get_logger
@@ -164,7 +164,7 @@ def _parse_int(value: str, default: int = 0, base: int = 10) -> int:
         return default
 
 
-def _parse_datetime(value: str) -> tuple[Optional[tuple], Optional[float]]:
+def _parse_datetime(value: str) -> Tuple[Optional[Tuple], Optional[float]]:
     """
     Parse datetime string from 7zz output.
 

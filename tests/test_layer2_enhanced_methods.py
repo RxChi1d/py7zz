@@ -272,9 +272,11 @@ class TestSevenZipFileEnhancedMethods:
 
     @patch("pathlib.Path.exists", return_value=True)
     @patch("py7zz.core.SevenZipFile.read")
-    def test_copy_member_method(self, mock_read, mock_exists):
+    @patch("py7zz.core.SevenZipFile.namelist")
+    def test_copy_member_method(self, mock_namelist, mock_read, mock_exists):
         """Test the copy_member() method."""
         mock_read.return_value = b"File content"
+        mock_namelist.return_value = ["test.txt", "other.txt"]  # Mock file list
 
         source_sz = py7zz.SevenZipFile("source.7z", "r")
         target_sz = py7zz.SevenZipFile("target.7z", "w")
