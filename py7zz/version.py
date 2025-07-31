@@ -1,19 +1,26 @@
 """
 Version information for py7zz package.
 
-This module manages the PEP 440 compliant version system for py7zz:
+This module manages the PEP 440 compliant version system for py7zz with
+automatic version detection from git tags and package metadata:
 - Release (stable): {major}.{minor}.{patch}
-- Auto (basic stable): {major}.{minor}.{patch}a{N}
+- Alpha (pre-release): {major}.{minor}.{patch}a{N}
+- Beta (pre-release): {major}.{minor}.{patch}b{N}
+- RC (pre-release): {major}.{minor}.{patch}rc{N}
 - Dev (unstable): {major}.{minor}.{patch}.dev{N}
 
-The version is unified with GitHub releases and PyPI to avoid version conflicts.
+The version is automatically determined from:
+1. Package metadata (for installed packages)
+2. Git tags and commits (for development environments)
+3. No hardcoded versions - single source of truth from git tags
 """
 
 import re
+import subprocess
 from typing import Dict, Optional, Union
 
-# py7zz version following PEP 440 specification
-__version__ = "0.1.0"
+# Dynamic version following PEP 440 specification
+# This is determined at runtime from git tags or package metadata
 
 
 def get_version() -> str:
@@ -25,19 +32,53 @@ def get_version() -> str:
 
     Example:
         >>> get_version()
-        '0.1.0'
+        '0.1.2.dev23'
     """
-    # Try to get version from package metadata (for wheel installations)
+    # Primary: Try to get version from package metadata (for wheel installations)
     try:
         from importlib.metadata import version as get_pkg_version
 
         return get_pkg_version("py7zz")
     except Exception:
-        # Handle cases where package metadata is not available
         pass
 
-    # Fallback to hardcoded version (for development/editable installs)
-    return __version__
+    # Fallback: Try to get version from git describe (for development/editable installs)
+    try:
+        result = subprocess.run(
+            ["git", "describe", "--tags", "--match=v*", "--always"],
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=5,
+        )
+        git_version = result.stdout.strip()
+
+        # Convert git describe output to PEP 440 format
+        if git_version.startswith("v"):
+            # Remove 'v' prefix
+            git_version = git_version[1:]
+
+        # Handle format like "0.1.1-23-gbc38e6d" -> "0.1.2.dev23"
+        if "-" in git_version and "-g" in git_version:
+            parts = git_version.split("-")
+            if len(parts) >= 3:
+                base_version = parts[0]
+                commits_ahead = parts[1]
+
+                # Parse base version to increment patch for dev versions
+                base_parts = base_version.split(".")
+                if len(base_parts) >= 3:
+                    major, minor, patch = base_parts[0], base_parts[1], base_parts[2]
+                    # Increment patch version for dev versions
+                    next_patch = int(patch) + 1
+                    return f"{major}.{minor}.{next_patch}.dev{commits_ahead}"
+
+        return git_version
+    except Exception:
+        pass
+
+    # Last resort: Return unknown version
+    return "unknown"
 
 
 def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
@@ -409,3 +450,7 @@ def format_version_for_display(
 
     type_label = type_labels.get(version_type, version_type)
     return f"py7zz {version_string} ({type_label})"
+
+
+# Set __version__ dynamically when module is imported
+__version__ = get_version()

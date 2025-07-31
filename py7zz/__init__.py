@@ -147,12 +147,8 @@ from .version import (  # noqa: E402
     parse_version,
 )
 
-# Try to get dynamic version, fallback to hardcoded if needed
-try:
-    __version__ = get_version()
-except Exception:
-    # Fallback to hardcoded version if dynamic version fails
-    from .version import __version__
+# Get dynamic version from the version module
+__version__ = get_version()
 from .version import (  # noqa: E402
     get_version_info as get_legacy_version_info,
 )
