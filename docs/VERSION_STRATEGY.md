@@ -2,110 +2,128 @@
 
 ## Overview
 
-py7zz adopts a PEP 440 compliant version management strategy to ensure compatibility with PyPI and provide users with clear version stability levels. This strategy maintains the original three-tier stability concept while conforming to Python packaging standards.
+py7zz adopts a PEP 440 compliant version management strategy with **manual version control**. Only project authors can create Git tags to trigger releases, ensuring full control over version numbering and release timing while maintaining compatibility with PyPI standards.
 
-## Version Categories and Stability
+## Version Categories and Release Types
 
-### 🟢 **Release (Stable)** - Most Stable
-- **Format:** `{major}.{minor}.{patch}`
-- **Example:** `1.0.0`
+### 🟢 **Stable Release** - Production Ready
+- **Git Tag Format:** `vX.Y.Z`
+- **PyPI Version:** `X.Y.Z`
+- **Example:** `v1.0.0` → `1.0.0`
 - **Stability:** Most stable, fully tested
-- **Release Method:** Manual release with human review and testing
+- **Release Method:** Manual Git tag by project author
+- **Source Requirement:** Must originate from `main` branch ancestry
 - **Use Case:** Recommended for production environments
 
-### 🟡 **Auto (Alpha)** - Automated 7zz Updates
-- **Format:** `{major}.{minor}.{patch}a{N}`
-- **Example:** `1.0.0a1`, `1.0.0a2`
-- **Stability:** Basic stable, only 7zz binary updates
-- **Release Method:** Automatic release when 7zz has new versions
-- **Use Case:** Users who need latest 7zz features but don't want to wait for official releases
+### 🟡 **Alpha Pre-release** - Early Testing
+- **Git Tag Format:** `vX.Y.ZaN`
+- **PyPI Version:** `X.Y.ZaN`
+- **Example:** `v1.1.0a1` → `1.1.0a1`
+- **Stability:** Pre-release with new features
+- **Release Method:** Manual Git tag by project author
+- **Source Requirement:** Can originate from any branch
+- **Use Case:** Early testing of new features
 
-### 🔴 **Dev (Development)** - Development Builds
-- **Format:** `{major}.{minor}.{patch}.dev{N}`
-- **Example:** `1.1.0.dev1`, `1.1.0.dev2`
-- **Stability:** Unstable, contains py7zz features under development
-- **Release Method:** Manual release for testing new features
-- **Use Case:** Developers and early testers
+### 🟠 **Beta Pre-release** - Feature Complete
+- **Git Tag Format:** `vX.Y.ZbN`
+- **PyPI Version:** `X.Y.ZbN`
+- **Example:** `v1.1.0b1` → `1.1.0b1`
+- **Stability:** Feature complete, bug fixing phase
+- **Release Method:** Manual Git tag by project author
+- **Source Requirement:** Can originate from any branch
+- **Use Case:** Feature testing and feedback collection
+
+### 🔴 **Release Candidate** - Near Stable
+- **Git Tag Format:** `vX.Y.ZrcN`
+- **PyPI Version:** `X.Y.ZrcN`
+- **Example:** `v1.1.0rc1` → `1.1.0rc1`
+- **Stability:** Release candidate, minimal changes expected
+- **Release Method:** Manual Git tag by project author
+- **Source Requirement:** Can originate from any branch
+- **Use Case:** Final validation before stable release
 
 ## Version Upgrade Path
 
 ```
-Release 1.0.0 (bundled 7zz 24.07)
-    ↓ (7zz updates to 24.08)
-Auto 1.0.0a1 (bundled 7zz 24.08)  ← Automatic release
-    ↓ (7zz updates to 24.09)
-Auto 1.0.0a2 (bundled 7zz 24.09)  ← Automatic release
-    ↓ (py7zz new feature development)
-Dev 1.1.0.dev1 (bundled 7zz 24.09)     ← Manual release
-    ↓ (Testing complete, ready for official release)
-Release 1.1.0 (bundled 7zz 24.09)     ← Manual release
+Stable 1.0.0    ← Manual release (from main branch)
+    ↓ (Feature development begins)
+Alpha 1.1.0a1   ← Manual release (from feature branch)
+    ↓ (More development)
+Alpha 1.1.0a2   ← Manual release (additional features)
+    ↓ (Feature complete)
+Beta 1.1.0b1    ← Manual release (feature freeze)
+    ↓ (Bug fixes)
+RC 1.1.0rc1     ← Manual release (release candidate)
+    ↓ (Final validation)
+Stable 1.1.0    ← Manual release (from main branch)
 ```
+
+**Key Points:**
+- All versions are manually controlled by project authors
+- Stable releases must come from main branch ancestry
+- Pre-releases can come from any branch
+- No automatic version bumping or 7zz version tracking
 
 ## Version Management Implementation
 
-### 1. Version Information Storage
+### 1. Dynamic Version from Git Tags
 
-```python
-# py7zz/version.py
-__version__ = "1.0.0"
+py7zz uses **hatch-vcs** for dynamic version generation from Git tags:
 
-# py7zz/bundled_info.py
-VERSION_REGISTRY = {
-    "1.0.0": {
-        "7zz_version": "24.07",
-        "release_date": "2024-07-15",
-        "release_type": "stable",
-        "github_tag": "v1.0.0",
-        "changelog_url": "https://github.com/rxchi1d/py7zz/releases/tag/v1.0.0"
-    },
-    "1.0.0a1": {
-        "7zz_version": "24.08",
-        "release_date": "2024-08-15",
-        "release_type": "auto",
-        "github_tag": "v1.0.0a1",
-        "changelog_url": "https://github.com/rxchi1d/py7zz/releases/tag/v1.0.0a1"
-    },
-    "1.1.0.dev1": {
-        "7zz_version": "24.08",
-        "release_date": "2024-08-20",
-        "release_type": "dev",
-        "github_tag": "v1.1.0.dev1",
-        "changelog_url": "https://github.com/rxchi1d/py7zz/releases/tag/v1.1.0.dev1"
-    }
-}
+```toml
+# pyproject.toml
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.version.raw-options]
+git_describe_command = "git describe --tags --match='v*'"
+local_scheme = "no-local-version"
 ```
 
-### 2. Version Information API
+### 2. Single Source of Truth
+
+- **Git Tags**: The only source of version information
+- **No hardcoded versions**: All versions derived from Git tags
+- **PyPI Compatibility**: Automatic PEP 440 compliance
+- **Build-time Resolution**: Version determined during wheel building
+
+### 3. Version Information API
 
 ```python
-# Get comprehensive version information
+# Get version information
+def get_version():
+    """Get current py7zz version."""
+    return __version__
+
 def get_version_info():
+    """Get comprehensive version details."""
     return {
         "py7zz_version": __version__,
-        "bundled_7zz_version": info.get("7zz_version", "unknown"),
-        "release_type": info.get("release_type", "unknown"),
-        "release_date": info.get("release_date", "unknown"),
-        "github_tag": info.get("github_tag", f"v{__version__}"),
-        "changelog_url": info.get("changelog_url", f"https://github.com/rxchi1d/py7zz/releases/tag/v{__version__}")
+        "bundled_7zz_version": "25.00",  # Hardcoded for stability
+        "github_tag": f"v{__version__}",
+        "changelog_url": f"https://github.com/rxchi1d/py7zz/releases/tag/v{__version__}"
     }
 ```
 
-### 3. CI/CD Integration
+### 4. CI/CD Integration
 
-#### GitHub Release Tags
+#### Supported Git Tag Formats
 - **Stable**: `v1.0.0`
-- **Auto**: `v1.0.0a1`
-- **Dev**: `v1.1.0.dev1`
+- **Alpha**: `v1.1.0a1`
+- **Beta**: `v1.1.0b1`
+- **RC**: `v1.1.0rc1`
 
-#### Build Workflow
-- `build.yml` parses PEP 440 version tags
-- Automatic binary download and wheel building
-- PyPI publishing for tagged releases
+#### Build Workflow (`.github/workflows/build.yml`)
+- Validates PEP 440 tag format
+- Enforces main branch ancestry for stable releases
+- Builds cross-platform wheels with embedded 7zz binary
+- Publishes to PyPI with correct pre-release flags
+- Creates GitHub releases with auto-generated notes
 
-#### Watch Release Workflow
-- `watch_release.yml` monitors 7zz releases
-- Automatically creates alpha versions for new 7zz releases
-- Creates GitHub releases with appropriate pre-release flags
+#### Release Notes Generation
+- **Stable releases**: Use Release Drafter based on PR titles
+- **Pre-releases**: Auto-generate from commit history
+- **Categorization**: Follows Conventional Commits format
 
 ## User Experience
 
@@ -114,24 +132,26 @@ def get_version_info():
 # Install latest stable version
 pip install py7zz
 
-# Install specific version
-pip install py7zz==1.0.0a1
+# Install specific stable version
+pip install py7zz==1.2.0
 
-# Install from specific tag
-pip install git+https://github.com/rxchi1d/py7zz.git@v1.0.0a1
+# Install pre-release version
+pip install py7zz==1.3.0a1
+
+# Install from specific Git tag
+pip install git+https://github.com/rxchi1d/py7zz.git@v1.2.0
 ```
 
 ### Version Information Access
 ```python
 # Python API
 import py7zz
-print(py7zz.get_version())                    # Current version
-print(py7zz.get_bundled_7zz_version())        # Bundled 7zz version
-print(py7zz.get_version_info())               # Complete details
+print(py7zz.get_version())          # Current version
+print(py7zz.get_version_info())     # Complete details
 
 # CLI
-py7zz version                    # Human-readable format
-py7zz version --format json     # JSON format
+py7zz --version                     # Version information
+py7zz version                       # Detailed version info
 ```
 
 ### CLI Usage
@@ -147,43 +167,52 @@ py7zz x archive.7z
 py7zz l archive.7z
 ```
 
-## Advantages of PEP 440 Compliance
+## Advantages of Manual PEP 440 Compliance
 
 1. **Standard Compliance**: Fully compliant with PEP 440 and PyPI requirements
 2. **Unified Versioning**: GitHub Release and PyPI versions are identical
-3. **Stability Logic**: Maintains original three-tier stability architecture
-4. **Automation Support**: Enables automatic 7zz version updates
+3. **Quality Control**: Manual releases ensure proper testing and validation
+4. **Branch Flexibility**: Pre-releases can come from feature branches
 5. **Tool Compatibility**: Works with all Python packaging tools
-6. **User Clarity**: Clear version types and upgrade paths
+6. **Clear Stability**: PyPI automatically handles pre-release vs stable classification
 
-## Migration from Legacy Format
+## Release Process
 
-### Legacy Format (Deprecated)
+### For Project Authors
+
+#### Creating a Stable Release
+```bash
+# Ensure you're on main branch
+git checkout main
+git pull origin main
+
+# Create and push tag
+git tag v1.2.0
+git push origin v1.2.0
 ```
-1.0.0+7zz24.07        # Release
-1.0.0.auto+7zz24.08   # Auto
-1.1.0-dev.1+7zz24.07  # Dev
+
+#### Creating a Pre-release
+```bash
+# Can be on any branch
+git tag v1.3.0a1
+git push origin v1.3.0a1
 ```
 
-### New PEP 440 Format
-```
-1.0.0        # Release
-1.0.0a1      # Auto (alpha)
-1.1.0.dev1   # Dev
-```
+### Automated Workflow
+1. **Tag Creation**: Project author creates Git tag
+2. **Validation**: Build workflow validates tag format
+3. **Ancestry Check**: Stable releases verified against main branch
+4. **Building**: Cross-platform wheels built with 7zz binary
+5. **Publishing**: Automatic PyPI and GitHub release
+6. **Release Notes**: Auto-generated based on release type
 
-### Key Changes
-- Removed `+7zz{version}` suffix (causes PyPI rejection)
-- 7zz version tracking moved to `VERSION_REGISTRY`
-- Unified version format across all platforms
-- Enhanced version information API
+## Key Features
 
-## Implementation Steps
+- **Manual Control**: Only project authors can trigger releases
+- **PEP 440 Compliance**: Full compatibility with PyPI standards
+- **Branch Flexibility**: Pre-releases from any branch, stable from main
+- **Automatic Validation**: Build workflow enforces format and ancestry rules
+- **Unified Releases**: GitHub and PyPI releases created simultaneously
+- **7zz Stability**: Hardcoded 7zz version (25.00) for consistent behavior
 
-1. **Update Version Files**: Modified `version.py` and created `bundled_info.py`
-2. **Update CI/CD**: Modified workflows to support PEP 440 tags
-3. **Update Documentation**: Updated all references to new version format
-4. **Update CLI**: Enhanced version commands and changed entry point
-5. **Testing**: Comprehensive testing of all version scenarios
-
-This strategy ensures py7zz remains compliant with Python packaging standards while maintaining its unique three-tier stability system and automatic 7zz update capabilities.
+This strategy provides full control over version management while ensuring compliance with Python packaging standards and maintaining release quality through manual oversight.
