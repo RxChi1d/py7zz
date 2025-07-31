@@ -38,11 +38,12 @@ jobs:
       run: |
         echo "Verifying CI workflow status for commit: $GITHUB_SHA"
         
-        # Get CI workflow status using GitHub API
-        CI_STATUS=$(gh api \
-          -H "Accept: application/vnd.github.v3+json" \
-          "/repos/$GITHUB_REPOSITORY/actions/runs" \
-          --jq ".workflow_runs[] | select(.head_sha == \"$GITHUB_SHA\" and .name == \"CI\") | .conclusion" \
+        # Query CI workflow status for the specific commit using gh run list
+        # This avoids Windows Git Bash path rewriting issues with gh api
+        CI_STATUS=$(gh run list \
+          --workflow="CI" \
+          --json conclusion,headSha \
+          --jq ".[] | select(.headSha == \"$GITHUB_SHA\") | .conclusion" \
           | head -1)
         
         echo "CI workflow status: $CI_STATUS"
