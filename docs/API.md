@@ -308,8 +308,21 @@ Convert archive between formats.
 **`copy_archive(source_archive, target_archive, recompress=False, preset="balanced") -> None`**  
 Copy archive, optionally recompressing.
 
-**`recompress_archive(archive_path, new_preset, backup_original=True, backup_suffix=".backup") -> None`**  
-Recompress archive with different settings.
+**`recompress_archive(source_path, target_path, preset="balanced", backup_original=False, backup_suffix=".bak") -> None`**  
+Recompress an archive to a new location with different settings.
+
+This is the safe, industry-standard approach that creates a new file instead of modifying the original in-place.
+
+**Args:**
+    source_path (str | Path): Path to the source archive to recompress.
+    target_path (str | Path): Path for the new recompressed archive.
+    preset (str): Compression preset for recompression. Defaults to "balanced".
+    backup_original (bool): Whether to create a backup of the original file. Defaults to False.
+    backup_suffix (str): Suffix to use for backup file. Defaults to ".bak".
+
+**Example:**
+    >>> py7zz.recompress_archive("original.7z", "recompressed.7z", "ultra")
+    >>> py7zz.recompress_archive("original.7z", "recompressed.7z", "ultra", backup_original=True)
 
 ## Asynchronous API
 
@@ -421,8 +434,8 @@ Main configuration class for compression settings.
 - `compression_method` (str): Method (lzma2, bzip2, etc.)
 - `solid` (bool): Enable solid compression
 - `multi_thread` (bool): Enable multi-threading
-- `encrypt` (bool): Enable encryption
-- `encrypt_headers` (bool): Encrypt file headers
+- `encrypt` (bool): Enable file content encryption (AES-256)
+- `encrypt_headers` (bool): Enable header encryption (file names and structure)
 - `password` (Optional[str]): Archive password
 - `volume_size` (Optional[str]): Split volume size
 - `exclude_patterns` (List[str]): Files to exclude
@@ -639,7 +652,23 @@ Clear all logging handlers.
 ### Performance Logging
 
 **`log_performance(operation: str, duration: float, size: Optional[int] = None, **kwargs) -> None`**  
-Log performance metrics.
+Log performance metrics. Can also be used as a decorator.
+
+**Args:**
+    operation (str): Name of the operation being logged.
+    duration (float): Duration in seconds (ignored in decorator mode).
+    size (Optional[int]): Size of data processed in bytes.
+    **kwargs: Additional metadata to log.
+
+**Examples:**
+    Direct usage:
+    >>> log_performance("compression", 2.5, size=1024000)
+    
+    Decorator usage:
+    >>> @log_performance("my_operation")
+    ... def my_function():
+    ...     # Function implementation
+    ...     pass
 
 **`PerformanceLogger`** context manager:
 ```python
