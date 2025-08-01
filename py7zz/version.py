@@ -98,7 +98,7 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         >>> parse_version('1.0.0')
         {'major': 1, 'minor': 0, 'patch': 0, 'version_type': 'stable', 'build_number': None}
         >>> parse_version('1.0.0a1')
-        {'major': 1, 'minor': 0, 'patch': 0, 'version_type': 'auto', 'build_number': 1}
+        {'major': 1, 'minor': 0, 'patch': 0, 'version_type': 'alpha', 'build_number': 1}
         >>> parse_version('1.1.0.dev1')
         {'major': 1, 'minor': 1, 'patch': 0, 'version_type': 'dev', 'build_number': 1}
     """
@@ -107,8 +107,12 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         # Dev version: 1.1.0.dev1 or 0.1.dev21
         (r"^(\d+)\.(\d+)\.(\d+)\.dev(\d+)$", "dev"),
         (r"^(\d+)\.(\d+)\.dev(\d+)$", "dev"),
-        # Alpha version (auto): 1.0.0a1
-        (r"^(\d+)\.(\d+)\.(\d+)a(\d+)$", "auto"),
+        # Beta version: 1.0.0b1
+        (r"^(\d+)\.(\d+)\.(\d+)b(\d+)$", "beta"),
+        # RC version: 1.0.0rc1
+        (r"^(\d+)\.(\d+)\.(\d+)rc(\d+)$", "rc"),
+        # Alpha version: 1.0.0a1
+        (r"^(\d+)\.(\d+)\.(\d+)a(\d+)$", "alpha"),
         # Release version: 1.0.0
         (r"^(\d+)\.(\d+)\.(\d+)$", "stable"),
     ]
@@ -153,13 +157,13 @@ def get_version_type(version_string: Optional[str] = None) -> str:
         version_string: Version string to check (defaults to current version)
 
     Returns:
-        Version type: 'stable', 'auto', or 'dev'
+        Version type: 'stable', 'alpha', 'beta', 'rc', or 'dev'
 
     Example:
         >>> get_version_type('1.0.0')
         'stable'
         >>> get_version_type('1.0.0a1')
-        'auto'
+        'alpha'
         >>> get_version_type('1.1.0.dev1')
         'dev'
     """
@@ -175,9 +179,19 @@ def is_stable_version(version_string: Optional[str] = None) -> bool:
     return get_version_type(version_string) == "stable"
 
 
-def is_auto_version(version_string: Optional[str] = None) -> bool:
-    """Check if a version string is an auto release version."""
-    return get_version_type(version_string) == "auto"
+def is_alpha_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is an alpha release version."""
+    return get_version_type(version_string) == "alpha"
+
+
+def is_beta_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is a beta release version."""
+    return get_version_type(version_string) == "beta"
+
+
+def is_rc_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is a release candidate version."""
+    return get_version_type(version_string) == "rc"
 
 
 def is_dev_version(version_string: Optional[str] = None) -> bool:
@@ -185,19 +199,19 @@ def is_dev_version(version_string: Optional[str] = None) -> bool:
     return get_version_type(version_string) == "dev"
 
 
-def generate_auto_version(base_version: str, build_number: int = 1) -> str:
+def generate_alpha_version(base_version: str, build_number: int = 1) -> str:
     """
-    Generate an auto version string for 7zz updates.
+    Generate an alpha version string for pre-releases.
 
     Args:
         base_version: Base version (e.g., "1.0.0")
-        build_number: Auto build number (e.g., 1)
+        build_number: Alpha build number (e.g., 1)
 
     Returns:
-        Auto version string in format: {base_version}a{build_number}
+        Alpha version string in format: {base_version}a{build_number}
 
     Example:
-        >>> generate_auto_version("1.0.0", 1)
+        >>> generate_alpha_version("1.0.0", 1)
         '1.0.0a1'
     """
     return f"{base_version}a{build_number}"
@@ -332,11 +346,12 @@ def compare_versions(version1: str, version2: str) -> int:
         return 1
 
     # Same base version, compare version types
-    type_order = {"dev": 0, "auto": 1, "stable": 2}
+    # PEP 440 precedence: dev < alpha < beta < rc < stable
+    type_order = {"dev": 0, "alpha": 1, "beta": 2, "rc": 3, "stable": 4}
     v1_type = v1["version_type"]
     v2_type = v2["version_type"]
-    v1_type_priority = type_order.get(str(v1_type) if v1_type else "stable", 2)
-    v2_type_priority = type_order.get(str(v2_type) if v2_type else "stable", 2)
+    v1_type_priority = type_order.get(str(v1_type) if v1_type else "stable", 4)
+    v2_type_priority = type_order.get(str(v2_type) if v2_type else "stable", 4)
 
     if v1_type_priority < v2_type_priority:
         return -1
@@ -414,7 +429,7 @@ def get_version_components() -> Dict[str, Union[str, int, None]]:
         "base_version": parsed["base_version"],
         "is_stable": version_type == "stable",
         "is_development": version_type == "dev",
-        "is_auto_build": version_type == "auto",
+        "is_alpha": version_type == "alpha",
     }
 
 
@@ -435,7 +450,7 @@ def format_version_for_display(
         >>> format_version_for_display('1.0.0')
         'py7zz 1.0.0 (stable)'
         >>> format_version_for_display('1.0.0a1')
-        'py7zz 1.0.0a1 (auto-build)'
+        'py7zz 1.0.0a1 (alpha)'
         >>> format_version_for_display('1.0.0', include_type=False)
         'py7zz 1.0.0'
     """
@@ -446,10 +461,27 @@ def format_version_for_display(
         return f"py7zz {version_string}"
 
     version_type = get_version_type(version_string)
-    type_labels = {"stable": "stable", "auto": "auto-build", "dev": "development"}
+    type_labels = {
+        "stable": "stable",
+        "alpha": "alpha",
+        "beta": "beta",
+        "rc": "release-candidate",
+        "dev": "development",
+    }
 
     type_label = type_labels.get(version_type, version_type)
     return f"py7zz {version_string} ({type_label})"
+
+
+# Legacy compatibility aliases for backward compatibility
+def is_auto_version(version_string: Optional[str] = None) -> bool:
+    """Check if a version string is an alpha release version (legacy alias)."""
+    return is_alpha_version(version_string)
+
+
+def generate_auto_version(base_version: str, build_number: int = 1) -> str:
+    """Generate an alpha version string (legacy alias)."""
+    return generate_alpha_version(base_version, build_number)
 
 
 # Simple default version to avoid circular import issues

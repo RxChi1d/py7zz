@@ -301,6 +301,35 @@ def handle_validation_errors(func: Callable) -> Callable:
     return wrapper
 
 
+# Security-related exceptions
+class ZipBombError(Py7zzError):
+    """Raised when potential ZIP bomb patterns are detected."""
+
+    def __init__(
+        self,
+        message: str,
+        file_count: Optional[int] = None,
+        compression_ratio: Optional[float] = None,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(message, **kwargs)
+        if file_count is not None:
+            self.add_context("file_count", file_count)
+        if compression_ratio is not None:
+            self.add_context("compression_ratio", compression_ratio)
+
+
+class SecurityError(Py7zzError):
+    """Raised when security limits are exceeded."""
+
+    def __init__(
+        self, message: str, limit_type: Optional[str] = None, **kwargs: Any
+    ) -> None:
+        super().__init__(message, **kwargs)
+        if limit_type:
+            self.add_context("limit_type", limit_type)
+
+
 # Enhanced exception classes with automatic error analysis
 class ValidationError(Py7zzError):
     """Raised when input validation fails."""

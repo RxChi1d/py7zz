@@ -15,16 +15,20 @@ from py7zz.exceptions import FileNotFoundError
 def test_get_version():
     """Test version retrieval."""
     version = get_version()
-    # Test version is PEP 440 compliant and follows expected pattern
-    assert version.startswith("0.1")
+    # Test version is PEP 440 compliant and is a valid version string
+    assert isinstance(version, str)
+    assert len(version) > 0
 
     # Test version format follows PEP 440
     import py7zz.version
 
     parsed = py7zz.version.parse_version(version)
-    assert parsed["major"] == 0
-    assert parsed["minor"] == 1
+    # Version components should be valid integers
+    assert isinstance(parsed["major"], int) and parsed["major"] >= 0
+    assert isinstance(parsed["minor"], int) and parsed["minor"] >= 0
     assert isinstance(parsed["patch"], int) and parsed["patch"] >= 0
+    # Version type should be one of the valid types
+    assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
 
 def test_find_7z_binary_env_var():

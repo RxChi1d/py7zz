@@ -65,7 +65,7 @@ select = ["E", "F", "I", "UP", "B", "C4", "SIM"]  # Added comprehensions and sim
 ignore = ["E501"]  # Let formatter handle line length
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"__init__.py" = ["F401", "I001"]  # Allow unused imports and import sorting in __init__.py
 "tests/*.py" = ["B011", "SIM117"]  # Allow assert statements and nested with statements in tests
 
 [tool.ruff.format]

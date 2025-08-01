@@ -24,12 +24,12 @@ import pytest
 
 from py7zz.core import get_version
 from py7zz.version import (
-    generate_auto_version,
+    generate_alpha_version,
     generate_dev_version,
     get_base_version,
     get_build_number,
     get_version_type,
-    is_auto_version,
+    is_alpha_version,
     is_dev_version,
     is_stable_version,
     parse_version,
@@ -110,7 +110,7 @@ class TestVersionPEP440Compliance:
         # Test alpha version
         alpha = "1.0.0a1"
         parsed_alpha = parse_version(alpha)
-        assert parsed_alpha["version_type"] == "auto"
+        assert parsed_alpha["version_type"] == "alpha"
         assert parsed_alpha["major"] == 1
         assert parsed_alpha["minor"] == 0
         assert parsed_alpha["patch"] == 0
@@ -144,12 +144,12 @@ class TestVersionTypes:
         assert is_stable_version("1.0.0a1") is False
         assert is_stable_version("1.0.0.dev1") is False
 
-    def test_auto_version_detection(self):
-        """Test auto (alpha) version detection."""
-        assert is_auto_version("1.0.0a1") is True
-        assert is_auto_version("2.1.0a5") is True
-        assert is_auto_version("1.0.0") is False
-        assert is_auto_version("1.0.0.dev1") is False
+    def test_alpha_version_detection(self):
+        """Test alpha version detection."""
+        assert is_alpha_version("1.0.0a1") is True
+        assert is_alpha_version("2.1.0a5") is True
+        assert is_alpha_version("1.0.0") is False
+        assert is_alpha_version("1.0.0.dev1") is False
 
     def test_dev_version_detection(self):
         """Test dev version detection."""
@@ -161,27 +161,27 @@ class TestVersionTypes:
     def test_get_version_type_function(self):
         """Test get_version_type function."""
         assert get_version_type("1.0.0") == "stable"
-        assert get_version_type("1.0.0a1") == "auto"
+        assert get_version_type("1.0.0a1") == "alpha"
         assert get_version_type("1.0.0.dev1") == "dev"
 
     def test_get_version_type_current(self):
         """Test get_version_type with current version."""
         current_version = get_version()
         version_type = get_version_type(current_version)
-        assert version_type in ["stable", "alpha", "dev"]
+        assert version_type in ["stable", "alpha", "beta", "rc", "dev"]
 
 
 class TestVersionGeneration:
     """Test version generation functions."""
 
-    def test_generate_auto_version(self):
-        """Test auto version generation."""
+    def test_generate_alpha_version(self):
+        """Test alpha version generation."""
         base = "1.0.0"
         build_num = 5
-        auto_version = generate_auto_version(base, build_num)
+        alpha_version = generate_alpha_version(base, build_num)
 
-        assert auto_version == "1.0.0a5"
-        assert is_auto_version(auto_version)
+        assert alpha_version == "1.0.0a5"
+        assert is_alpha_version(alpha_version)
 
     def test_generate_dev_version(self):
         """Test dev version generation."""
@@ -209,10 +209,10 @@ class TestVersionGeneration:
         base = "2.1.0"
         build_num = 7
 
-        # Test auto version
-        auto_ver = generate_auto_version(base, build_num)
-        assert get_base_version(auto_ver) == base
-        assert get_build_number(auto_ver) == build_num
+        # Test alpha version
+        alpha_ver = generate_alpha_version(base, build_num)
+        assert get_base_version(alpha_ver) == base
+        assert get_build_number(alpha_ver) == build_num
 
         # Test dev version
         dev_ver = generate_dev_version(base, build_num)
@@ -296,7 +296,7 @@ class TestVersionIntegration:
 
             # Test version parsing
             parsed = parse_version(version)
-            assert parsed["version_type"] == "auto"
+            assert parsed["version_type"] == "alpha"
             assert parsed["major"] == 1
             assert parsed["minor"] == 0
             assert parsed["patch"] == 0
@@ -328,7 +328,7 @@ class TestVersionIntegration:
             subprocess.run(["git", "tag", "v1.0.0a1"], cwd=tmpdir, check=True)
             alpha_version = self._get_version_from_repo(tmpdir)
             assert alpha_version == "1.0.0a1"
-            assert is_auto_version(alpha_version)
+            assert is_alpha_version(alpha_version)
 
             # Add stable tag
             subprocess.run(["git", "tag", "v1.0.0"], cwd=tmpdir, check=True)
@@ -414,7 +414,7 @@ class TestVersionConsistency:
         base_version = get_base_version(current_version)
         build_number = get_build_number(current_version)
 
-        assert version_type in ["stable", "alpha", "dev"]
+        assert version_type in ["stable", "alpha", "beta", "rc", "dev"]
         assert isinstance(base_version, str)
         assert isinstance(build_number, int)
         assert build_number >= 0
@@ -446,9 +446,9 @@ class TestVersionEdgeCases:
         assert not is_stable_version("1.0.0a1")
         assert not is_stable_version("1.0.0.dev1")
 
-        assert is_auto_version("1.0.0a1")
-        assert not is_auto_version("1.0.0")
-        assert not is_auto_version("1.0.0.dev1")
+        assert is_alpha_version("1.0.0a1")
+        assert not is_alpha_version("1.0.0")
+        assert not is_alpha_version("1.0.0.dev1")
 
         assert is_dev_version("1.0.0.dev1")
         assert not is_dev_version("1.0.0")
@@ -457,15 +457,15 @@ class TestVersionEdgeCases:
     def test_version_generation_edge_cases(self):
         """Test version generation with edge cases."""
         # Test with zero build number
-        auto_version = generate_auto_version("1.0.0", 0)
-        assert auto_version == "1.0.0a0"
+        alpha_version = generate_alpha_version("1.0.0", 0)
+        assert alpha_version == "1.0.0a0"
 
         dev_version = generate_dev_version("1.0.0", 0)
         assert dev_version == "1.0.0.dev0"
 
         # Test with large build numbers
-        auto_version_large = generate_auto_version("1.0.0", 999)
-        assert auto_version_large == "1.0.0a999"
+        alpha_version_large = generate_alpha_version("1.0.0", 999)
+        assert alpha_version_large == "1.0.0a999"
 
 
 if __name__ == "__main__":

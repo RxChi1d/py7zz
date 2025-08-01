@@ -286,7 +286,9 @@ def _determine_file_type(attributes: str, filename: str) -> str:
     return "file"
 
 
-def get_detailed_archive_info(archive_path: Union[str, Path]) -> List[ArchiveInfo]:
+def get_detailed_archive_info(
+    archive_path: Union[str, Path], password: Optional[Union[str, bytes]] = None
+) -> List[ArchiveInfo]:
     """
     Get detailed information about all members in an archive.
 
@@ -295,6 +297,7 @@ def get_detailed_archive_info(archive_path: Union[str, Path]) -> List[ArchiveInf
 
     Args:
         archive_path: Path to the archive file
+        password: Password for encrypted archives (optional)
 
     Returns:
         List of ArchiveInfo objects with detailed metadata
@@ -312,6 +315,14 @@ def get_detailed_archive_info(archive_path: Union[str, Path]) -> List[ArchiveInf
 
     # Execute 7zz list command with technical information
     args = ["l", "-slt", str(archive_path)]
+
+    # Add password if provided
+    if password is not None:
+        # Convert bytes password to string for 7zz command
+        password_str = (
+            password.decode("utf-8") if isinstance(password, bytes) else str(password)
+        )
+        args.append(f"-p{password_str}")
 
     try:
         result = run_7z(args)

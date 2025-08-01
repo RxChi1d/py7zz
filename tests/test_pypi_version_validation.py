@@ -59,7 +59,7 @@ class TestPyPIVersionValidation:
 
             # Verify it's recognized as alpha
             parsed = parse_version(version_from_wheel)
-            assert parsed["version_type"] == "auto"
+            assert parsed["version_type"] == "alpha"
 
     def test_dev_version_pypi_consistency(self):
         """Test dev version consistency for PyPI."""
@@ -91,10 +91,11 @@ class TestPyPIVersionValidation:
         test_cases = [
             ("v1.0.0", "1.0.0", True),  # Valid stable
             ("v1.0.0a1", "1.0.0a1", True),  # Valid alpha
+            ("v1.0.0b1", "1.0.0b1", True),  # Valid beta
+            ("v1.0.0rc1", "1.0.0rc1", True),  # Valid release candidate
             ("v1.0.0.dev1", "1.0.0.dev1", True),  # Valid dev
             ("v1.0", "", False),  # Invalid - missing patch
             ("v1.0.0.1", "", False),  # Invalid - extra version part
-            ("v1.0.0b1", "", False),  # Invalid - beta not supported
         ]
 
         for git_tag, expected_version, should_be_valid in test_cases:
@@ -136,12 +137,14 @@ class TestPyPIVersionValidation:
 
         # Test that version follows our expected format
         parsed = parse_version(current_version)
-        assert parsed["version_type"] in ["stable", "auto", "dev"]
+        assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test that version is PEP 440 compliant
         import re
 
-        pep440_pattern = r"^[0-9]+\.[0-9]+(\.[0-9]+)?(\.dev[0-9]+|a[0-9]+)?$"
+        pep440_pattern = (
+            r"^[0-9]+\.[0-9]+(\.[0-9]+)?(\.dev[0-9]+|a[0-9]+|b[0-9]+|rc[0-9]+)?$"
+        )
         assert re.match(pep440_pattern, current_version)
 
     def _setup_test_repo(self, repo_path: Path):
@@ -220,7 +223,7 @@ local_scheme = "no-local-version"
         """Validate Git tag format."""
         import re
 
-        pattern = r"^v[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$"
+        pattern = r"^v[0-9]+\.[0-9]+\.[0-9]+(\.(dev[0-9]+)|a[0-9]+|b[0-9]+|rc[0-9]+)?$"
         return re.match(pattern, tag) is not None
 
     def _extract_version_from_tag(self, tag: str) -> str:
@@ -231,7 +234,7 @@ local_scheme = "no-local-version"
         """Validate PEP 440 compliance."""
         import re
 
-        pattern = r"^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+)?$"
+        pattern = r"^[0-9]+\.[0-9]+\.[0-9]+(\.dev[0-9]+|a[0-9]+|b[0-9]+|rc[0-9]+)?$"
         return re.match(pattern, version) is not None
 
 
@@ -259,23 +262,27 @@ class TestUserInstallationExperience:
         parsed = parse_version(version)
 
         # Version type should be one of our supported types
-        assert parsed["version_type"] in ["stable", "auto", "dev"]
+        assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test version type functions
         from py7zz.version import (
             get_version_type,
-            is_auto_version,
+            is_alpha_version,
+            is_beta_version,
             is_dev_version,
+            is_rc_version,
             is_stable_version,
         )
 
         version_type = get_version_type(version)
-        assert version_type in ["stable", "auto", "dev"]
+        assert version_type in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test that exactly one version type function returns True
         type_checks = [
             is_stable_version(version),
-            is_auto_version(version),
+            is_alpha_version(version),
+            is_beta_version(version),
+            is_rc_version(version),
             is_dev_version(version),
         ]
         assert sum(type_checks) == 1, "Exactly one version type should be True"
@@ -321,7 +328,7 @@ class TestUserInstallationExperience:
             base_version = parsed["base_version"]
             assert base_version is not None
 
-        elif parsed["version_type"] == "auto":
+        elif parsed["version_type"] == "alpha":
             # Auto versions should have clear base version
             base_version = parsed["base_version"]
             assert base_version is not None

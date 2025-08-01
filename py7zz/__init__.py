@@ -65,9 +65,11 @@ from .exceptions import (  # noqa: E402
     OperationTimeoutError,
     PasswordRequiredError,
     Py7zzError,
+    SecurityError,
     UnsupportedFormatError,
     # Enhanced exception classes
     ValidationError,
+    ZipBombError,
     # Error utility functions
     classify_error_type,
     get_error_suggestions,
@@ -75,6 +77,13 @@ from .exceptions import (  # noqa: E402
     handle_7z_errors,
     handle_file_errors,
     handle_validation_errors,
+)
+
+# Filename sanitization utilities
+from .filename_sanitizer import (  # noqa: E402
+    get_safe_filename,
+    is_valid_windows_filename,
+    sanitize_filename_simple as sanitize_filename,
 )
 
 # Logging configuration
@@ -93,6 +102,15 @@ from .logging_config import (  # noqa: E402
     performance_decorator,
     set_log_level,
     setup_logging,
+)
+
+# Security utilities
+from .security import (  # noqa: E402
+    SecurityConfig,
+    check_file_count_security,
+    get_default_security_config,
+    perform_security_checks,
+    set_default_security_config,
 )
 
 # Simple Function API (Layer 1)
@@ -274,6 +292,8 @@ __all__ = [
     "ConfigurationError",
     "OperationTimeoutError",
     "FilenameCompatibilityError",
+    "SecurityError",
+    "ZipBombError",
     # Enhanced exception handling
     "ValidationError",
     "OperationError",
@@ -283,6 +303,16 @@ __all__ = [
     "handle_validation_errors",
     "classify_error_type",
     "get_error_suggestions",
+    # Filename sanitization utilities
+    "sanitize_filename",
+    "is_valid_windows_filename",
+    "get_safe_filename",
+    # Security utilities
+    "SecurityConfig",
+    "check_file_count_security",
+    "get_default_security_config",
+    "perform_security_checks",
+    "set_default_security_config",
 ]
 
 # Add compression API if available

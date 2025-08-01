@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/pypi/l/py7zz)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
 [![CI](https://github.com/rxchi1d/py7zz/workflows/CI/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
 
-A Python wrapper for 7zz CLI tool providing cross-platform archive operations with Windows filename compatibility.
+A Python wrapper for 7zz CLI tool providing cross-platform archive operations with built-in security protection, Windows filename compatibility, and comprehensive API support.
 
 ## Table of Contents
 
@@ -13,6 +13,7 @@ A Python wrapper for 7zz CLI tool providing cross-platform archive operations wi
 - [Installation](#installation)
 - [Quick Start](#quick-start)
 - [API Reference](#api-reference)
+- [Advanced Features](#advanced-features)
 - [Migration Guide](#migration-guide)
 - [Contributing](#contributing)
 - [License](#license)
@@ -23,6 +24,7 @@ A Python wrapper for 7zz CLI tool providing cross-platform archive operations wi
 - **50+ formats**: 7Z, ZIP, TAR, RAR, and more
 - **API compatible**: Drop-in replacement for `zipfile`/`tarfile`
 - **Windows compatibility**: Automatic filename sanitization
+- **Security protection**: ZIP bomb detection and file count limits
 - **Async support**: Non-blocking operations with progress
 - **Zero dependencies**: Bundled 7zz binary
 
@@ -115,6 +117,25 @@ Extract all files from archive.
 #### `test_archive(path)`
 Test archive integrity.
 
+### Security Features
+
+#### `SecurityConfig(max_file_count=5000, max_compression_ratio=100.0, max_total_size=10737418240)`
+Configure security limits for archive processing.
+
+#### `check_file_count_security(file_list, config=None)`
+Check if archive file count exceeds security limits.
+
+### Filename Utilities
+
+#### `sanitize_filename(filename)`
+Sanitize filename for Windows compatibility.
+
+#### `is_valid_windows_filename(filename)`
+Check if filename is valid on Windows.
+
+#### `get_safe_filename(filename, existing_names=None)`
+Get Windows-compatible filename with conflict resolution.
+
 ### Async API
 
 #### `AsyncSevenZipFile`
@@ -134,6 +155,29 @@ Async versions of simple functions.
 ```python
 py7zz.setup_logging('INFO')  # Configure logging
 py7zz.disable_warnings()     # Hide warnings
+```
+
+### Exception Handling
+
+py7zz provides specific exceptions for different error conditions:
+
+```python
+from py7zz.exceptions import (
+    ZipBombError,           # Potential ZIP bomb detected
+    SecurityError,          # Security limits exceeded
+    PasswordRequiredError,  # Archive requires password
+    FileNotFoundError,      # File or archive not found
+    CorruptedArchiveError   # Archive is corrupted
+)
+
+try:
+    py7zz.extract_archive('archive.7z')
+except ZipBombError:
+    print("Archive may be a ZIP bomb")
+except PasswordRequiredError:
+    print("Archive is password protected")
+except CorruptedArchiveError:
+    print("Archive is corrupted")
 ```
 
 See [API Documentation](docs/API.md) for complete reference.
@@ -180,13 +224,35 @@ And 40+ more formats for reading.
 
 ## Advanced Features
 
-### Windows Filename Compatibility
+### Security Protection
 
-Automatically handles Windows restrictions:
+Built-in protection against malicious archives:
 
 ```python
-# Files with reserved names or invalid characters work seamlessly
-py7zz.extract_archive('unix-archive.tar.gz')  # Auto-sanitizes filenames
+from py7zz import SecurityConfig, ZipBombError
+
+# Configure security limits
+config = SecurityConfig(max_file_count=1000, max_compression_ratio=50.0)
+
+try:
+    py7zz.extract_archive('suspicious.zip')
+except ZipBombError as e:
+    print(f"Potential ZIP bomb detected: {e}")
+```
+
+### Windows Filename Compatibility
+
+Automatically handles Windows restrictions and provides utilities:
+
+```python
+from py7zz import sanitize_filename, is_valid_windows_filename
+
+# Auto-sanitization during extraction
+py7zz.extract_archive('unix-archive.tar.gz')  # Files sanitized automatically
+
+# Manual filename utilities
+safe_name = sanitize_filename("invalid<file>name.txt")  # → "invalid_file_name.txt"
+is_valid = is_valid_windows_filename("CON.txt")  # → False
 ```
 
 ### Progress Monitoring
@@ -247,10 +313,19 @@ mypy .
 
 ## Version Information
 
+py7zz follows [PEP 440](https://peps.python.org/pep-0440/) versioning standard:
+
 ```python
 import py7zz
-print(py7zz.get_version())           # py7zz version
+print(py7zz.get_version())           # py7zz version (e.g., "1.0.0b1")
 print(py7zz.get_bundled_7zz_version())  # 7zz version
+
+# Version types supported:
+# - Stable: 1.0.0
+# - Alpha: 1.0.0a1
+# - Beta: 1.0.0b1  
+# - Release Candidate: 1.0.0rc1
+# - Development: 1.0.0.dev1
 ```
 
 ## Contributing

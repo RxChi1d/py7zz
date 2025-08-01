@@ -531,6 +531,16 @@ class SevenZipFile:
         if overwrite:
             args.append("-y")  # assume yes for all prompts
 
+        # Add password if available
+        if hasattr(self, "_password") and self._password is not None:
+            # Convert bytes password to string for 7zz command
+            password_str = (
+                self._password.decode("utf-8")
+                if isinstance(self._password, bytes)
+                else str(self._password)
+            )
+            args.append(f"-p{password_str}")
+
         try:
             # First attempt: direct extraction
             run_7z(args)
@@ -752,6 +762,21 @@ class SevenZipFile:
 
         args = ["l", str(self.file)]
 
+        # Add password if available
+        if hasattr(self, "_password") and self._password is not None:
+            # Convert bytes password to string for 7zz command
+            password_str = (
+                self._password.decode("utf-8")
+                if isinstance(self._password, bytes)
+                else str(self._password)
+            )
+            args.append(f"-p{password_str}")
+            logger.debug(
+                f"Added password parameter to command: {args[:-1] + ['<password_hidden>']}"
+            )
+        else:
+            logger.debug(f"No password set, command: {args}")
+
         try:
             result = run_7z(args)
             # Parse the output to extract file names
@@ -822,6 +847,16 @@ class SevenZipFile:
                     if filename and filename != "....." and filename.strip():
                         files.append(filename)
 
+            # Perform security checks on file list
+            from .security import check_file_count_security
+
+            try:
+                check_file_count_security(files)
+            except Exception as security_error:
+                logger.warning(f"Security check failed: {security_error}")
+                # Re-raise security exceptions to prevent processing dangerous archives
+                raise
+
             return files
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to list archive contents: {e.stderr}") from e
@@ -835,7 +870,9 @@ class SevenZipFile:
         """
         from .detailed_parser import get_detailed_archive_info
 
-        return get_detailed_archive_info(self.file)
+        # Pass password if available
+        password = getattr(self, "_password", None)
+        return get_detailed_archive_info(self.file, password)
 
     # zipfile/tarfile compatibility methods
 
@@ -1177,6 +1214,16 @@ class SevenZipFile:
             # Extract specific file to temporary directory with full paths
             args = ["x", str(self.file), f"-o{tmpdir}", actual_file_to_use, "-y"]
 
+            # Add password if available
+            if hasattr(self, "_password") and self._password is not None:
+                # Convert bytes password to string for 7zz command
+                password_str = (
+                    self._password.decode("utf-8")
+                    if isinstance(self._password, bytes)
+                    else str(self._password)
+                )
+                args.append(f"-p{password_str}")
+
             try:
                 run_7z(args)
 
@@ -1247,6 +1294,16 @@ class SevenZipFile:
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
         args = ["t", str(self.file)]
+
+        # Add password if available
+        if hasattr(self, "_password") and self._password is not None:
+            # Convert bytes password to string for 7zz command
+            password_str = (
+                self._password.decode("utf-8")
+                if isinstance(self._password, bytes)
+                else str(self._password)
+            )
+            args.append(f"-p{password_str}")
 
         try:
             run_7z(args)
@@ -1356,12 +1413,7 @@ class SevenZipFile:
             This method sets the password for future operations.
         """
         # Store password for future use
-        if hasattr(self, "_password"):
-            self._password = pwd
-        else:
-            # For now, we'll store it as an instance variable
-            # Future versions could integrate this with config system
-            self._password = pwd
+        self._password = pwd
 
     def comment(self) -> bytes:
         """
