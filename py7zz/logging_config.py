@@ -10,7 +10,7 @@ import logging
 import logging.handlers
 import sys
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union, overload
 
 # Global logging configuration state
 _logging_config = {
@@ -500,8 +500,14 @@ def get_log_statistics() -> Dict:
 class PerformanceLogger:
     """Context manager for performance logging."""
 
-    def __init__(self, operation: str, logger_name: str = "py7zz.performance") -> None:
+    def __init__(
+        self,
+        operation: str,
+        size: Optional[int] = None,
+        logger_name: str = "py7zz.performance",
+    ) -> None:
         self.operation = operation
+        self.size = size
         self.logger = logging.getLogger(logger_name)
         self.start_time: Optional[float] = None
 
@@ -509,7 +515,8 @@ class PerformanceLogger:
         import time
 
         self.start_time = time.perf_counter()
-        self.logger.debug(f"Started: {self.operation}")
+        size_info = f" (size: {self.size} bytes)" if self.size is not None else ""
+        self.logger.debug(f"Started: {self.operation}{size_info}")
         return self
 
     def __exit__(
@@ -522,19 +529,20 @@ class PerformanceLogger:
 
         end_time = time.perf_counter()
         duration = end_time - (self.start_time or 0.0)
+        size_info = f" (size: {self.size} bytes)" if self.size is not None else ""
 
         if exc_type:
             self.logger.error(
-                f"Failed: {self.operation} (duration: {duration:.4f}s)",
+                f"Failed: {self.operation} (duration: {duration:.4f}s){size_info}",
                 exc_info=True,
             )
         else:
             self.logger.debug(
-                f"Completed: {self.operation} (duration: {duration:.4f}s)"
+                f"Completed: {self.operation} (duration: {duration:.4f}s){size_info}"
             )
 
 
-def log_performance(
+def performance_decorator(
     operation: str,
 ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """
@@ -556,6 +564,126 @@ def log_performance(
 
 # Default logging setup
 _default_setup_done = False
+
+
+@overload
+def log_performance(
+    name_or_func: str,
+    duration: None = None,
+    size: Optional[int] = None,
+    logger_name: str = "py7zz.performance",
+    **kwargs: Any,
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+
+
+@overload
+def log_performance(
+    name_or_func: str,
+    duration: float,
+    size: Optional[int] = None,
+    logger_name: str = "py7zz.performance",
+    **kwargs: Any,
+) -> None: ...
+
+
+def log_performance(
+    name_or_func: Union[str, Callable[..., Any]],
+    duration: Optional[float] = None,
+    size: Optional[int] = None,
+    logger_name: str = "py7zz.performance",
+    **kwargs: Any,
+) -> Optional[Callable[[Callable[..., Any]], Callable[..., Any]]]:
+    """
+    Log performance data directly or use as decorator.
+
+    Can be used in two ways:
+    1. Direct function call: log_performance(name, duration, size=None)
+    2. As decorator: @log_performance("operation_name")
+
+    Args:
+        name_or_func: Operation name (str) or function being decorated
+        duration: Duration in seconds (for direct calls)
+        size: Optional size in bytes
+        logger_name: Logger name to use
+        **kwargs: Additional performance data
+    """
+    # Check if being used as decorator
+    if isinstance(name_or_func, str) and duration is None:
+        # Decorator mode
+        operation_name = name_or_func
+
+        def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+            def wrapper(*args: Any, **func_kwargs: Any) -> Any:
+                import time
+
+                # Log start (similar to PerformanceLogger.__enter__)
+                logger = logging.getLogger(logger_name)
+                size_info = f" (size: {size} bytes)" if size is not None else ""
+                logger.debug(f"Started: {operation_name}{size_info}")
+
+                start_time = time.perf_counter()
+                try:
+                    result = func(*args, **func_kwargs)
+                    end_time = time.perf_counter()
+                    actual_duration = end_time - start_time
+
+                    # Log completion (similar to PerformanceLogger.__exit__)
+                    logger.debug(
+                        f"Completed: {operation_name} (duration: {actual_duration:.4f}s){size_info}"
+                    )
+                    return result
+                except Exception:
+                    end_time = time.perf_counter()
+                    actual_duration = end_time - start_time
+
+                    # Log failure (similar to PerformanceLogger.__exit__ with exception)
+                    logger.error(
+                        f"Failed: {operation_name} (duration: {actual_duration:.4f}s){size_info}"
+                    )
+                    raise
+
+            return wrapper
+
+        return decorator
+    else:
+        # Direct function call mode
+        if isinstance(name_or_func, str) and duration is not None:
+            _log_performance_data(name_or_func, duration, size, logger_name, **kwargs)
+            return None  # Direct calls don't return a decorator
+        else:
+            raise ValueError(
+                "Direct call mode requires name (str) and duration (float)"
+            )
+
+
+def _log_performance_data(
+    name: str,
+    duration: float,
+    size: Optional[int] = None,
+    logger_name: str = "py7zz.performance",
+    **kwargs: Any,
+) -> None:
+    """
+    Internal function to log performance data.
+
+    Args:
+        name: Operation name
+        duration: Duration in seconds
+        size: Optional size in bytes
+        logger_name: Logger name to use
+        **kwargs: Additional performance data
+    """
+    logger = logging.getLogger(logger_name)
+
+    size_info = f" (size: {size} bytes)" if size is not None else ""
+    extra_info = ""
+    if kwargs:
+        extra_items = [f"{k}: {v}" for k, v in kwargs.items()]
+        extra_info = f" ({', '.join(extra_items)})"
+
+    logger.debug(
+        f"Performance: {name} (duration: {duration:.4f}s){size_info}{extra_info}"
+    )
 
 
 def ensure_default_logging() -> None:

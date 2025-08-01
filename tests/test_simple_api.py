@@ -433,45 +433,65 @@ class TestArchiveConversion:
 class TestArchiveRecompression:
     """Test archive recompression functionality."""
 
-    @patch("py7zz.simple.convert_archive_format")
-    @patch("shutil.move")
+    @patch("py7zz.simple.extract_archive")
+    @patch("py7zz.simple.create_archive")
     @patch("shutil.copy2")
-    @patch("tempfile.NamedTemporaryFile")
+    @patch("tempfile.TemporaryDirectory")
     @patch("pathlib.Path.exists", return_value=True)
     def test_recompress_archive_with_backup(
-        self, mock_exists, mock_temp, mock_copy2, mock_move, mock_convert
+        self, mock_exists, mock_temp_dir, mock_copy2, mock_create, mock_extract
     ):
         """Test recompression with backup creation."""
-        # Mock temporary file
-        mock_temp.return_value.__enter__.return_value.name = "/tmp/temp.7z"
+        # Mock temporary directory context manager
+        mock_temp_dir.return_value.__enter__.return_value = "/tmp/temp_dir"
 
-        py7zz.recompress_archive("archive.7z", "ultra", backup_original=True)
+        # Mock os.walk to return some files
+        with patch("os.walk") as mock_walk:
+            mock_walk.return_value = [
+                ("/tmp/temp_dir/extracted", [], ["file1.txt", "file2.txt"])
+            ]
 
-        # Should create backup using copy2
-        mock_copy2.assert_called_once()
-        # Should convert archive and move temp file
-        mock_convert.assert_called_once()
-        mock_move.assert_called_once()
+            py7zz.recompress_archive(
+                "archive.7z", "recompressed.7z", "ultra", backup_original=True
+            )
 
-    @patch("py7zz.simple.convert_archive_format")
-    @patch("shutil.move")
+            # Should create backup using copy2
+            mock_copy2.assert_called_once()
+            # Should extract source and create new archive
+            mock_extract.assert_called_once()
+            mock_create.assert_called_once()
+
+    @patch("py7zz.simple.extract_archive")
+    @patch("py7zz.simple.create_archive")
     @patch("shutil.copy2")
-    @patch("tempfile.NamedTemporaryFile")
+    @patch("tempfile.TemporaryDirectory")
     @patch("pathlib.Path.exists", return_value=True)
     def test_recompress_archive_custom_backup_suffix(
-        self, mock_exists, mock_temp, mock_copy2, mock_move, mock_convert
+        self, mock_exists, mock_temp_dir, mock_copy2, mock_create, mock_extract
     ):
         """Test recompression with custom backup suffix."""
-        # Mock temporary file
-        mock_temp.return_value.__enter__.return_value.name = "/tmp/temp.7z"
+        # Mock temporary directory context manager
+        mock_temp_dir.return_value.__enter__.return_value = "/tmp/temp_dir"
 
-        py7zz.recompress_archive("archive.7z", "ultra", backup_suffix=".old")
+        # Mock os.walk to return some files
+        with patch("os.walk") as mock_walk:
+            mock_walk.return_value = [
+                ("/tmp/temp_dir/extracted", [], ["file1.txt", "file2.txt"])
+            ]
 
-        # Should create backup with custom suffix
-        mock_copy2.assert_called_once()
-        # Should convert and move temp file
-        mock_convert.assert_called_once()
-        mock_move.assert_called_once()
+            py7zz.recompress_archive(
+                "archive.7z",
+                "recompressed.7z",
+                "ultra",
+                backup_original=True,
+                backup_suffix=".old",
+            )
+
+            # Should create backup with custom suffix
+            mock_copy2.assert_called_once()
+            # Should extract source and create new archive
+            mock_extract.assert_called_once()
+            mock_create.assert_called_once()
 
 
 class TestErrorHandling:

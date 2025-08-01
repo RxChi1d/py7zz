@@ -32,7 +32,11 @@ class Config:
 
     # Security settings
     password: Optional[str] = None  # Archive password
-    encrypt_filenames: bool = False  # Encrypt file names
+    encrypt: bool = False  # Enable file content encryption (AES-256)
+    encrypt_headers: bool = False  # Enable header encryption (file names and structure)
+    encrypt_filenames: bool = (
+        False  # Encrypt file names (legacy parameter for backward compatibility)
+    )
 
     # Advanced options
     dictionary_size: Optional[str] = None  # Dictionary size (e.g., "32m")
@@ -98,7 +102,15 @@ class Config:
         if self.password:
             args.append(f"-p{self.password}")
 
-        # Encrypt filenames
+        # File content encryption
+        if self.encrypt and self.password:
+            args.append("-mhe=on")  # Enable header encryption for content
+
+        # Header encryption (file names and structure)
+        if self.encrypt_headers and self.password:
+            args.append("-mhc=on")  # Enable complete header encryption
+
+        # Legacy filename encryption (for backward compatibility)
         if self.encrypt_filenames and self.password:
             args.append("-mhe")
 
@@ -148,6 +160,12 @@ class Config:
             )
 
         # Check password and encryption consistency
+        if self.encrypt and not self.password:
+            warnings.append("File content encryption requires a password")
+
+        if self.encrypt_headers and not self.password:
+            warnings.append("Header encryption requires a password")
+
         if self.encrypt_filenames and not self.password:
             warnings.append("Filename encryption requires a password")
 
@@ -266,7 +284,9 @@ class Presets:
             compression="lzma2",
             level=5,
             solid=True,
-            encrypt_filenames=True,
+            encrypt=True,
+            encrypt_headers=True,
+            encrypt_filenames=True,  # Keep for backward compatibility
             # password must be set by user
         )
 

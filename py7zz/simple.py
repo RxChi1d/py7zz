@@ -5,12 +5,13 @@ Provides one-line solutions for common archive operations.
 This is the highest-level interface designed for 80% of use cases.
 """
 
+import os
 import warnings
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from .core import SevenZipFile
-from .exceptions import FileNotFoundError
+from .exceptions import ArchiveNotFoundError, FileNotFoundError
 
 # Import async operations if available
 try:
@@ -84,7 +85,7 @@ def extract_archive(
         >>> py7zz.extract_archive("data.zip", overwrite=False)
     """
     if not Path(archive_path).exists():
-        raise FileNotFoundError(f"Archive not found: {archive_path}")
+        raise ArchiveNotFoundError(archive_path)
 
     with SevenZipFile(archive_path, "r") as sz:
         sz.extract(output_dir, overwrite=overwrite)
@@ -644,59 +645,80 @@ def convert_archive_format(
 
 
 def recompress_archive(
-    archive_path: Union[str, Path],
-    new_preset: str,
-    backup_original: bool = True,
-    backup_suffix: str = ".backup",
+    source_path: Union[str, Path],
+    target_path: Union[str, Path],
+    preset: str = "balanced",
+    backup_original: bool = False,
+    backup_suffix: str = ".bak",
 ) -> None:
     """
-    Recompress an archive with different settings.
+    Recompress an archive to a new location with different settings.
+
+    This is the safe, industry-standard approach that creates a new file
+    instead of modifying the original in-place.
 
     Args:
-        archive_path: Path to the archive to recompress
-        new_preset: New compression preset
-        backup_original: Whether to create backup of original
-        backup_suffix: Suffix for backup file
+        source_path: Path to the source archive to recompress
+        target_path: Path for the new recompressed archive
+        preset: Compression preset for recompression
+        backup_original: Whether to create a backup of the original file
+        backup_suffix: Suffix to use for backup file (default: ".bak")
 
     Example:
         >>> # Recompress with better compression
-        >>> py7zz.recompress_archive("large_file.7z", "ultra")
+        >>> py7zz.recompress_archive("original.7z", "recompressed.7z", "ultra")
 
-        >>> # Recompress without backup
-        >>> py7zz.recompress_archive("temp.7z", "fast", backup_original=False)
+        >>> # Recompress with backup
+        >>> py7zz.recompress_archive("original.7z", "recompressed.7z", "ultra", backup_original=True)
+
+        >>> # Recompress with custom backup suffix
+        >>> py7zz.recompress_archive("original.7z", "recompressed.7z", "ultra", backup_suffix=".old")
     """
-    archive_path = Path(archive_path)
+    source_path = Path(source_path)
+    target_path = Path(target_path)
 
-    if not archive_path.exists():
-        raise FileNotFoundError(f"Archive not found: {archive_path}")
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source archive not found: {source_path}")
 
     # Create backup if requested
     if backup_original:
-        backup_path = archive_path.with_suffix(archive_path.suffix + backup_suffix)
         import shutil
 
-        shutil.copy2(archive_path, backup_path)
+        backup_path = source_path.with_suffix(source_path.suffix + backup_suffix)
+        shutil.copy2(str(source_path), str(backup_path))
 
-    # Recompress using temporary file
+    # Create target directory if needed
+    target_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Use temporary directory for safe extraction and recompression
     import tempfile
 
-    with tempfile.NamedTemporaryFile(
-        suffix=archive_path.suffix, delete=False
-    ) as temp_file:
-        temp_path = Path(temp_file.name)
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_extract = Path(temp_dir) / "extracted"
 
-    try:
-        # Convert with new settings
-        convert_archive_format(archive_path, temp_path, preset=new_preset)
+        try:
+            # Extract source archive
+            extract_archive(source_path, temp_extract)
 
-        # Replace original with recompressed version
-        import shutil
+            # Get all extracted files recursively
+            extracted_files: List[Union[str, Path]] = []
+            if temp_extract.exists():
+                for root, _dirs, files in os.walk(temp_extract):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        extracted_files.append(file_path)
 
-        shutil.move(temp_path, archive_path)
+            if not extracted_files:
+                raise ValueError(f"No files extracted from {source_path}")
 
-    finally:
-        # Clean up temporary file if it still exists
-        temp_path.unlink(missing_ok=True)
+            # Create new archive with specified preset
+            create_archive(target_path, extracted_files, preset=preset)
+
+        except Exception as e:
+            # Clean up failed target file
+            if target_path.exists():
+                target_path.unlink()
+            raise RuntimeError(f"Failed to recompress archive: {e}") from e
 
 
 if _async_available:

@@ -8,6 +8,7 @@ import platform
 import shutil
 import subprocess
 import tempfile
+import warnings
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Union
 
@@ -228,6 +229,114 @@ class SevenZipFile:
         """Context manager exit."""
         _ = exc_type, exc_val, exc_tb  # Unused parameters
 
+    def _sanitize_filename(self, filename: str, max_length: int = 255) -> str:
+        """
+        Sanitize and truncate filename to handle extremely long names.
+
+        Args:
+            filename: Original filename
+            max_length: Maximum allowed filename length
+
+        Returns:
+            Sanitized filename that fits within system limits
+        """
+        if len(filename) <= max_length:
+            return filename
+
+        # Import here to avoid circular imports
+
+        # Preserve directory structure by splitting path
+        path_parts = filename.split("/")
+        if len(path_parts) > 1:
+            # Handle directory structure
+            directory_part = "/".join(path_parts[:-1])
+            filename_part = path_parts[-1]
+
+            # Recursively sanitize directory part
+            sanitized_dir = self._sanitize_filename(directory_part, max_length // 2)
+            sanitized_file = self._sanitize_single_filename(
+                filename_part, max_length // 2
+            )
+
+            return f"{sanitized_dir}/{sanitized_file}"
+        else:
+            # Single filename
+            return self._sanitize_single_filename(filename, max_length)
+
+    def _sanitize_single_filename(self, filename: str, max_length: int = 255) -> str:
+        """
+        Sanitize a single filename (no directory separators).
+
+        Args:
+            filename: Single filename to sanitize
+            max_length: Maximum allowed length
+
+        Returns:
+            Sanitized filename
+        """
+        if len(filename) <= max_length:
+            return filename
+
+        import hashlib
+
+        # Warn user about filename truncation
+        warnings.warn(
+            f"Filename too long, truncating: {filename[:50]}...",
+            UserWarning,
+            stacklevel=4,
+        )
+
+        # Preserve file extension
+        name, ext = os.path.splitext(filename)
+
+        # Reserve space for hash and extension
+        hash_length = 8
+        available_length = max_length - len(ext) - hash_length - 1  # -1 for underscore
+
+        if available_length > 0:
+            # Create unique hash to avoid conflicts
+            hash_suffix = hashlib.md5(filename.encode("utf-8")).hexdigest()[
+                :hash_length
+            ]
+            truncated_name = name[:available_length] + "_" + hash_suffix
+            return truncated_name + ext
+        else:
+            # Extension is too long, create a completely new name
+            hash_name = hashlib.md5(filename.encode("utf-8")).hexdigest()[
+                : max_length - 4
+            ]
+            return hash_name + ".dat"  # Generic extension
+
+    def _normalize_path(self, path: str) -> str:
+        """
+        Normalize archive path for consistent handling.
+
+        Args:
+            path: Raw path from archive listing
+
+        Returns:
+            Normalized path string, or empty string if path should be skipped
+        """
+        if not path or not path.strip():
+            return ""
+
+        # Remove leading/trailing whitespace
+        path = path.strip()
+
+        # Convert backslashes to forward slashes for consistency
+        path = path.replace("\\", "/")
+
+        # Skip directory entries (ending with /) - only return actual files
+        # This helps with compatibility where different archive formats
+        # may or may not list directory entries separately
+        if path.endswith("/"):
+            return ""
+
+        # Remove leading slash if present (archives should use relative paths)
+        path = path.lstrip("/")
+
+        return path
+
     def add(self, name: Union[str, Path], arcname: Optional[str] = None) -> None:
         """
         Add file or directory to archive.
@@ -283,9 +392,37 @@ class SevenZipFile:
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_base = Path(temp_dir)
 
-            # Create the target path structure
-            target_arcname = Path(arcname)
-            temp_target = temp_base / target_arcname
+            # Handle extremely long filenames by using a short temp name
+            # but preserving the original arcname for the archive structure
+            original_arcname = Path(arcname)
+
+            # Create a safe temporary filename to avoid filesystem limits
+            if len(str(original_arcname)) > 200:  # Conservative limit
+                import hashlib
+                import warnings
+
+                # Warn about long filename
+                warnings.warn(
+                    f"Very long archive name, using temporary file approach: {arcname[:50]}...",
+                    UserWarning,
+                    stacklevel=3,
+                )
+
+                # Create short temp name but preserve extension for proper handling
+                ext = original_arcname.suffix
+                temp_name = (
+                    "temp_"
+                    + hashlib.md5(arcname.encode("utf-8")).hexdigest()[:16]
+                    + ext
+                )
+                temp_target = temp_base / temp_name
+
+                # We'll need to rename it in the archive later using 7z rename feature
+                use_rename_approach = True
+            else:
+                # Normal case: filename is reasonable length
+                temp_target = temp_base / original_arcname
+                use_rename_approach = False
 
             # Create parent directories if needed
             temp_target.parent.mkdir(parents=True, exist_ok=True)
@@ -316,17 +453,55 @@ class SevenZipFile:
             args.append(str(Path(self.file).resolve()))
 
             # Change to temp directory and add the file with relative path
-            # This ensures the archive name is correct
             try:
-                # Build the complete command: 7zz a <archive> <file>
-                cmd = [find_7z_binary()] + args + [str(target_arcname)]
-                subprocess.run(
-                    cmd,
-                    cwd=str(temp_base),
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
+                if use_rename_approach:
+                    # First add with temporary name
+                    temp_rel_name = temp_target.name
+                    cmd = [find_7z_binary()] + args + [temp_rel_name]
+                    subprocess.run(
+                        cmd,
+                        cwd=str(temp_base),
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+
+                    # Then rename to desired name in archive using 7z rename command
+                    # Note: 7z rename command format: 7z rn <archive> <old_name> <new_name>
+                    try:
+                        rename_cmd = [
+                            find_7z_binary(),
+                            "rn",
+                            str(Path(self.file).resolve()),
+                            temp_rel_name,
+                            arcname,
+                        ]
+                        subprocess.run(
+                            rename_cmd,
+                            capture_output=True,
+                            text=True,
+                            check=True,
+                        )
+                    except subprocess.CalledProcessError:
+                        # If rename fails, the file is still added with temp name
+                        # This is better than complete failure
+                        warnings.warn(
+                            f"Could not rename {temp_rel_name} to {arcname} in archive. "
+                            f"File added with temporary name instead.",
+                            UserWarning,
+                            stacklevel=2,
+                        )
+                else:
+                    # Normal case: add with original name
+                    cmd = [find_7z_binary()] + args + [str(original_arcname)]
+                    subprocess.run(
+                        cmd,
+                        cwd=str(temp_base),
+                        capture_output=True,
+                        text=True,
+                        check=True,
+                    )
+
                 logger.debug(f"Successfully added {name} as {arcname} to archive")
 
             except subprocess.CalledProcessError as e:
@@ -593,9 +768,11 @@ class SevenZipFile:
                     break
                 elif in_file_list and line.strip():
                     # Skip summary lines (e.g., "7 files, 5 folders", "1 files")
+                    parts = line.strip().split()
                     if ("files," in line and "folders" in line) or (
                         line.strip().endswith("files")
-                        and line.strip().split()[0].isdigit()
+                        and len(parts) >= 2
+                        and parts[-2].isdigit()  # Check the number before "files"
                     ):
                         continue
 
@@ -667,7 +844,21 @@ class SevenZipFile:
         Return a list of archive members by name.
         Compatible with zipfile.ZipFile.namelist() and tarfile.TarFile.getnames().
         """
-        return self._list_contents()
+        if self.mode == "w":
+            from .exceptions import OperationError
+
+            raise OperationError(
+                "Cannot list contents from archive opened in write mode",
+                operation="namelist",
+            )
+        all_contents = self._list_contents()
+        # Filter and normalize paths for consistency
+        normalized_files = []
+        for item in all_contents:
+            normalized = self._normalize_path(item)
+            if normalized:  # Skip empty or invalid entries
+                normalized_files.append(normalized)
+        return normalized_files
 
     def getnames(self) -> List[str]:
         """
@@ -936,27 +1127,88 @@ class SevenZipFile:
             File contents as bytes
         """
         if self.mode == "w":
-            raise ValueError("Cannot read from archive opened in write mode")
+            from .exceptions import OperationError
+
+            raise OperationError(
+                "Cannot read from archive opened in write mode", operation="read"
+            )
 
         if not self.file.exists():
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
+        # Normalize the requested filename
+        normalized_name = self._normalize_path(name)
+
+        # Get the actual file list to find the best match
+        actual_files = self._list_contents()
+        actual_file_to_use = None
+
+        # Try to find exact match first
+        for actual_file in actual_files:
+            if self._normalize_path(actual_file) == normalized_name:
+                actual_file_to_use = actual_file
+                break
+
+        # If no exact match, try different path variations
+        if not actual_file_to_use:
+            for actual_file in actual_files:
+                normalized_actual = self._normalize_path(actual_file)
+                # Try with different separators and cases
+                if (
+                    normalized_actual.lower() == normalized_name.lower()
+                    or normalized_actual.replace("/", "\\")
+                    == normalized_name.replace("/", "\\")
+                    or normalized_actual.endswith("/" + normalized_name)
+                    or actual_file.endswith(normalized_name)
+                ):
+                    actual_file_to_use = actual_file
+                    break
+
+        if not actual_file_to_use:
+            # List available files for better error message
+            available_files = [
+                self._normalize_path(f) for f in actual_files if self._normalize_path(f)
+            ]
+            raise FileNotFoundError(
+                f"File '{name}' not found in archive. Available files: {available_files[:5]}..."
+            )
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # Extract specific file to temporary directory with full paths
-            args = ["x", str(self.file), f"-o{tmpdir}", name, "-y"]
+            args = ["x", str(self.file), f"-o{tmpdir}", actual_file_to_use, "-y"]
 
             try:
                 run_7z(args)
 
-                # Read the extracted file
-                extracted_file = Path(tmpdir) / name
+                # Try to find the extracted file - it might be in a subdirectory
+                tmpdir_path = Path(tmpdir)
+
+                # First try the direct path
+                extracted_file = tmpdir_path / actual_file_to_use
                 if extracted_file.exists():
                     return extracted_file.read_bytes()
-                else:
-                    raise FileNotFoundError(f"File not found in archive: {name}")
+
+                # If not found, search recursively in the temp directory
+                for extracted_file in tmpdir_path.rglob("*"):
+                    if extracted_file.is_file():
+                        # Check if this matches our target file
+                        relative_path = extracted_file.relative_to(tmpdir_path)
+                        if (
+                            str(relative_path) == actual_file_to_use
+                            or str(relative_path).replace("\\", "/")
+                            == actual_file_to_use.replace("\\", "/")
+                            or extracted_file.name == Path(actual_file_to_use).name
+                        ):
+                            return extracted_file.read_bytes()
+
+                raise FileNotFoundError(
+                    f"File not found in archive after extraction: {actual_file_to_use}"
+                )
 
             except subprocess.CalledProcessError as e:
-                raise RuntimeError(f"Failed to extract file {name}: {e.stderr}") from e
+                raise RuntimeError(
+                    f"Failed to extract file {actual_file_to_use}: {e.stderr}"
+                ) from e
 
     def writestr(self, filename: str, data: Union[str, bytes]) -> None:
         """

@@ -90,6 +90,7 @@ from .logging_config import (  # noqa: E402
     get_log_statistics,
     get_logging_config,
     log_performance,
+    performance_decorator,
     set_log_level,
     setup_logging,
 )
