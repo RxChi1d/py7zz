@@ -15,16 +15,20 @@ from py7zz.exceptions import FileNotFoundError
 def test_get_version():
     """Test version retrieval."""
     version = get_version()
-    # Test version is PEP 440 compliant and follows expected pattern
-    assert version.startswith("0.1")
+    # Test version is PEP 440 compliant and is a valid version string
+    assert isinstance(version, str)
+    assert len(version) > 0
 
     # Test version format follows PEP 440
     import py7zz.version
 
     parsed = py7zz.version.parse_version(version)
-    assert parsed["major"] == 0
-    assert parsed["minor"] == 1
+    # Version components should be valid integers
+    assert isinstance(parsed["major"], int) and parsed["major"] >= 0
+    assert isinstance(parsed["minor"], int) and parsed["minor"] >= 0
     assert isinstance(parsed["patch"], int) and parsed["patch"] >= 0
+    # Version type should be one of the valid types
+    assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
 
 def test_find_7z_binary_env_var():
@@ -159,8 +163,8 @@ def test_sevenzipfile_extract_missing_archive():
 
 
 @patch("py7zz.core.run_7z")
-def test_sevenzipfile_list_contents(mock_run_7z):
-    """Test listing archive contents."""
+def test_sevenzipfile_namelist(mock_run_7z):
+    """Test listing archive contents via namelist() method."""
     mock_run_7z.return_value = Mock(
         stdout="""\
 7-Zip 24.00 (x64) : Copyright (c) 1999-2024 Igor Pavlov : 2024-05-26
@@ -190,17 +194,17 @@ Blocks = 1
 
     with patch("pathlib.Path.exists", return_value=True):
         sz = SevenZipFile("test.7z", "r")
-        contents = sz.list_contents()
+        contents = sz.namelist()
 
         assert "test.txt" in contents
         assert "folder" in contents
         assert len(contents) >= 2
 
 
-def test_sevenzipfile_list_contents_missing_archive():
+def test_sevenzipfile_namelist_missing_archive():
     """Test listing missing archive raises error."""
     sz = SevenZipFile("missing.7z", "r")
     with patch("pathlib.Path.exists", return_value=False), pytest.raises(
         FileNotFoundError, match="Archive not found"
     ):
-        sz.list_contents()
+        sz.namelist()

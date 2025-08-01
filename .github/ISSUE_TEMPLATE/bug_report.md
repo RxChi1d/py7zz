@@ -1,48 +1,56 @@
 ---
-name: Bug Report
-about: Create a report to help us improve
-title: 'fix: [brief description of the bug]'
-labels: ['bug']
+name: Bug report
+about: Report a bug to help us improve
+title: ''
+labels: 'bug'
 assignees: ''
 
 ---
 
-## Bug Description
+## Description
 
-A clear and concise description of what the bug is.
+A clear and concise description of the bug.
 
 ## Steps to Reproduce
 
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+1. 
+2. 
+3. 
 
 ## Expected Behavior
 
-A clear and concise description of what you expected to happen.
+What you expected to happen.
 
 ## Actual Behavior
 
-A clear and concise description of what actually happened.
+What actually happened.
+
+## Code Example
+
+```python
+# Minimal code to reproduce the issue
+import py7zz
+
+# Your code here
+```
 
 ## Environment
 
-- **OS**: [e.g., macOS 13.0, Windows 11, Ubuntu 22.04]
-- **Python Version**: [e.g., 3.9.7, 3.11.2]
-- **py7zz Version**: [e.g., 1.0.0]
-- **Installation Method**: [e.g., pip, source, GitHub]
+- **OS:** [e.g., Windows 11, macOS 14.0, Ubuntu 22.04]
+- **Python version:** [e.g., 3.8.10]
+- **py7zz version:** [e.g., 1.0.0]
+- **Installation method:** [pip, source, GitHub]
+
+## Error Output
+
+```
+Paste any error messages or stack traces here
+```
 
 ## Additional Context
 
-Add any other context about the problem here.
+Any other relevant information about the problem.
 
-## Screenshots
+## Possible Solution
 
-If applicable, add screenshots to help explain your problem.
-
-## Error Messages
-
-```
-Paste any error messages here
-```
+If you have ideas about what might be causing this or how to fix it.

@@ -313,6 +313,50 @@ def log_sanitization_changes(changes: Dict[str, str]) -> None:
         logger.warning(f"  '{original}' -> '{sanitized}' (reason: {reason})")
 
 
+# Public API functions for filename sanitization
+
+
+def is_valid_windows_filename(filename: str) -> bool:
+    """
+    Check if a filename is valid for Windows.
+
+    Args:
+        filename: The filename to check
+
+    Returns:
+        True if the filename is valid on Windows, False otherwise
+    """
+    return not needs_sanitization(filename)
+
+
+def get_safe_filename(filename: str, existing_names: Optional[Set[str]] = None) -> str:
+    """
+    Get a safe version of a filename that's compatible with Windows.
+
+    Args:
+        filename: The original filename
+        existing_names: Set of existing filenames to avoid conflicts (optional)
+
+    Returns:
+        A sanitized filename that's safe to use on Windows
+    """
+    sanitized, _ = sanitize_filename(filename, existing_names)
+    return sanitized
+
+
+def sanitize_filename_simple(filename: str) -> str:
+    """
+    Simple filename sanitization function for public API.
+
+    Args:
+        filename: The filename to sanitize
+
+    Returns:
+        Sanitized filename
+    """
+    return get_safe_filename(filename)
+
+
 def _get_sanitization_reason(filename: str) -> str:
     """Get human-readable reason for why a filename was sanitized."""
     reasons = []

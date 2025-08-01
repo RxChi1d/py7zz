@@ -7,7 +7,7 @@ supporting the new PEP 440 compliant version system.
 
 from typing import Dict, Union
 
-from .version import __version__
+from .version import get_version
 
 # Version registry containing all version information
 VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
@@ -49,7 +49,7 @@ def get_version_info() -> Dict[str, Union[str, None]]:
             'changelog_url': 'https://github.com/rxchi1d/py7zz/releases/tag/v0.1.0'
         }
     """
-    current_version = __version__
+    current_version = get_version()
     info = VERSION_REGISTRY.get(current_version, {})
 
     return {

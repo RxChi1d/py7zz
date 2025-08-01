@@ -1,4 +1,15 @@
-# py7zz PEP 440 Compliant Version Control Strategy
+# Version Strategy
+
+This document describes py7zz's versioning strategy and release process.
+
+## Table of Contents
+
+- [Overview](#overview)
+- [Version Format](#version-format)
+- [Release Types](#release-types)
+- [Version Lifecycle](#version-lifecycle)
+- [Implementation](#implementation)
+- [User Guide](#user-guide)
 
 ## Overview
 
@@ -42,7 +53,23 @@ py7zz adopts a PEP 440 compliant version management strategy with **manual versi
 - **Source Requirement:** Can originate from any branch
 - **Use Case:** Final validation before stable release
 
-## Version Upgrade Path
+## Release Types
+
+### Release Process Overview
+
+**All releases are manually controlled by project authors** to ensure:
+- Full testing and validation
+- Quality control and stability
+- Proper documentation and release notes
+- Compliance with PEP 440 standards
+
+**Version Types Available:**
+- **Stable**: Production-ready releases (1.0.0)
+- **Alpha**: Early feature testing (1.0.0a1)
+- **Beta**: Feature-complete testing (1.0.0b1)
+- **Release Candidate**: Final validation (1.0.0rc1)
+
+## Version Lifecycle
 
 ```
 Stable 1.0.0    ← Manual release (from main branch)
@@ -125,12 +152,14 @@ def get_version_info():
 - **Pre-releases**: Auto-generate from commit history
 - **Categorization**: Follows Conventional Commits format
 
-## User Experience
+## User Guide
 
-### Installation Commands
+### Installation
+
+#### Latest Stable
 ```bash
-# Install latest stable version
 pip install py7zz
+```
 
 # Install specific stable version
 pip install py7zz==1.2.0
@@ -142,9 +171,25 @@ pip install py7zz==1.3.0a1
 pip install git+https://github.com/rxchi1d/py7zz.git@v1.2.0
 ```
 
-### Version Information Access
+#### Pre-release Versions
+```bash
+# Include pre-releases
+pip install --pre py7zz
+```
+
+### Version Selection
+
+| Need | Version Type | Command |
+|------|-------------|---------|
+| Production stability | Stable | `pip install py7zz` |
+| Latest features testing | Alpha | `pip install py7zz==1.0.0a1` |
+| Feature-complete testing | Beta | `pip install py7zz==1.0.0b1` |
+| Pre-release validation | Release Candidate | `pip install py7zz==1.0.0rc1` |
+
+### Checking Versions
+
+#### Python API
 ```python
-# Python API
 import py7zz
 print(py7zz.get_version())          # Current version
 print(py7zz.get_version_info())     # Complete details
@@ -154,17 +199,15 @@ py7zz --version                     # Version information
 py7zz version                       # Detailed version info
 ```
 
-### CLI Usage
+#### Command Line
 ```bash
 # Version information
 py7zz version
-py7zz --py7zz-version
-py7zz -V
+py7zz version --format json
 
-# Direct 7zz operations (pass-through)
-py7zz a archive.7z files/
-py7zz x archive.7z
-py7zz l archive.7z
+# Quick version check
+py7zz --version
+py7zz -V
 ```
 
 ## Advantages of Manual PEP 440 Compliance

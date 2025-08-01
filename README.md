@@ -1,429 +1,357 @@
 # py7zz
 
-[![PyPI version](https://img.shields.io/pypi/v/py7zz.svg)](https://pypi.org/project/py7zz/)
-[![Python versions](https://img.shields.io/pypi/pyversions/py7zz.svg)](https://pypi.org/project/py7zz/)
-[![License](https://img.shields.io/pypi/l/py7zz.svg)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/py7zz)](https://pypi.org/project/py7zz/)
+[![Python](https://img.shields.io/pypi/pyversions/py7zz)](https://pypi.org/project/py7zz/)
+[![License](https://img.shields.io/pypi/l/py7zz)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
 [![CI](https://github.com/rxchi1d/py7zz/workflows/CI/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
 
-A Python wrapper for the 7zz CLI tool, providing a consistent object-oriented interface across platforms (macOS, Linux, Windows) with automatic update mechanisms, Windows filename compatibility, and support for dozens of archive formats.
+A Python wrapper for 7zz CLI tool providing cross-platform archive operations with built-in security protection, Windows filename compatibility, and comprehensive API support.
+
+## Table of Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Advanced Features](#advanced-features)
+- [Migration Guide](#migration-guide)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
-- **🚀 One-line archive operations** - Simple API for common tasks
-- **🔧 zipfile/tarfile compatibility** - Drop-in replacement with familiar interface
-- **📦 50+ archive formats** - ZIP, 7Z, RAR, TAR, GZIP, BZIP2, XZ, LZ4, ZSTD, and more
-- **🌐 Cross-platform** - Works on macOS, Linux, and Windows
-- **⚡ Async operations** - Non-blocking operations with progress reporting
-- **🔒 Secure** - Bundled 7zz binaries, no system dependencies
-- **🎯 Smart presets** - Optimized settings for different use cases
-- **🪟 Windows filename compatibility** - Automatic handling of Unix archive filenames on Windows
+- **Cross-platform**: Windows, macOS, Linux
+- **50+ formats**: 7Z, ZIP, TAR, RAR, and more
+- **API compatible**: Drop-in replacement for `zipfile`/`tarfile`
+- **Windows compatibility**: Automatic filename sanitization
+- **Security protection**: ZIP bomb detection and file count limits
+- **Async support**: Non-blocking operations with progress
+- **Zero dependencies**: Bundled 7zz binary
 
-## Quick Start
-
-### Installation
+## Installation
 
 ```bash
 pip install py7zz
 ```
+
+For development:
+```bash
+git clone https://github.com/rxchi1d/py7zz.git
+cd py7zz
+pip install -e .
+```
+
+## Quick Start
 
 ### Basic Usage
 
 ```python
 import py7zz
 
-# Create archive (simple API)
+# Create archive
 py7zz.create_archive('backup.7z', ['documents/', 'photos/'])
 
-# Extract archive
+# Extract archive  
 py7zz.extract_archive('backup.7z', 'extracted/')
 
-# List archive contents
-files = py7zz.list_archive('backup.7z')
-print(f"Archive contains {len(files)} files")
-
-# Test archive integrity
-if py7zz.test_archive('backup.7z'):
-    print("Archive is OK")
+# List contents
+with py7zz.SevenZipFile('backup.7z', 'r') as sz:
+    print(sz.namelist())
 ```
 
-### Advanced Usage
+### Drop-in Replacement
 
 ```python
+# OLD: zipfile
+import zipfile
+with zipfile.ZipFile('archive.zip', 'r') as zf:
+    zf.extractall('output/')
+
+# NEW: py7zz (identical API)
 import py7zz
-
-# Object-oriented interface (similar to zipfile.ZipFile)
-with py7zz.SevenZipFile('archive.7z', 'w', preset='ultra') as sz:
-    sz.add('file.txt')
-    sz.add('folder/')
-
-# Read files from archive
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    content = sz.read('file.txt')
-    files = sz.namelist()
+    sz.extractall('output/')
 ```
 
 ### Async Operations
 
 ```python
-import py7zz
 import asyncio
+import py7zz
 
 async def main():
-    # Async operations with progress reporting
-    async def progress_handler(info):
-        print(f"Progress: {info.percentage:.1f}% - {info.current_file}")
-    
-    await py7zz.create_archive_async(
-        'large_backup.7z',
-        ['big_folder/'],
-        preset='balanced',
-        progress_callback=progress_handler
-    )
-    
-    await py7zz.extract_archive_async(
-        'large_backup.7z',
-        'extracted/',
-        progress_callback=progress_handler
-    )
+    await py7zz.create_archive_async('backup.7z', ['data/'])
+    await py7zz.extract_archive_async('backup.7z', 'output/')
 
 asyncio.run(main())
 ```
 
-## API Overview
+## API Reference
 
-py7zz provides a **layered API design** to serve different user needs:
+### Core Classes
 
-### Layer 1: Simple Function API (80% of use cases)
+#### `SevenZipFile(file, mode='r', preset=None)`
+
+Main class for archive operations, compatible with `zipfile.ZipFile`.
+
+**Parameters:**
+- `file`: Path to archive
+- `mode`: 'r' (read), 'w' (write), 'a' (append)
+- `preset`: Compression preset ('fast', 'balanced', 'ultra')
+
+**Methods:**
+- `namelist()`: List all files
+- `extractall(path, members)`: Extract files
+- `add(name, arcname)`: Add file
+- `read(name)`: Read file content
+- `testzip()`: Test integrity
+
+### Simple Functions
+
+#### `create_archive(path, files, preset='balanced')`
+Create archive from files.
+
+#### `extract_archive(path, output_dir='.')`
+Extract all files from archive.
+
+#### `test_archive(path)`
+Test archive integrity.
+
+### Security Features
+
+#### `SecurityConfig(max_file_count=5000, max_compression_ratio=100.0, max_total_size=10737418240)`
+Configure security limits for archive processing.
+
+#### `check_file_count_security(file_list, config=None)`
+Check if archive file count exceeds security limits.
+
+### Filename Utilities
+
+#### `sanitize_filename(filename)`
+Sanitize filename for Windows compatibility.
+
+#### `is_valid_windows_filename(filename)`
+Check if filename is valid on Windows.
+
+#### `get_safe_filename(filename, existing_names=None)`
+Get Windows-compatible filename with conflict resolution.
+
+### Async API
+
+#### `AsyncSevenZipFile`
+Async version of SevenZipFile with identical methods.
+
+#### `create_archive_async()`, `extract_archive_async()`
+Async versions of simple functions.
+
+### Configuration
+
+#### Compression Presets
+- `'fast'`: Quick compression
+- `'balanced'`: Default
+- `'ultra'`: Maximum compression
+
+#### Logging
 ```python
-# One-line solutions
-py7zz.create_archive('backup.7z', ['files/'])
-py7zz.extract_archive('backup.7z', 'output/')
-py7zz.list_archive('backup.7z')
-py7zz.test_archive('backup.7z')
+py7zz.setup_logging('INFO')  # Configure logging
+py7zz.disable_warnings()     # Hide warnings
 ```
 
-### Layer 2: Object-Oriented API (zipfile/tarfile compatibility)
-```python
-# Similar to zipfile.ZipFile
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.add('file.txt')
-    sz.extractall('output/')
-```
+### Exception Handling
 
-### Layer 3: Advanced Control API (power users)
+py7zz provides specific exceptions for different error conditions:
+
 ```python
-# Custom configurations and fine-grained control
-config = py7zz.create_custom_config(
-    level=7,
-    method='LZMA2',
-    dictionary_size='64m',
-    solid=True
+from py7zz.exceptions import (
+    ZipBombError,           # Potential ZIP bomb detected
+    SecurityError,          # Security limits exceeded
+    PasswordRequiredError,  # Archive requires password
+    FileNotFoundError,      # File or archive not found
+    CorruptedArchiveError   # Archive is corrupted
 )
-with py7zz.SevenZipFile('archive.7z', 'w', config=config) as sz:
-    sz.add('data/')
+
+try:
+    py7zz.extract_archive('archive.7z')
+except ZipBombError:
+    print("Archive may be a ZIP bomb")
+except PasswordRequiredError:
+    print("Archive is password protected")
+except CorruptedArchiveError:
+    print("Archive is corrupted")
 ```
 
-### Layer 4: Async API (concurrent operations)
+See [API Documentation](docs/API.md) for complete reference.
+
+## Migration Guide
+
+### From zipfile
+
 ```python
-# Non-blocking operations with progress
-await py7zz.batch_compress_async(
-    [('backup1.7z', ['folder1/']), ('backup2.7z', ['folder2/'])],
-    progress_callback=progress_handler
-)
+# Change import
+import py7zz  # was: import zipfile
+
+# Change class name
+with py7zz.SevenZipFile('archive.7z', 'r') as sz:  # was: zipfile.ZipFile
+    sz.extractall()  # Same API!
 ```
 
-**📚 [Complete API Documentation](docs/API.md)** - Detailed reference with all classes, methods, parameters, and advanced usage examples.
+### From tarfile
+
+```python
+# Change import
+import py7zz  # was: import tarfile
+
+# Use same class
+with py7zz.SevenZipFile('archive.tar.gz', 'r') as sz:  # was: tarfile.open
+    sz.extractall()  # Same API!
+```
+
+See [Migration Guide](docs/MIGRATION.md) for detailed instructions.
 
 ## Supported Formats
 
-py7zz supports reading and writing many archive formats:
+| Format | Read | Write |
+|--------|------|-------|
+| 7Z | ✅ | ✅ |
+| ZIP | ✅ | ✅ |
+| TAR | ✅ | ✅ |
+| RAR | ✅ | ❌ |
+| GZIP | ✅ | ✅ |
+| BZIP2 | ✅ | ✅ |
+| XZ | ✅ | ✅ |
 
-| Format | Read | Write | Notes |
-|--------|------|-------|-------|
-| 7Z | ✅ | ✅ | Native format, best compression |
-| ZIP | ✅ | ✅ | Wide compatibility |
-| TAR | ✅ | ✅ | Unix standard |
-| GZIP | ✅ | ✅ | Single file compression |
-| BZIP2 | ✅ | ✅ | Better compression than gzip |
-| XZ | ✅ | ✅ | Excellent compression |
-| LZ4 | ✅ | ✅ | Very fast compression |
-| ZSTD | ✅ | ✅ | Modern, fast compression |
-| RAR | ✅ | ❌ | Extract only |
-| CAB | ✅ | ❌ | Windows cabinet files |
-| ISO | ✅ | ❌ | Disc images |
-| And 40+ more... | ✅ | Various | See full list in docs |
+And 40+ more formats for reading.
 
-## Migration from zipfile/tarfile
+## Advanced Features
 
-py7zz is designed as a drop-in replacement for Python's `zipfile` and `tarfile` modules:
+### Security Protection
+
+Built-in protection against malicious archives:
 
 ```python
-# OLD
-import zipfile
-with zipfile.ZipFile('archive.zip', 'w') as zf:
-    zf.write('file.txt')
+from py7zz import SecurityConfig, ZipBombError
 
-# NEW
-import py7zz
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.add('file.txt')
-```
-
-**📖 [Complete Migration Guide](docs/MIGRATION.md)** - Detailed guide for migrating from zipfile/tarfile with examples and best practices.
-
-## Compression Presets
-
-py7zz includes optimized presets for different scenarios:
-
-| Preset | Use Case | Speed | Compression | Memory |
-|--------|----------|-------|-------------|---------|
-| `fast` | Quick backups, temporary files | ⚡⚡⚡ | ⭐⭐ | Low |
-| `balanced` | General purpose (default) | ⚡⚡ | ⭐⭐⭐ | Medium |
-| `backup` | Long-term storage | ⚡ | ⭐⭐⭐⭐ | Medium |
-| `ultra` | Maximum compression | ⚡ | ⭐⭐⭐⭐⭐ | High |
-
-```python
-# Use presets
-py7zz.create_archive('quick.7z', ['files/'], preset='fast')
-py7zz.create_archive('storage.7z', ['files/'], preset='backup')
-py7zz.create_archive('minimal.7z', ['files/'], preset='ultra')
-```
-
-## Installation Methods
-
-py7zz supports multiple installation methods:
-
-### 1. PyPI Installation (Recommended)
-```bash
-pip install py7zz
-```
-- Includes bundled 7zz binaries
-- No additional setup required
-- Automatic binary detection
-
-### 2. Development Installation
-```bash
-git clone https://github.com/rxchi1d/py7zz.git
-cd py7zz
-pip install -e .
-```
-- Auto-downloads correct 7zz binary on first use
-- Cached in `~/.cache/py7zz/` for offline use
-
-### 3. Direct GitHub Installation
-```bash
-pip install git+https://github.com/rxchi1d/py7zz.git
-```
-
-## Windows Filename Compatibility
-
-py7zz automatically handles Windows filename restrictions when extracting archives created on Unix/Linux systems:
-
-```python
-import py7zz
-
-# Automatically handles problematic filenames
-py7zz.extract_archive('unix-created-archive.7z', 'output/')
-# Files like 'CON.txt' become 'CON_file.txt'
-# Files like 'file:name.txt' become 'file_name.txt'
-
-# Control logging output
-py7zz.setup_logging("INFO")        # Show filename warnings (default)
-py7zz.disable_warnings()           # Hide filename warnings
-py7zz.enable_debug_logging()       # Show detailed debug info
-```
-
-### Automatic Filename Sanitization
-
-When extracting on Windows, py7zz automatically:
-
-- **Replaces invalid characters**: `< > : " | ? *` → `_`
-- **Handles reserved names**: `CON.txt` → `CON_file.txt`
-- **Truncates long names**: Very long filenames get shortened with hash
-- **Removes trailing spaces/dots**: `filename ` → `filename`
-- **Ensures uniqueness**: Prevents filename conflicts
-- **Logs all changes**: Shows exactly what was renamed and why
-
-| Original (Unix) | Windows Safe | Reason |
-|----------------|--------------|---------|
-| `file:name.txt` | `file_name.txt` | Invalid character `:` |
-| `CON.txt` | `CON_file.txt` | Windows reserved name |
-| `file<>*.zip` | `file___.zip` | Multiple invalid chars |
-| `very-long-filename...` | `very-long-fil_a1b2c.txt` | Length + hash |
-
-**This feature is automatic and only activates on Windows systems when needed.**
-
-## Error Handling
-
-py7zz provides specific exception types for better error handling:
-
-```python
-import py7zz
+# Configure security limits
+config = SecurityConfig(max_file_count=1000, max_compression_ratio=50.0)
 
 try:
-    py7zz.extract_archive('problematic.7z', 'output/')
-except py7zz.FilenameCompatibilityError as e:
-    print(f"Filename issues resolved: {len(e.problematic_files)} files renamed")
-except py7zz.FileNotFoundError:
-    print("Source file not found")
-except py7zz.CompressionError:
-    print("Compression failed")
-except py7zz.ExtractionError:
-    print("Extraction failed")
-except py7zz.InsufficientSpaceError:
-    print("Not enough disk space")
-except py7zz.Py7zzError as e:
-    print(f"General error: {e}")
+    py7zz.extract_archive('suspicious.zip')
+except ZipBombError as e:
+    print(f"Potential ZIP bomb detected: {e}")
 ```
 
-## Performance Tips
+### Windows Filename Compatibility
 
-### 1. Choose the Right Preset
+Automatically handles Windows restrictions and provides utilities:
+
 ```python
-# Fast for temporary files
-py7zz.create_archive('temp.7z', ['cache/'], preset='fast')
+from py7zz import sanitize_filename, is_valid_windows_filename
 
-# Balanced for general use
-py7zz.create_archive('backup.7z', ['data/'], preset='balanced')
+# Auto-sanitization during extraction
+py7zz.extract_archive('unix-archive.tar.gz')  # Files sanitized automatically
 
-# Ultra for long-term storage
-py7zz.create_archive('archive.7z', ['important/'], preset='ultra')
+# Manual filename utilities
+safe_name = sanitize_filename("invalid<file>name.txt")  # → "invalid_file_name.txt"
+is_valid = is_valid_windows_filename("CON.txt")  # → False
 ```
 
-### 2. Use Async for Large Operations
-```python
-# Non-blocking for large files
-await py7zz.create_archive_async('huge.7z', ['bigdata/'])
+### Progress Monitoring
 
-# Batch operations
-await py7zz.batch_compress_async([
-    ('backup1.7z', ['folder1/']),
-    ('backup2.7z', ['folder2/']),
-    ('backup3.7z', ['folder3/'])
-])
+```python
+async def progress_callback(info):
+    print(f"Progress: {info.percentage:.1f}%")
+
+await py7zz.extract_archive_async('large.7z', progress_callback=progress_callback)
 ```
 
-### 3. Monitor Progress
-```python
-async def progress_handler(info):
-    print(f"{info.operation}: {info.percentage:.1f}% - {info.current_file}")
-
-await py7zz.create_archive_async(
-    'backup.7z',
-    ['data/'],
-    progress_callback=progress_handler
-)
-```
-
-## Requirements
-
-- Python 3.8+ (including Python 3.13)
-- No external dependencies (7zz binary is bundled)
-- **Supported platforms:** 
-  - macOS (Intel + Apple Silicon)
-  - Linux x86_64 (manylinux compatible)
-  - Windows x64
-
-> **Note:** Pre-built wheels are available for the above platforms. Other architectures may require building from source.
-
-## Version Information
+### Batch Operations
 
 ```python
-import py7zz
-
-# Get version information
-print(py7zz.get_version())                    # Current py7zz version
-print(py7zz.get_bundled_7zz_version())        # Bundled 7zz version
-print(py7zz.get_version_info())               # Complete version details
-
-# CLI version commands
-# py7zz version                    # Human-readable format
-# py7zz version --format json     # JSON format
+archives = ['backup1.7z', 'backup2.7z', 'backup3.7z']
+py7zz.batch_extract_archives(archives, 'output/')
 ```
 
 ## Development
 
-### Setup Development Environment
+### Setup
+
 ```bash
+# Clone repository
 git clone https://github.com/rxchi1d/py7zz.git
 cd py7zz
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
+# Install dependencies
 pip install -e .
 ```
 
-### Run Tests
-```bash
-# Using uv (recommended)
-uv run pytest              # Run tests
-uv run ruff check --fix .  # Lint and fix
-uv run mypy .              # Type checking
+### Testing
 
-# Traditional commands
-source .venv/bin/activate
-pytest                     # Run tests
-ruff check --fix .        # Lint and fix
-mypy .                     # Type checking
+```bash
+# Run tests
+pytest
+
+# Check code quality
+ruff check .
+mypy .
 ```
 
-### Code Quality
-```bash
-# Using uv (recommended)
-uv run ruff format .       # Format code
-uv run ruff check .        # Check style
-uv run mypy .              # Type checking
+### Code Style
 
-# Traditional commands
-source .venv/bin/activate
-ruff format .              # Format code
-ruff check .               # Check style
-mypy .                     # Type checking
+- Follow PEP 8
+- Use type hints
+- Maximum line length: 88
+- Format with `ruff format`
+
+## Requirements
+
+- Python 3.8+
+- No external dependencies
+- Supported platforms:
+  - Windows x64
+  - macOS (Intel & Apple Silicon)
+  - Linux x86_64
+
+## Version Information
+
+py7zz follows [PEP 440](https://peps.python.org/pep-0440/) versioning standard:
+
+```python
+import py7zz
+print(py7zz.get_version())           # py7zz version (e.g., "1.0.0")
+print(py7zz.get_bundled_7zz_version())  # 7zz version
+
+# Version types supported:
+# - Stable: 1.0.0
+# - Alpha: 1.0.0a1
+# - Beta: 1.0.0b1  
+# - Release Candidate: 1.0.0rc1
+# - Development: 1.0.0.dev1
 ```
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) for:
 
-- Setting up the development environment
-- Code style and testing requirements
-- Commit message conventions
+- Development setup
+- Code style guidelines
+- Commit conventions
 - Pull request process
 
-**Quick Start:**
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Follow the [commit message conventions](CONTRIBUTING.md#commit-message-convention)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+## Support
 
-Please ensure all tests pass and code follows the style guidelines.
+- **Documentation**: [API Reference](docs/API.md)
+- **Issues**: [GitHub Issues](https://github.com/rxchi1d/py7zz/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/rxchi1d/py7zz/discussions)
 
 ## License
 
-py7zz is distributed under a dual license:
+py7zz is distributed under dual license:
 
-- **py7zz Python code**: BSD-3-Clause License
-- **Bundled 7zz binary**: GNU Lesser General Public License (LGPL) v2.1
+- **Python code**: BSD-3-Clause
+- **7zz binary**: LGPL-2.1
 
-The py7zz Python wrapper code is licensed under the BSD-3-Clause license, allowing for flexible use in both open-source and commercial projects. The bundled 7zz binary from the 7-Zip project is licensed under LGPL-2.1, which requires that any modifications to the 7zz binary itself be made available under the same license.
-
-Since py7zz uses the 7zz binary as a separate executable (not statically linked), users can freely use py7zz in their projects while complying with both licenses. For complete license information, see [LICENSE](LICENSE) and [7ZZ_LICENSE](7ZZ_LICENSE).
+See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
 
-- Built on top of the excellent [7-Zip](https://www.7-zip.org/) project
-- Inspired by Python's `zipfile` and `tarfile` modules
-- Uses the [7zz CLI tool](https://github.com/ip7z/7zip) for archive operations
-
-## Links
-
-- **📚 Complete API Documentation**: [docs/API.md](docs/API.md)
-- **🔄 Migration Guide**: [docs/MIGRATION.md](docs/MIGRATION.md)
-- **🤝 Contributing Guide**: [CONTRIBUTING.md](CONTRIBUTING.md)
-- **📦 PyPI Package**: [py7zz on PyPI](https://pypi.org/project/py7zz/)
-- **🐛 Issue Tracker**: [GitHub Issues](https://github.com/rxchi1d/py7zz/issues)
-- **💻 Source Code**: [GitHub Repository](https://github.com/rxchi1d/py7zz)
-
----
-
-**🚀 Ready to get started?** Check out the [Migration Guide](docs/MIGRATION.md) if you're coming from zipfile/tarfile, or dive into the examples above!
+Built on [7-Zip](https://www.7-zip.org/) by Igor Pavlov.

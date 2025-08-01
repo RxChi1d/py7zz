@@ -1,539 +1,320 @@
-# Migration Guide: From zipfile/tarfile to py7zz
+# Migration Guide
 
-This guide helps you migrate from Python's standard library `zipfile` and `tarfile` modules to py7zz, which provides enhanced compression support for dozens of archive formats with a familiar interface and automatic Windows filename compatibility.
+This guide helps you migrate from Python's `zipfile` and `tarfile` to py7zz.
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [API Compatibility](#api-compatibility)
+- [Code Examples](#code-examples)
+- [Advanced Features](#advanced-features)
+- [Windows Compatibility](#windows-compatibility)
+- [Troubleshooting](#troubleshooting)
 
 ## Quick Start
 
 ### Installation
+
 ```bash
 pip install py7zz
 ```
 
-### Basic Usage Comparison
+### Basic Migration
 
 | Task | zipfile/tarfile | py7zz |
 |------|----------------|-------|
-| Create archive | `zipfile.ZipFile()` | `py7zz.SevenZipFile()` |
-| Extract archive | `zf.extractall()` | `sz.extractall()` |
-| List files | `zf.namelist()` | `sz.namelist()` |
-| Read file | `zf.read()` | `sz.read()` |
-| Add file | `zf.write()` | `sz.add()` |
+| Import | `import zipfile` | `import py7zz` |
+| Open archive | `zipfile.ZipFile()` | `py7zz.SevenZipFile()` |
+| Extract all | `.extractall()` | `.extractall()` |
+| List files | `.namelist()` | `.namelist()` |
+| Read file | `.read()` | `.read()` |
 
-## API Mapping
+## API Compatibility
 
-### 1. Creating Archives
+py7zz provides complete compatibility with both `zipfile` and `tarfile` APIs.
 
-#### zipfile
+### Supported Methods
+
+#### zipfile.ZipFile Methods
+
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| `namelist()` | ✅ | Returns list of filenames |
+| `infolist()` | ✅ | Returns list of ArchiveInfo objects |
+| `getinfo(name)` | ✅ | Gets info for specific file |
+| `read(name)` | ✅ | Reads file content |
+| `extract(member, path)` | ✅ | Extracts single file |
+| `extractall(path, members)` | ✅ | Extracts all or specific files |
+| `writestr(name, data)` | ✅ | Writes string/bytes to archive |
+| `write(filename, arcname)` | ✅ | Use `add(filename, arcname)` |
+| `testzip()` | ✅ | Tests archive integrity |
+| `close()` | ✅ | Closes archive |
+
+#### tarfile.TarFile Methods
+
+| Method | Supported | Notes |
+|--------|-----------|-------|
+| `getnames()` | ✅ | Returns list of filenames |
+| `getmembers()` | ✅ | Returns list of ArchiveInfo objects |
+| `getmember(name)` | ✅ | Gets info for specific file |
+| `extractall(path)` | ✅ | Extracts all files |
+| `extract(member, path)` | ✅ | Extracts single file |
+| `add(name, arcname)` | ✅ | Adds file to archive |
+
+## Code Examples
+
+### Creating Archives
+
+#### From zipfile
+
 ```python
+# OLD
 import zipfile
 
-# Create ZIP archive
 with zipfile.ZipFile('archive.zip', 'w', zipfile.ZIP_DEFLATED) as zf:
     zf.write('file.txt')
-    zf.write('folder/', arcname='folder/')
+    zf.write('folder/')
 ```
 
-#### tarfile
-```python
-import tarfile
+#### To py7zz
 
-# Create TAR archive
-with tarfile.open('archive.tar.gz', 'w:gz') as tf:
-    tf.add('file.txt')
-    tf.add('folder/')
-```
-
-#### py7zz
 ```python
+# NEW
 import py7zz
 
-# Create 7z archive (or any supported format)
 with py7zz.SevenZipFile('archive.7z', 'w') as sz:
     sz.add('file.txt')
     sz.add('folder/')
 
-# Simple one-liner
+# Or simpler:
 py7zz.create_archive('archive.7z', ['file.txt', 'folder/'])
 ```
 
-### 2. Extracting Archives
+### Extracting Archives
 
-#### zipfile
+#### From zipfile
+
 ```python
-import zipfile
-
-# Extract ZIP archive
-with zipfile.ZipFile('archive.zip', 'r') as zf:
-    zf.extractall('output_folder')
-```
-
-#### tarfile
-```python
-import tarfile
-
-# Extract TAR archive
-with tarfile.open('archive.tar.gz', 'r:gz') as tf:
-    tf.extractall('output_folder')
-```
-
-#### py7zz
-```python
-import py7zz
-
-# Extract archive (auto-detects format)
-with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    sz.extractall('output_folder')
-
-# Simple one-liner
-py7zz.extract_archive('archive.7z', 'output_folder')
-```
-
-### 3. Listing Archive Contents
-
-#### zipfile
-```python
+# OLD
 import zipfile
 
 with zipfile.ZipFile('archive.zip', 'r') as zf:
-    file_list = zf.namelist()
-    print(f"Archive contains {len(file_list)} files")
+    # Extract all
+    zf.extractall('output/')
+    
+    # Extract specific files
+    zf.extractall('output/', members=['file1.txt', 'file2.txt'])
 ```
 
-#### tarfile
-```python
-import tarfile
+#### To py7zz
 
-with tarfile.open('archive.tar.gz', 'r:gz') as tf:
-    file_list = tf.getnames()
-    print(f"Archive contains {len(file_list)} files")
-```
-
-#### py7zz
 ```python
+# NEW
 import py7zz
 
-# Compatible with both zipfile and tarfile APIs
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    file_list = sz.namelist()  # or sz.getnames()
-    print(f"Archive contains {len(file_list)} files")
+    # Extract all (identical!)
+    sz.extractall('output/')
+    
+    # Extract specific files (identical!)
+    sz.extractall('output/', members=['file1.txt', 'file2.txt'])
 
-# Simple one-liner
-file_list = py7zz.list_archive('archive.7z')
+# Or simpler:
+py7zz.extract_archive('archive.7z', 'output/')
 ```
 
-### 4. Reading Files from Archives
+### Reading Files
 
-#### zipfile
+#### From zipfile
+
 ```python
+# OLD
 import zipfile
 
 with zipfile.ZipFile('archive.zip', 'r') as zf:
-    content = zf.read('file.txt')
-    print(content.decode('utf-8'))
+    # List files
+    files = zf.namelist()
+    
+    # Read file content
+    content = zf.read('data.txt')
+    
+    # Get file info
+    info = zf.getinfo('data.txt')
+    print(f"Size: {info.file_size}")
+    print(f"Compressed: {info.compress_size}")
 ```
 
-#### tarfile
-```python
-import tarfile
+#### To py7zz
 
-with tarfile.open('archive.tar.gz', 'r:gz') as tf:
-    f = tf.extractfile('file.txt')
-    content = f.read() if f else b''
-    print(content.decode('utf-8'))
-```
-
-#### py7zz
 ```python
+# NEW
 import py7zz
 
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    content = sz.read('file.txt')
-    print(content.decode('utf-8'))
+    # List files (identical!)
+    files = sz.namelist()
+    
+    # Read file content (identical!)
+    content = sz.read('data.txt')
+    
+    # Get file info (identical + more!)
+    info = sz.getinfo('data.txt')
+    print(f"Size: {info.file_size}")
+    print(f"Compressed: {info.compress_size}")
+    print(f"Method: {info.method}")  # Additional info
 ```
 
-### 5. Writing String Data to Archives
+### Writing Data
 
-#### zipfile
+#### From zipfile
+
 ```python
+# OLD
 import zipfile
 
 with zipfile.ZipFile('archive.zip', 'w') as zf:
-    zf.writestr('config.txt', 'key=value\n')
+    # Add file with custom name
+    zf.write('document.txt', arcname='docs/readme.txt')
+    
+    # Write string data
+    zf.writestr('config.ini', '[settings]\nkey=value')
 ```
 
-#### tarfile
-```python
-import tarfile
-import io
+#### To py7zz
 
-with tarfile.open('archive.tar.gz', 'w:gz') as tf:
-    info = tarfile.TarInfo(name='config.txt')
-    info.size = len(b'key=value\n')
-    tf.addfile(info, io.BytesIO(b'key=value\n'))
-```
-
-#### py7zz
 ```python
+# NEW
 import py7zz
 
 with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.writestr('config.txt', 'key=value\n')
+    # Add file with custom name (note: method is 'add')
+    sz.add('document.txt', arcname='docs/readme.txt')
+    
+    # Write string data (identical!)
+    sz.writestr('config.ini', '[settings]\nkey=value')
 ```
 
-### 6. Testing Archive Integrity
+### Testing Archives
 
-#### zipfile
+#### From zipfile
+
 ```python
+# OLD
 import zipfile
 
 with zipfile.ZipFile('archive.zip', 'r') as zf:
     bad_file = zf.testzip()
-    if bad_file is None:
-        print("Archive is OK")
+    if bad_file:
+        print(f"Corrupted: {bad_file}")
     else:
-        print(f"Corrupted file: {bad_file}")
+        print("Archive OK")
 ```
 
-#### tarfile
-```python
-import tarfile
+#### To py7zz
 
-try:
-    with tarfile.open('archive.tar.gz', 'r:gz') as tf:
-        tf.getnames()  # Will fail if corrupted
-    print("Archive is OK")
-except tarfile.TarError:
-    print("Archive is corrupted")
-```
-
-#### py7zz
 ```python
+# NEW
 import py7zz
 
-# Compatible with zipfile API
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
-    bad_file = sz.testzip()
-    if bad_file is None:
-        print("Archive is OK")
+    bad_file = sz.testzip()  # Identical!
+    if bad_file:
+        print(f"Corrupted: {bad_file}")
     else:
-        print(f"Corrupted file: {bad_file}")
+        print("Archive OK")
 
-# Simple one-liner
+# Or simpler:
 if py7zz.test_archive('archive.7z'):
-    print("Archive is OK")
-else:
-    print("Archive is corrupted")
+    print("Archive OK")
 ```
 
 ## Advanced Features
 
-### Compression Levels and Presets
+### Async Operations
 
-#### zipfile
-```python
-import zipfile
-
-# Limited compression options
-with zipfile.ZipFile('archive.zip', 'w', 
-                     compression=zipfile.ZIP_DEFLATED,
-                     compresslevel=9) as zf:
-    zf.write('file.txt')
-```
-
-#### py7zz
-```python
-import py7zz
-
-# Use compression levels
-with py7zz.SevenZipFile('archive.7z', 'w', level='ultra') as sz:
-    sz.add('file.txt')
-
-# Or use convenient presets
-py7zz.create_archive('archive.7z', ['file.txt'], preset='ultra')
-
-# Available presets: 'fast', 'balanced', 'backup', 'ultra'
-# Available levels: 'store', 'fastest', 'fast', 'normal', 'maximum', 'ultra'
-```
-
-### Async Operations (py7zz exclusive)
+py7zz provides async support for better performance:
 
 ```python
-import py7zz
 import asyncio
+import py7zz
 
-async def main():
-    # Async archive creation with progress
-    async def progress_handler(info):
-        print(f"Progress: {info.percentage:.1f}% - {info.current_file}")
+async def process_archives():
+    # Create archive asynchronously
+    await py7zz.create_archive_async('backup.7z', ['data/'])
     
-    await py7zz.create_archive_async(
-        'large_archive.7z', 
-        ['big_folder/'], 
-        preset='balanced',
-        progress_callback=progress_handler
-    )
-    
-    # Async extraction
-    await py7zz.extract_archive_async(
-        'large_archive.7z', 
-        'extracted/',
-        progress_callback=progress_handler
-    )
-
-asyncio.run(main())
-```
-
-## Format Support Comparison
-
-| Format | zipfile | tarfile | py7zz |
-|--------|---------|---------|-------|
-| ZIP | ✅ | ❌ | ✅ |
-| TAR | ❌ | ✅ | ✅ |
-| 7Z | ❌ | ❌ | ✅ |
-| RAR | ❌ | ❌ | ✅ (extract only) |
-| GZIP | ❌ | ✅ | ✅ |
-| BZIP2 | ❌ | ✅ | ✅ |
-| XZ | ❌ | ✅ | ✅ |
-| LZ4 | ❌ | ❌ | ✅ |
-| ZSTD | ❌ | ❌ | ✅ |
-| And 50+ more | ❌ | ❌ | ✅ |
-
-## Migration Checklist
-
-### Step 1: Replace Imports
-```python
-# OLD
-import zipfile
-import tarfile
-
-# NEW
-import py7zz
-```
-
-### Step 2: Update Class Names
-```python
-# OLD
-with zipfile.ZipFile('archive.zip', 'w') as zf:
-    # ...
-
-# NEW
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    # ...
-```
-
-### Step 3: Update Method Names
-- `zf.write()` → `sz.add()`
-- `tf.getnames()` → `sz.namelist()` (or keep `sz.getnames()`)
-- `tf.extractall()` → `sz.extractall()` (same)
-- `zf.read()` → `sz.read()` (same)
-
-### Step 4: Consider Using Simple API
-```python
-# OLD - multiple lines
-with zipfile.ZipFile('archive.zip', 'w') as zf:
-    zf.write('file.txt')
-    zf.write('folder/')
-
-# NEW - one line
-py7zz.create_archive('archive.7z', ['file.txt', 'folder/'])
-```
-
-## Common Migration Patterns
-
-### 1. Batch Processing
-```python
-# OLD
-import zipfile
-import os
-
-for root, dirs, files in os.walk('source'):
-    for file in files:
-        if file.endswith('.zip'):
-            with zipfile.ZipFile(os.path.join(root, file), 'r') as zf:
-                zf.extractall('extracted')
-
-# NEW
-import py7zz
-from pathlib import Path
-
-for archive in Path('source').rglob('*'):
-    if archive.suffix.lower() in ['.zip', '.7z', '.rar', '.tar', '.gz']:
-        py7zz.extract_archive(archive, 'extracted')
-```
-
-### 2. Error Handling
-```python
-# OLD
-import zipfile
-
-try:
-    with zipfile.ZipFile('archive.zip', 'r') as zf:
-        zf.extractall()
-except zipfile.BadZipFile:
-    print("Invalid ZIP file")
-except FileNotFoundError:
-    print("Archive not found")
-
-# NEW
-import py7zz
-
-try:
-    py7zz.extract_archive('archive.7z')
-except py7zz.CorruptedArchiveError:
-    print("Invalid archive file")
-except py7zz.FilenameCompatibilityError as e:
-    print(f"Filename issues resolved: {len(e.problematic_files)} files renamed")
-except py7zz.FileNotFoundError:
-    print("Archive not found")
-```
-
-### 3. Progress Monitoring
-```python
-# OLD - No built-in progress support
-import zipfile
-
-def extract_with_progress(archive_path, output_dir):
-    with zipfile.ZipFile(archive_path, 'r') as zf:
-        total_files = len(zf.namelist())
-        for i, file in enumerate(zf.namelist()):
-            zf.extract(file, output_dir)
-            print(f"Progress: {i+1}/{total_files} ({(i+1)/total_files*100:.1f}%)")
-
-# NEW - Built-in async progress support
-import py7zz
-import asyncio
-
-async def extract_with_progress(archive_path, output_dir):
-    async def progress_handler(info):
-        print(f"Progress: {info.percentage:.1f}% - {info.current_file}")
+    # Extract with progress
+    async def progress(info):
+        print(f"Progress: {info.percentage:.1f}%")
     
     await py7zz.extract_archive_async(
-        archive_path, 
-        output_dir, 
-        progress_callback=progress_handler
+        'backup.7z', 
+        'output/',
+        progress_callback=progress
     )
+
+asyncio.run(process_archives())
 ```
 
-## Best Practices
+### Compression Presets
 
-### 1. Use Context Managers
+py7zz offers optimized compression presets:
+
 ```python
-# GOOD
-with py7zz.SevenZipFile('archive.7z', 'w') as sz:
-    sz.add('file.txt')
-# File is automatically closed
+# Fast compression
+py7zz.create_archive('quick.7z', ['data/'], preset='fast')
 
-# AVOID
-sz = py7zz.SevenZipFile('archive.7z', 'w')
-sz.add('file.txt')
-sz.close()  # Manual close required
-```
+# Balanced (default)
+py7zz.create_archive('normal.7z', ['data/'], preset='balanced')
 
-### 2. Choose Appropriate Presets
-```python
-# For fast backups
-py7zz.create_archive('backup.7z', ['data/'], preset='fast')
-
-# For balanced compression
-py7zz.create_archive('archive.7z', ['data/'], preset='balanced')
-
-# For maximum compression
+# Maximum compression
 py7zz.create_archive('small.7z', ['data/'], preset='ultra')
 ```
 
-### 3. Handle Errors Gracefully
-```python
-import py7zz
+### Batch Operations
 
-try:
-    py7zz.create_archive('archive.7z', ['nonexistent/'])
-except py7zz.FileNotFoundError as e:
-    print(f"File not found: {e}")
-except py7zz.CompressionError as e:
-    print(f"Compression failed: {e}")
-except py7zz.Py7zzError as e:
-    print(f"General error: {e}")
+Process multiple archives efficiently:
+
+```python
+# Extract multiple archives
+archives = ['backup1.7z', 'backup2.zip', 'backup3.tar.gz']
+py7zz.batch_extract_archives(archives, 'output/')
+
+# Create multiple archives
+operations = [
+    ('docs.7z', ['documents/']),
+    ('images.7z', ['photos/']),
+    ('code.7z', ['src/'])
+]
+py7zz.batch_create_archives(operations)
 ```
 
-### 4. Use Async for Large Operations
+### Format Support
+
+py7zz supports many more formats than zipfile/tarfile:
+
 ```python
-import py7zz
-import asyncio
+# All these work with the same API
+formats = ['archive.7z', 'data.zip', 'backup.tar.gz', 'files.rar']
 
-async def process_large_archive():
-    # Use async for large files to avoid blocking
-    await py7zz.create_archive_async(
-        'large_backup.7z', 
-        ['large_directory/'],
-        preset='balanced'
-    )
-
-# Run async operation
-asyncio.run(process_large_archive())
+for archive in formats:
+    with py7zz.SevenZipFile(archive, 'r') as sz:
+        print(f"{archive}: {len(sz.namelist())} files")
 ```
 
-## Performance Considerations
-
-### Compression Speed vs Ratio
-- **'fast'**: Fastest compression, larger files
-- **'balanced'**: Good balance of speed and compression
-- **'backup'**: Better compression for long-term storage
-- **'ultra'**: Maximum compression, slower speed
-
-### Memory Usage
-- py7zz uses subprocess calls, so memory usage is minimal
-- Large archives are processed in chunks automatically
-- No need to load entire archives into memory
-
-### Async Benefits
-- Non-blocking operations for large files
-- Progress reporting for better user experience
-- Better resource utilization in concurrent applications
-
-## Troubleshooting
-
-### Common Issues
-
-1. **"7zz binary not found"**
-   ```bash
-   pip install --upgrade py7zz
-   ```
-
-2. **"Unsupported format"**
-   ```python
-   # Check version information
-   print(py7zz.get_version())                    # Current py7zz version
-   print(py7zz.get_bundled_7zz_version())        # Bundled 7zz version
-   print(py7zz.get_version_info())               # Complete version details
-   
-   # Or use CLI for detailed version information
-   # py7zz version
-   # py7zz version --format json
-   ```
-
-3. **Permission errors**
-   ```python
-   # Ensure write permissions
-   py7zz.extract_archive('archive.7z', 'output/', overwrite=True)
-   ```
-
-## Windows Filename Compatibility
-
-One major advantage of migrating to py7zz is automatic handling of Windows filename restrictions, which is not available in the standard library modules.
+## Windows Compatibility
 
 ### The Problem
 
-When using zipfile/tarfile to extract archives created on Unix/Linux systems on Windows, you may encounter errors like:
+Archives created on Unix/Linux often contain filenames that are invalid on Windows:
 
 ```python
-# OLD - zipfile fails with Windows-incompatible filenames
-import zipfile
-
-try:
-    with zipfile.ZipFile('unix_archive.zip', 'r') as zf:
-        zf.extractall('output/')  # Fails on Windows with files named 'CON.txt', 'file:name.txt', etc.
-except Exception as e:
-    print(f"Extraction failed: {e}")  # No automatic resolution
+# These filenames fail on Windows with zipfile/tarfile:
+problematic_files = [
+    'CON.txt',        # Reserved name
+    'file:name.txt',  # Invalid character
+    'data*.log',      # Invalid character
+    'config ',        # Trailing space
+]
 ```
 
 ### The Solution
@@ -541,44 +322,131 @@ except Exception as e:
 py7zz automatically handles these issues:
 
 ```python
-# NEW - py7zz automatically resolves filename issues
-import py7zz
+# Just works on Windows!
+py7zz.extract_archive('unix-archive.tar.gz', 'output/')
 
-# Extract with automatic filename sanitization on Windows
-py7zz.extract_archive('unix_archive.zip', 'output/')
-# Files are automatically renamed:
-# 'CON.txt' -> 'CON_file.txt'
-# 'file:name.txt' -> 'file_name.txt'
-# 'file*.log' -> 'file_.log'
-
-# Control logging output
-py7zz.setup_logging("INFO")        # Show what was renamed (default)
-py7zz.disable_warnings()           # Hide filename warnings
+# Automatic transformations:
+# 'CON.txt' → 'CON_file.txt'
+# 'file:name.txt' → 'file_name.txt'
+# 'data*.log' → 'data_.log'
+# 'config ' → 'config'
 ```
 
-### Migration Benefits
+### Logging
 
-| zipfile/tarfile | py7zz |
-|----------------|-------|
-| Fails on Windows with invalid filenames | Automatically sanitizes filenames |
-| No built-in filename handling | Handles reserved names, invalid chars, long names |
-| Manual error handling required | Detailed logging of changes |
-| Platform-specific issues | Works consistently across platforms |
+Control how filename changes are reported:
 
-### Getting Help
+```python
+# Show warnings (default)
+py7zz.setup_logging('INFO')
 
-- Check the [py7zz documentation](https://github.com/rxchi1d/py7zz)
-- Report issues on [GitHub Issues](https://github.com/rxchi1d/py7zz/issues)
-- For migration questions, include your original zipfile/tarfile code
+# Hide warnings
+py7zz.disable_warnings()
 
-## Conclusion
+# Show detailed info
+py7zz.setup_logging('DEBUG')
+```
 
-py7zz provides a seamless migration path from zipfile and tarfile with:
-- **Familiar API**: Same methods and patterns you're used to
-- **Enhanced Features**: Support for 50+ archive formats
-- **Better Performance**: Efficient 7zz engine under the hood
-- **Modern Features**: Async operations, progress reporting
-- **Windows Compatibility**: Automatic filename sanitization
-- **Cross-platform**: Works consistently on Windows, macOS, and Linux
+## Error Handling
 
-The migration is straightforward - in most cases, you only need to change the import and class names. The rest of your code can remain largely unchanged while gaining access to advanced compression formats and features.
+### Enhanced Exceptions
+
+py7zz provides more detailed error information:
+
+```python
+import py7zz
+
+try:
+    py7zz.extract_archive('archive.7z', 'output/')
+except py7zz.FileNotFoundError:
+    print("Archive not found")
+except py7zz.CorruptedArchiveError:
+    print("Archive is corrupted")
+except py7zz.PasswordRequiredError:
+    print("Archive requires password")
+except py7zz.FilenameCompatibilityError as e:
+    print(f"Renamed {len(e.problematic_files)} files for Windows")
+```
+
+### Error Suggestions
+
+Get helpful suggestions for common errors:
+
+```python
+try:
+    py7zz.create_archive('backup.7z', ['nonexistent/'])
+except py7zz.Py7zzError as e:
+    print(f"Error: {e}")
+    for suggestion in py7zz.get_error_suggestions(e):
+        print(f"Try: {suggestion}")
+```
+
+## Troubleshooting
+
+### Common Issues
+
+#### "No module named 'py7zz'"
+```bash
+pip install py7zz
+```
+
+#### "7zz binary not found"
+```bash
+# Reinstall py7zz
+pip install --force-reinstall py7zz
+```
+
+#### "Archive format not supported"
+```python
+# Check supported formats
+print(py7zz.get_version_info())
+```
+
+### Migration Checklist
+
+- [ ] Install py7zz: `pip install py7zz`
+- [ ] Replace imports: `import py7zz`
+- [ ] Update class names: `SevenZipFile`
+- [ ] Change `write()` to `add()` for adding files
+- [ ] Test on target platforms
+- [ ] Consider using simple functions for basic operations
+- [ ] Add async support where beneficial
+
+### Performance Tips
+
+1. **Use appropriate presets**
+   ```python
+   # For temporary files
+   preset='fast'
+   
+   # For archival storage
+   preset='ultra'
+   ```
+
+2. **Use async for large files**
+   ```python
+   await py7zz.extract_archive_async('large.7z')
+   ```
+
+3. **Batch operations when possible**
+   ```python
+   py7zz.batch_extract_archives(archives, 'output/')
+   ```
+
+## Getting Help
+
+- [API Documentation](API.md)
+- [GitHub Issues](https://github.com/rxchi1d/py7zz/issues)
+- [GitHub Discussions](https://github.com/rxchi1d/py7zz/discussions)
+
+## Summary
+
+py7zz provides:
+- ✅ Complete API compatibility
+- ✅ Support for 50+ formats
+- ✅ Automatic Windows compatibility
+- ✅ Better error handling
+- ✅ Async operations
+- ✅ Simple one-line functions
+
+Migration is typically as simple as changing the import and class name!

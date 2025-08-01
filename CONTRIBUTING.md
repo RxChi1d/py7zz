@@ -1,270 +1,307 @@
 # Contributing to py7zz
 
-Thank you for your interest in contributing to py7zz! This document provides guidelines for contributing to the project.
+Welcome! We're excited you're interested in contributing to py7zz. This guide will help you get started.
 
-## Quick Start
+## Table of Contents
 
-1. **Fork and Clone**
+- [Getting Started](#getting-started)
+- [Development Setup](#development-setup)
+- [Making Changes](#making-changes)
+- [Testing](#testing)
+- [Code Style](#code-style)
+- [Commit Guidelines](#commit-guidelines)
+- [Pull Request Process](#pull-request-process)
+- [Community](#community)
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.8 or higher
+- Git
+- uv (for dependency management)
+
+### Types of Contributions
+
+We welcome:
+- 🐛 Bug fixes
+- ✨ New features
+- 📚 Documentation improvements
+- 🧪 Test additions
+- 🎨 Code refactoring
+- 💡 Ideas and suggestions
+
+## Development Setup
+
+1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/rxchi1d/py7zz.git
+   git clone https://github.com/YOUR_USERNAME/py7zz.git
    cd py7zz
    ```
 
-2. **Set up Development Environment**
+2. **Install uv (if not installed)**
    ```bash
-   # Install uv (if not already installed)
    curl -LsSf https://astral.sh/uv/install.sh | sh
-   
-   # Create virtual environment and install dependencies
+   ```
+
+3. **Set up development environment**
+   ```bash
    uv sync --dev
-   
-   # Activate virtual environment
-   source .venv/bin/activate  # Unix/macOS
-   # or .venv\Scripts\activate  # Windows
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
-3. **Run Quality Checks**
-   ```bash
-   uv run ruff format .        # Format code
-   uv run ruff check --fix .   # Lint and fix issues
-   uv run mypy .              # Type checking
-   uv run pytest             # Run tests
-   ```
+## Making Changes
 
-## Development Workflow
+### 1. Create a branch
 
-### Making Changes
+```bash
+git checkout -b feature/your-feature-name
+```
 
-1. **Create a Feature Branch**
-   ```bash
-   git checkout -b feature/your-feature-name
-   ```
+Use descriptive branch names:
+- `feature/add-encryption-support`
+- `fix/windows-path-handling`
+- `docs/update-api-reference`
 
-2. **Make Your Changes**
-   - Follow the code style and architecture patterns
-   - Add tests for new functionality
-   - Update documentation if needed
+### 2. Make your changes
 
-3. **Test Your Changes**
-   ```bash
-   # Run the complete quality check pipeline
-   uv run ruff format .
-   uv run ruff check --fix .
-   uv run mypy .
-   uv run pytest
-   ```
+Follow the existing code structure and patterns.
 
-4. **Commit Your Changes**
-   - Follow our [commit message convention](#commit-message-convention)
-   - Make atomic commits with clear purposes
+### 3. Run quality checks
 
-5. **Push and Create PR**
-   ```bash
-   git push origin feature/your-feature-name
-   ```
+Before committing, run all checks:
 
-### Code Style
+```bash
+# Format code
+uv run ruff format .
 
-- **Line Length**: 88 characters maximum
-- **Linting**: Use Ruff with project configuration
-- **Type Hints**: Required for all Python code
-- **Import Sorting**: Automated by Ruff
-- **Formatting**: Black-compatible formatting via Ruff
+# Fix linting issues
+uv run ruff check --fix .
 
-### Testing
+# Type checking
+uv run mypy .
 
-- **Unit Tests**: Required for all new functionality
-- **Integration Tests**: For cross-platform binary detection
-- **Test Coverage**: Aim for high coverage on critical paths
-- **Cross-Platform**: Tests must pass on Python 3.8-3.13
+# Run tests
+uv run pytest
+```
 
-## Commit Message Convention
+Or use the local CI script:
+```bash
+./scripts/ci-local.sh
+```
 
-We follow **Conventional Commits** for automated release notes generation.
+## Testing
+
+### Running Tests
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run specific test file
+uv run pytest tests/test_core.py
+
+# Run with coverage
+uv run pytest --cov=py7zz
+```
+
+### Writing Tests
+
+- Add tests for all new functionality
+- Ensure tests work on Python 3.8-3.13
+- Use descriptive test names
+- Include both positive and negative test cases
+
+Example:
+```python
+def test_extract_with_invalid_path_raises_error():
+    """Test that extracting to invalid path raises appropriate error."""
+    with pytest.raises(py7zz.FileNotFoundError):
+        py7zz.extract_archive('nonexistent.7z')
+```
+
+## Code Style
+
+### Python Code
+
+- **Style**: PEP 8 with Black formatting (via Ruff)
+- **Line length**: 88 characters
+- **Imports**: Sorted by `isort` (via Ruff)
+- **Type hints**: Required for all functions
+- **Docstrings**: Google style for all public APIs
+
+Example:
+```python
+def create_archive(
+    archive_path: Union[str, Path],
+    files: List[Union[str, Path]],
+    preset: str = "balanced"
+) -> None:
+    """Create an archive with specified files.
+    
+    Args:
+        archive_path: Path to create the archive
+        files: List of files/directories to include
+        preset: Compression preset ('fast', 'balanced', 'ultra')
+        
+    Raises:
+        FileNotFoundError: If any input file doesn't exist
+        CompressionError: If compression fails
+    """
+```
+
+### Documentation
+
+- Clear and concise
+- Include code examples
+- Update if changing behavior
+- Check spelling and grammar
+
+## Commit Guidelines
+
+We follow [Conventional Commits](https://www.conventionalcommits.org/):
 
 ### Format
 
 ```
-<type>(<scope>): <description>    ← First line (50-72 chars max)
+<type>(<scope>): <description>
 
-[optional body]                   ← Detailed explanation (wrap at 72 chars)
+[optional body]
 
-[optional footer(s)]              ← Breaking changes, issue references
+[optional footer(s)]
 ```
-
-**Important Notes:**
-- **First line**: Used by GitHub for auto-generated release notes
-- **Body**: Detailed explanation for complex changes (not used in release notes)
-- **Footer**: Breaking changes and issue references
 
 ### Types
 
-- **feat**: New feature (MINOR version)
-- **fix**: Bug fix (PATCH version)
-- **docs**: Documentation changes
-- **style**: Code formatting (no functional changes)
-- **refactor**: Code refactoring
-- **perf**: Performance improvements
-- **test**: Test-related changes
-- **chore**: Build tools or auxiliary tool changes
-- **ci**: CI/CD changes
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `style`: Code style (formatting, missing semicolons, etc)
+- `refactor`: Code change that neither fixes a bug nor adds a feature
+- `perf`: Performance improvement
+- `test`: Adding or updating tests
+- `chore`: Maintenance tasks
 
 ### Examples
 
-**❌ Bad:**
 ```bash
-git commit -m "feat: add async support"
-git commit -m "fix: Windows bug"
-git commit -m "docs: update readme"
-```
+# Feature
+git commit -m "feat: add async progress callbacks for large archives"
 
-**✅ Good First Lines:**
-```bash
-git commit -m "feat: add async operations with progress callbacks for large archives"
-git commit -m "fix: resolve binary path detection on Windows systems with spaces"
-git commit -m "docs: add comprehensive migration guide from zipfile to py7zz"
-git commit -m "perf: optimize memory usage for large file extraction"
-```
+# Bug fix
+git commit -m "fix: resolve Windows path handling for reserved names"
 
-**✅ Good Multi-line Commits:**
-```bash
-git commit -m "feat: add async operations with progress callbacks
+# Documentation
+git commit -m "docs: add migration guide from zipfile to py7zz"
 
-This commit introduces comprehensive async support including:
-- Progress callback mechanism for real-time updates
-- Batch operations for multiple archives
-- Memory-efficient streaming for large files
-- Cross-platform compatibility testing
-
-The implementation maintains backward compatibility while
-providing significant performance improvements for large-scale
-operations."
-
-git commit -m "fix: resolve binary path detection on Windows systems with spaces
-
-The previous implementation failed when the 7zz binary path contained
-spaces due to incorrect subprocess argument handling. This fix:
-
-- Properly quotes binary paths in subprocess calls
-- Adds comprehensive path validation
-- Includes test cases for paths with spaces
-- Maintains compatibility with existing installations
-
-Fixes #42"
-```
-
-### Breaking Changes
-
-Use `BREAKING CHANGE:` in the commit body for major version changes:
-```bash
-git commit -m "feat!: redesign API for better async support
-
-BREAKING CHANGE: SevenZipFile.extract() now returns async iterator instead of list"
-```
-
-### Scope (Optional)
-
-Specify the affected area:
-```bash
+# With scope
 git commit -m "feat(api): add batch extraction support"
-git commit -m "fix(cli): resolve version display format"
-git commit -m "docs(readme): add installation troubleshooting"
+
+# Breaking change
+git commit -m "feat!: change extract() to return list of extracted files
+
+BREAKING CHANGE: extract() now returns a list instead of None"
 ```
 
 ## Pull Request Process
 
-1. **PR Title Convention**
-   
-   **IMPORTANT**: PR titles are used for release notes generation and must follow the same convention as commit messages:
-   
-   ```
-   <type>(<scope>): <description>
-   ```
-   
-   **Examples:**
-   ```
-   feat: add async operations with progress callbacks
-   fix: resolve binary path detection on Windows systems
-   docs: add comprehensive migration guide from zipfile
-   perf: optimize memory usage for large file extraction
-   ```
-   
-   **Why this matters:**
-   - PR titles appear directly in release notes
-   - Automatic labeling based on PR title
-   - Semantic version determination (feat = minor, fix = patch)
+### Before Submitting
 
-2. **Pre-submission Checklist**
-   - [ ] PR title follows conventional format
-   - [ ] All quality checks pass locally
-   - [ ] Tests are added for new functionality
-   - [ ] Documentation is updated if needed
-   - [ ] Commit messages follow convention
-   - [ ] No TODO/FIXME comments left unresolved
+- [ ] All tests pass locally
+- [ ] Code follows style guidelines
+- [ ] Documentation is updated
+- [ ] Commits follow convention
+- [ ] Branch is up to date with main
 
-3. **PR Description**
-   - Clearly describe what changes were made
-   - Reference any related issues
-   - Include screenshots for UI changes
-   - List any breaking changes
+### PR Title Format
 
-4. **Review Process**
-   - All CI checks must pass
-   - Code review by maintainers
-   - Address feedback promptly
-   - Squash commits if requested
-
-## Development Environment Details
-
-### Dependencies
-
-- **Runtime**: Python 3.8+ support required
-- **Development**: uv for dependency management
-- **Testing**: pytest for unit and integration tests
-- **Linting**: ruff for code quality
-- **Type Checking**: mypy for static analysis
-
-### Project Structure
+**IMPORTANT**: PR titles must follow the same convention as commits:
 
 ```
-py7zz/
-├── py7zz/
-│   ├── __init__.py       # Main API exports
-│   ├── core.py           # Core 7zz subprocess wrapper
-│   ├── cli.py            # CLI tool implementation
-│   ├── async_ops.py      # Async operations support
-│   ├── updater.py        # Binary download/update logic
-│   └── bin/              # Platform-specific binaries
-├── tests/                # Test suite
-├── docs/                 # Documentation
-└── .github/workflows/    # CI/CD configuration
+feat: add async progress callbacks
+fix: resolve Windows path handling
+docs: update migration guide
 ```
 
-### Binary Management
+This is critical because:
+- PR titles appear in release notes
+- Determines version bumps (feat = minor, fix = patch)
+- Enables automatic labeling
 
-py7zz uses a hybrid approach for 7zz binary distribution:
-- **PyPI wheels**: Include bundled binaries for each platform
-- **Source installs**: Auto-download binaries on first use
-- **Development**: Use `PY7ZZ_BINARY` env var for custom binary paths
+### PR Description
 
-## Release Process
+Use the template to provide:
+- Clear description of changes
+- Related issue numbers
+- Testing performed
+- Breaking changes (if any)
 
-Releases are automated through GitHub Actions:
-1. **Tag Creation**: Push a version tag (e.g., `v1.0.0`)
-2. **Automated Build**: Multi-platform wheels are built
-3. **PyPI Publication**: Wheels are published to PyPI
-4. **GitHub Release**: Release notes are auto-generated from commits
+### Review Process
 
-## Getting Help
+1. CI checks must pass
+2. Code review by maintainers
+3. Address feedback constructively
+4. Squash commits if requested
 
-- **Issues**: Report bugs or request features via GitHub Issues
-- **Discussions**: Use GitHub Discussions for questions
-- **Documentation**: Check README.md and code documentation
+## Community
 
-## Code of Conduct
+### Getting Help
 
-Please be respectful and professional in all interactions. We follow the standard open-source community guidelines for inclusive collaboration.
+- 💬 [GitHub Discussions](https://github.com/rxchi1d/py7zz/discussions) - Ask questions
+- 🐛 [GitHub Issues](https://github.com/rxchi1d/py7zz/issues) - Report bugs
+- 📚 [Documentation](docs/) - Read the docs
 
-## License
+### Code of Conduct
 
-By contributing to py7zz, you agree that your contributions will be licensed under the same terms as the project (BSD-3-Clause + LGPL-2.1 for 7-Zip components).
+- Be respectful and inclusive
+- Welcome newcomers
+- Provide constructive feedback
+- Focus on what's best for the community
+
+### Recognition
+
+Contributors are recognized in:
+- GitHub contributors page
+- Release notes
+- Project documentation
+
+## Development Tips
+
+### Local Binary Testing
+
+For testing with custom 7zz binary:
+```bash
+export PY7ZZ_BINARY=/path/to/7zz
+```
+
+### Debug Logging
+
+Enable debug output:
+```python
+import py7zz
+py7zz.setup_logging("DEBUG")
+```
+
+### Performance Testing
+
+For performance-critical changes:
+```python
+import timeit
+import py7zz
+
+# Measure performance
+time = timeit.timeit(
+    lambda: py7zz.create_archive('test.7z', ['data/']),
+    number=10
+)
+print(f"Average time: {time/10:.2f}s")
+```
+
+## Questions?
+
+Feel free to:
+- Open a [Discussion](https://github.com/rxchi1d/py7zz/discussions) for questions
+- Reach out to maintainers
+- Check existing issues and PRs
+
+Thank you for contributing to py7zz! 🎉
