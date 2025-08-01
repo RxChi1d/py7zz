@@ -21,6 +21,51 @@
 - Changelog: 遵循 Keep a Changelog 格式。
 - 分支名稱：遵循 Conventional Branch Naming。
 
+### CHANGELOG 撰寫規範
+
+**重要**：CHANGELOG.md 必須遵循 [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) 格式、業界最佳實務與 **Google 風格**。
+
+#### 基本原則
+1. **面向用戶**：描述功能影響，而非技術實現細節
+2. **語義化描述**：歸納整理變更，避免直接複製 commit 訊息  
+3. **完整版本記錄**：包含所有版本（包括 pre-release）
+4. **標準分類**：僅使用 Keep a Changelog 的六個類別
+   - **Added**: 新功能
+   - **Changed**: 現有功能變更
+   - **Deprecated**: 即將移除的功能
+   - **Removed**: 已移除的功能
+   - **Fixed**: 錯誤修復
+   - **Security**: 安全性修復
+
+**注意**：不使用 Conventional Commit 的分類（feat, docs, refactor 等），因為 CHANGELOG 面向最終用戶。
+
+#### 版本處理策略
+- **Stable Release (1.0.0)**：詳細描述所有重要變更，面向最終用戶
+- **Pre-release (alpha, beta, rc)**：簡化描述，重點說明階段目標和主要改進
+- **版本順序**：最新版本在上，按時間倒序排列
+- **日期格式**：使用 YYYY-MM-DD 格式
+
+#### 內容撰寫要求
+- **用戶導向**：描述用戶能感受到的變化和價值
+- **簡潔明確**：每項變更一行，易於掃讀
+- **粗體標題**：使用 **功能名稱** 突出重要特性  
+- **避免技術細節**：不包含 commit hash、內部重構、開發工具變更等
+
+#### 範例格式
+```markdown
+## [1.0.0] - 2025-08-01
+
+### Added
+- **Windows Filename Compatibility**: Automatic sanitization of problematic filenames
+- **Enhanced Security Features**: Built-in protection against ZIP bombs
+
+### Changed  
+- **API Architecture**: Redesigned for better performance and maintainability
+
+### Fixed
+- **Cross-Platform Compatibility**: Resolved Windows-specific path issues
+```
+
 ## 專案概述
 
 py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 二進位檔案 (7-Zip) ，提供跨平台（macOS、Debian 系 Linux、Windows x64）提供一致的 Python API與命令接口。無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 。

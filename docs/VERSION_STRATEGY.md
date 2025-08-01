@@ -55,44 +55,19 @@ py7zz adopts a PEP 440 compliant version management strategy with **manual versi
 
 ## Release Types
 
-### 🟢 Release (Most Stable)
+### Release Process Overview
 
-**Characteristics:**
-- Manual release process
+**All releases are manually controlled by project authors** to ensure:
 - Full testing and validation
-- Human review and approval
-- Production recommended
+- Quality control and stability
+- Proper documentation and release notes
+- Compliance with PEP 440 standards
 
-**When to use:**
-- Production environments
-- Critical applications
-- Long-term stability needed
-
-### 🟡 Auto (Basic Stable)
-
-**Characteristics:**
-- Automated release when 7zz updates
-- Only binary update, no code changes
-- Basic automated testing
-- Early access to new 7zz features
-
-**When to use:**
-- Need latest 7zz features
-- Non-critical environments
-- Testing new formats
-
-### 🔴 Dev (Unstable)
-
-**Characteristics:**
-- Manual release for new features
-- May contain breaking changes
-- Limited testing
-- Preview of upcoming features
-
-**When to use:**
-- Testing new py7zz features
-- Development environments only
-- Contributing to py7zz
+**Version Types Available:**
+- **Stable**: Production-ready releases (1.0.0)
+- **Alpha**: Early feature testing (1.0.0a1)
+- **Beta**: Feature-complete testing (1.0.0b1)
+- **Release Candidate**: Final validation (1.0.0rc1)
 
 ## Version Lifecycle
 
@@ -204,11 +179,12 @@ pip install --pre py7zz
 
 ### Version Selection
 
-| Need | Recommended | Command |
+| Need | Version Type | Command |
 |------|-------------|---------|
-| Production stability | Release | `pip install py7zz` |
-| Latest 7zz features | Auto | `pip install py7zz==1.0.0a1` |
-| Test new features | Dev | `pip install py7zz==1.1.0.dev1` |
+| Production stability | Stable | `pip install py7zz` |
+| Latest features testing | Alpha | `pip install py7zz==1.0.0a1` |
+| Feature-complete testing | Beta | `pip install py7zz==1.0.0b1` |
+| Pre-release validation | Release Candidate | `pip install py7zz==1.0.0rc1` |
 
 ### Checking Versions
 

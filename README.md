@@ -317,7 +317,7 @@ py7zz follows [PEP 440](https://peps.python.org/pep-0440/) versioning standard:
 
 ```python
 import py7zz
-print(py7zz.get_version())           # py7zz version (e.g., "1.0.0b1")
+print(py7zz.get_version())           # py7zz version (e.g., "1.0.0")
 print(py7zz.get_bundled_7zz_version())  # 7zz version
 
 # Version types supported:
