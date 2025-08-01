@@ -23,6 +23,7 @@ from .exceptions import (
     PyFileNotFoundError as FileNotFoundError,
 )
 from .filename_sanitizer import (
+    get_safe_filename,
     get_sanitization_mapping,
     is_windows,
     log_sanitization_changes,
@@ -391,6 +392,15 @@ class SevenZipFile:
         # that matches the desired archive name
         with tempfile.TemporaryDirectory() as temp_dir:
             temp_base = Path(temp_dir)
+
+            # Sanitize filename for Windows compatibility if needed
+            # This fixes the issue where Windows invalid characters cause OSError
+            if is_windows() and needs_sanitization(arcname):
+                sanitized_arcname = get_safe_filename(arcname)
+                logger.warning(
+                    f"Windows filename compatibility: '{arcname}' -> '{sanitized_arcname}'"
+                )
+                arcname = sanitized_arcname
 
             # Handle extremely long filenames by using a short temp name
             # but preserving the original arcname for the archive structure
