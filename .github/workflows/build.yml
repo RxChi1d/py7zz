@@ -462,19 +462,126 @@ jobs:
       id: pre_release_notes
       if: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
       run: |
-        # Get commits since last pre-release tag
-        LAST_PRE_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null | grep -E "(a|b|rc)" || echo "")
+        # Get commits since last tag (stable or pre-release)
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
         
-        if [ -n "$LAST_PRE_TAG" ]; then
+        if [ -n "$LAST_TAG" ]; then
+          # Generate categorized release notes
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          git log --format="* %s" --no-merges ${LAST_PRE_TAG}..HEAD >> release_notes.md
+          
+          # Get commits and categorize them
+          git log --format="%s" --no-merges ${LAST_TAG}..HEAD > commits.txt
+          
+          # Initialize category flags
+          has_feat=false
+          has_fix=false
+          has_docs=false
+          has_ci=false
+          has_perf=false
+          has_test=false
+          has_refactor=false
+          has_style=false
+          has_chore=false
+          has_other=false
+          
+          # Check which categories we have
+          while IFS= read -r commit; do
+            if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then has_feat=true
+            elif [[ "$commit" =~ ^fix(\(.+\))?: ]]; then has_fix=true
+            elif [[ "$commit" =~ ^docs(\(.+\))?: ]]; then has_docs=true
+            elif [[ "$commit" =~ ^ci(\(.+\))?: ]]; then has_ci=true
+            elif [[ "$commit" =~ ^perf(\(.+\))?: ]]; then has_perf=true
+            elif [[ "$commit" =~ ^test(\(.+\))?: ]]; then has_test=true
+            elif [[ "$commit" =~ ^refactor(\(.+\))?: ]]; then has_refactor=true
+            elif [[ "$commit" =~ ^style(\(.+\))?: ]]; then has_style=true
+            elif [[ "$commit" =~ ^chore(\(.+\))?: ]]; then has_chore=true
+            else has_other=true
+            fi
+          done < commits.txt
+          
+          # Generate sections only for existing categories
+          if [ "$has_feat" = true ]; then
+            echo "🚀 Features" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^feat(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_fix" = true ]; then
+            echo "🐛 Bug Fixes" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^fix(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_docs" = true ]; then
+            echo "📚 Documentation" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^docs(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_ci" = true ]; then
+            echo "🔄 CI/CD" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^ci(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_perf" = true ]; then
+            echo "⚡ Performance" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^perf(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_test" = true ]; then
+            echo "🧪 Testing" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^test(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_refactor" = true ]; then
+            echo "🔧 Maintenance" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^refactor(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_style" = true ]; then
+            echo "🔧 Maintenance" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^style(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_chore" = true ]; then
+            echo "🔧 Maintenance" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -E "^chore(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          if [ "$has_other" = true ]; then
+            echo "Other Changes" >> release_notes.md
+            echo "" >> release_notes.md
+            grep -v -E "^(feat|fix|docs|ci|perf|test|refactor|style|chore)(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+          
+          # Add footer
+          echo "---" >> release_notes.md
           echo "" >> release_notes.md
-          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_PRE_TAG}...${{ github.ref_name }}" >> release_notes.md
+          echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ github.ref_name }}" >> release_notes.md
+          
+          # Clean up
+          rm commits.txt
         else
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          echo "* Initial pre-release" >> release_notes.md
+          echo "- Initial pre-release" >> release_notes.md
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}" >> release_notes.md
         fi
@@ -489,7 +596,7 @@ jobs:
       if: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
       with:
         tag: ${{ github.ref_name }}
-        name: "py7zz ${{ github.ref_name }}"
+        name: "${{ github.ref_name }}"
         body: ${{ steps.pre_release_notes.outputs.notes }}
         artifacts: "dist/*.whl"
         draft: false
@@ -504,7 +611,7 @@ jobs:
       if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
       with:
         tag: ${{ github.ref_name }}
-        name: "py7zz ${{ github.ref_name }}"
+        name: "${{ github.ref_name }}"
         body: ${{ steps.get_release_draft.outputs.body }}
         artifacts: "dist/*.whl"
         draft: false
