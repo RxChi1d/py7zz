@@ -1,4 +1,4 @@
-name-template: 'py7zz $RESOLVED_VERSION'
+name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
   - title: '🚀 Features'
@@ -60,35 +60,48 @@ autolabeler:
   - label: 'feat'
     title:
       - '/^feat(\(.+\))?: .+/'
+      - '/^feat(\(.+\))?!: .+/'
   - label: 'fix'  
     title:
       - '/^fix(\(.+\))?: .+/'
+      - '/^fix(\(.+\))?!: .+/'
   - label: 'docs'
     title:
       - '/^docs(\(.+\))?: .+/'
+      - '/^docs(\(.+\))?!: .+/'
   - label: 'chore'
     title:
       - '/^chore(\(.+\))?: .+/'
+      - '/^chore(\(.+\))?!: .+/'
   - label: 'test'
     title:
       - '/^test(\(.+\))?: .+/'
+      - '/^test(\(.+\))?!: .+/'
   - label: 'ci'
     title:
       - '/^ci(\(.+\))?: .+/'
+      - '/^ci(\(.+\))?!: .+/'
   - label: 'perf'
     title:
       - '/^perf(\(.+\))?: .+/'
+      - '/^perf(\(.+\))?!: .+/'
   - label: 'refactor'
     title:
       - '/^refactor(\(.+\))?: .+/'
+      - '/^refactor(\(.+\))?!: .+/'
   - label: 'style'
     title:
       - '/^style(\(.+\))?: .+/'
+      - '/^style(\(.+\))?!: .+/'
 template: |
-  ## Changes
-
+  ## What's Changed
+  
   $CHANGES
-
+  
+  ---
+  
+  **Full Changelog**: https://github.com/$OWNER/$REPOSITORY/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+  
   ## Contributors
-
+  
   $CONTRIBUTORS
