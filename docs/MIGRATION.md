@@ -101,7 +101,7 @@ import zipfile
 with zipfile.ZipFile('archive.zip', 'r') as zf:
     # Extract all
     zf.extractall('output/')
-    
+
     # Extract specific files
     zf.extractall('output/', members=['file1.txt', 'file2.txt'])
 ```
@@ -115,7 +115,7 @@ import py7zz
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
     # Extract all (identical!)
     sz.extractall('output/')
-    
+
     # Extract specific files (identical!)
     sz.extractall('output/', members=['file1.txt', 'file2.txt'])
 
@@ -134,10 +134,10 @@ import zipfile
 with zipfile.ZipFile('archive.zip', 'r') as zf:
     # List files
     files = zf.namelist()
-    
+
     # Read file content
     content = zf.read('data.txt')
-    
+
     # Get file info
     info = zf.getinfo('data.txt')
     print(f"Size: {info.file_size}")
@@ -153,10 +153,10 @@ import py7zz
 with py7zz.SevenZipFile('archive.7z', 'r') as sz:
     # List files (identical!)
     files = sz.namelist()
-    
+
     # Read file content (identical!)
     content = sz.read('data.txt')
-    
+
     # Get file info (identical + more!)
     info = sz.getinfo('data.txt')
     print(f"Size: {info.file_size}")
@@ -175,7 +175,7 @@ import zipfile
 with zipfile.ZipFile('archive.zip', 'w') as zf:
     # Add file with custom name
     zf.write('document.txt', arcname='docs/readme.txt')
-    
+
     # Write string data
     zf.writestr('config.ini', '[settings]\nkey=value')
 ```
@@ -189,7 +189,7 @@ import py7zz
 with py7zz.SevenZipFile('archive.7z', 'w') as sz:
     # Add file with custom name (note: method is 'add')
     sz.add('document.txt', arcname='docs/readme.txt')
-    
+
     # Write string data (identical!)
     sz.writestr('config.ini', '[settings]\nkey=value')
 ```
@@ -241,13 +241,13 @@ import py7zz
 async def process_archives():
     # Create archive asynchronously
     await py7zz.create_archive_async('backup.7z', ['data/'])
-    
+
     # Extract with progress
     async def progress(info):
         print(f"Progress: {info.percentage:.1f}%")
-    
+
     await py7zz.extract_archive_async(
-        'backup.7z', 
+        'backup.7z',
         'output/',
         progress_callback=progress
     )
@@ -418,7 +418,7 @@ print(py7zz.get_version_info())
    ```python
    # For temporary files
    preset='fast'
-   
+
    # For archival storage
    preset='ultra'
    ```

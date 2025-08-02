@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Error Handling**: Improved exception hierarchy with more specific error types for better debugging
 
 ### Fixed
-- **Cross-Platform Compatibility**: Resolved Windows-specific issues with filename handling and path operations  
+- **Cross-Platform Compatibility**: Resolved Windows-specific issues with filename handling and path operations
 - **Python Version Support**: Fixed compatibility issues across Python 3.8+ versions
 - **Archive Reliability**: Improved stability and error handling for various archive formats and edge cases
 
@@ -69,7 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Initial Release**: First stable release of py7zz
-- **Cross-Platform Support**: Native support for macOS, Linux, and Windows platforms  
+- **Cross-Platform Support**: Native support for macOS, Linux, and Windows platforms
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
