@@ -81,7 +81,7 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
 check_untyped_defs = true
-disallow_untyped_decorators = true  
+disallow_untyped_decorators = true
 no_implicit_optional = true
 warn_redundant_casts = true
 warn_unused_ignores = true
@@ -96,7 +96,7 @@ disallow_incomplete_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-python_files = ["test_*.py"]  
+python_files = ["test_*.py"]
 python_functions = ["test_*"]
 # More tolerant for development phase
 addopts = "-v --tb=short --strict-markers --continue-on-collection-errors"
@@ -111,6 +111,7 @@ filterwarnings = [
 dev = [
     "build>=1.2.2.post1",
     "mypy>=1.14.1",
+    "pre-commit>=3.5.0",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.24.0",
     "pyyaml>=6.0.2",

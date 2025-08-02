@@ -124,26 +124,14 @@ fi
 
 echo ""
 
-# Phase 3: Lint Checks (exactly matching CI)
-print_header "Phase 3: Code Style Checks (Lint Job)"
+# Phase 3: Format and Lint Checks (exactly matching CI)
+print_header "Phase 3: Format and Lint Checks"
 
-print_step "Running ruff check (exactly matching CI)..."
-echo -e "${PURPLE}Command: uv run ruff check . --output-format=github${NC}"
-if uv run ruff check . --output-format=github; then
-    print_success "ruff check passed"
+print_step "Running format and lint checks (using scripts/format-and-lint.sh)..."
+if ./scripts/format-and-lint.sh; then
+    print_success "Format and lint checks passed"
 else
-    print_error "ruff check failed - please fix code style issues"
-    echo -e "${YELLOW}Suggestion: run 'uv run ruff check --fix .' for auto-fix${NC}"
-    exit 1
-fi
-
-print_step "Running ruff format check (exactly matching CI)..."
-echo -e "${PURPLE}Command: uv run ruff format --check --diff .${NC}"
-if uv run ruff format --check --diff .; then
-    print_success "ruff format check passed"
-else
-    print_error "ruff format check failed - code format does not meet standards"
-    echo -e "${YELLOW}Suggestion: run 'uv run ruff format .' for auto-formatting${NC}"
+    print_error "Format and lint checks failed"
     exit 1
 fi
 
@@ -193,8 +181,7 @@ echo ""
 echo -e "${WHITE}Check Results Summary:${NC}"
 echo -e "  ${GREEN}✅${NC} Environment Check"
 echo -e "  ${GREEN}✅${NC} Dependencies Installation"
-echo -e "  ${GREEN}✅${NC} ruff check (Code Style)"
-echo -e "  ${GREEN}✅${NC} ruff format check (Code Format)"
+echo -e "  ${GREEN}✅${NC} Format and Lint Checks"
 echo -e "  ${GREEN}✅${NC} pytest (Unit Tests)"
 echo -e "  ${GREEN}✅${NC} mypy (Type Check)"
 echo ""

@@ -51,7 +51,7 @@ import py7zz
 # Create archive
 py7zz.create_archive('backup.7z', ['documents/', 'photos/'])
 
-# Extract archive  
+# Extract archive
 py7zz.extract_archive('backup.7z', 'extracted/')
 
 # List contents
@@ -323,7 +323,7 @@ print(py7zz.get_bundled_7zz_version())  # 7zz version
 # Version types supported:
 # - Stable: 1.0.0
 # - Alpha: 1.0.0a1
-# - Beta: 1.0.0b1  
+# - Beta: 1.0.0b1
 # - Release Candidate: 1.0.0rc1
 # - Development: 1.0.0.dev1
 ```

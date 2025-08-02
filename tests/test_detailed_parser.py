@@ -68,9 +68,9 @@ Size = 0
 Packed Size = 0
 Modified = 2024-01-15 11:00:00
 Attributes = D
-CRC = 
-Method = 
-Solid = 
+CRC =
+Method =
+Solid =
 
 """
         members = parse_7zz_slt_output(slt_output)
@@ -135,11 +135,11 @@ Encrypted = -
 
 ----------
 Path = images/
-Size = 0  
+Size = 0
 Packed Size = 0
 Modified = 2024-02-20 13:00:00
 Attributes = D
-CRC = 
+CRC =
 Method = Store
 
 ----------
@@ -496,12 +496,12 @@ Method = LZMA2:19
         empty_values_output = """
 ----------
 Path = empty_values.txt
-Size = 
+Size =
 Packed Size = 0
-Modified = 
-Attributes = 
-CRC = 
-Method = 
+Modified =
+Attributes =
+CRC =
+Method =
 
 """
         members = parse_7zz_slt_output(empty_values_output)

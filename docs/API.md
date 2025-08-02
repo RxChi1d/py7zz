@@ -96,80 +96,80 @@ SevenZipFile(file, mode='r', level='normal', preset=None, config=None)
 
 #### Reading Methods
 
-**`namelist() -> List[str]`**  
+**`namelist() -> List[str]`**
 Get list of archive member names (zipfile compatible).
 
-**`getnames() -> List[str]`**  
+**`getnames() -> List[str]`**
 Get list of archive member names (tarfile compatible).
 
-**`infolist() -> List[ArchiveInfo]`**  
+**`infolist() -> List[ArchiveInfo]`**
 Get detailed information about all members (zipfile compatible).
 
-**`getmembers() -> List[ArchiveInfo]`**  
+**`getmembers() -> List[ArchiveInfo]`**
 Get detailed information about all members (tarfile compatible).
 
-**`getinfo(name: str) -> ArchiveInfo`**  
+**`getinfo(name: str) -> ArchiveInfo`**
 Get information about specific member (zipfile compatible).
 - **Raises:** `KeyError` if member not found
 
-**`getmember(name: str) -> ArchiveInfo`**  
+**`getmember(name: str) -> ArchiveInfo`**
 Get information about specific member (tarfile compatible).
 - **Raises:** `KeyError` if member not found
 
-**`read(name: str) -> bytes`**  
+**`read(name: str) -> bytes`**
 Read file content as bytes.
 - **Returns:** File content as bytes
 - **Raises:** `FileNotFoundError`, `ExtractionError`
 
-**`readall() -> bytes`**  
+**`readall() -> bytes`**
 Read all files from archive as concatenated bytes.
 
-**`open(name: str, mode: str = "r") -> ArchiveFileReader`**  
+**`open(name: str, mode: str = "r") -> ArchiveFileReader`**
 Open file as file-like object.
 
 #### Extraction Methods
 
-**`extractall(path: str = ".", members: Optional[List[str]] = None) -> None`**  
+**`extractall(path: str = ".", members: Optional[List[str]] = None) -> None`**
 Extract all files or specified members.
 
-**`extract(path: str = ".", overwrite: bool = False) -> None`**  
+**`extract(path: str = ".", overwrite: bool = False) -> None`**
 Extract all contents with filename compatibility handling.
 
 #### Writing Methods
 
-**`add(name: str | Path, arcname: Optional[str] = None) -> None`**  
+**`add(name: str | Path, arcname: Optional[str] = None) -> None`**
 Add file or directory to archive.
 
-**`writestr(filename: str, data: str | bytes) -> None`**  
+**`writestr(filename: str, data: str | bytes) -> None`**
 Write data directly to archive file.
 
 #### Utility Methods
 
-**`testzip() -> Optional[str]`**  
+**`testzip() -> Optional[str]`**
 Test archive integrity. Returns None if OK, or name of first bad file.
 
-**`copy_member(member_name: str, target_archive: SevenZipFile) -> None`**  
+**`copy_member(member_name: str, target_archive: SevenZipFile) -> None`**
 Copy member to another archive.
 
-**`filter_members(filter_func: Callable[[str], bool]) -> List[str]`**  
+**`filter_members(filter_func: Callable[[str], bool]) -> List[str]`**
 Filter members using custom function.
 
-**`get_member_size(name: str) -> int`**  
+**`get_member_size(name: str) -> int`**
 Get uncompressed size of member.
 
-**`get_member_compressed_size(name: str) -> int`**  
+**`get_member_compressed_size(name: str) -> int`**
 Get compressed size of member.
 
-**`close() -> None`**  
+**`close() -> None`**
 Close the archive.
 
-**`setpassword(pwd: Optional[bytes]) -> None`**  
+**`setpassword(pwd: Optional[bytes]) -> None`**
 Set password for encrypted archives.
 
-**`comment() -> bytes`**  
+**`comment() -> bytes`**
 Get archive comment.
 
-**`setcomment(comment: bytes) -> None`**  
+**`setcomment(comment: bytes) -> None`**
 Set archive comment.
 
 ### ArchiveInfo
@@ -203,22 +203,22 @@ Information about archive members, compatible with both `zipfile.ZipInfo` and `t
 
 #### Methods
 
-**`is_dir() -> bool`**  
+**`is_dir() -> bool`**
 Check if member is a directory.
 
-**`isfile() -> bool`**  
+**`isfile() -> bool`**
 Check if member is a regular file (zipfile compatible).
 
-**`isdir() -> bool`**  
+**`isdir() -> bool`**
 Check if member is a directory (zipfile compatible).
 
-**`get_compression_ratio() -> float`**  
+**`get_compression_ratio() -> float`**
 Calculate compression ratio for this member.
 
-**`from_zipinfo(zipinfo) -> ArchiveInfo`**  
+**`from_zipinfo(zipinfo) -> ArchiveInfo`**
 Create from zipfile.ZipInfo object (class method).
 
-**`from_tarinfo(tarinfo) -> ArchiveInfo`**  
+**`from_tarinfo(tarinfo) -> ArchiveInfo`**
 Create from tarfile.TarInfo object (class method).
 
 ### ArchiveFileReader
@@ -227,29 +227,29 @@ File-like object for reading archive members.
 
 #### Methods
 
-**`read(size: int = -1) -> bytes`**  
+**`read(size: int = -1) -> bytes`**
 Read bytes from archive member.
 
-**`readline(size: int = -1) -> bytes`**  
+**`readline(size: int = -1) -> bytes`**
 Read a line from archive member.
 
-**`readlines() -> List[bytes]`**  
+**`readlines() -> List[bytes]`**
 Read all lines from archive member.
 
-**`seek(offset: int, whence: int = 0) -> int`**  
+**`seek(offset: int, whence: int = 0) -> int`**
 Seek to position in archive member.
 
-**`tell() -> int`**  
+**`tell() -> int`**
 Get current position in archive member.
 
-**`close() -> None`**  
+**`close() -> None`**
 Close the file reader.
 
 ## Simple Function API
 
 ### Basic Operations
 
-**`create_archive(archive_path, files, preset="balanced") -> None`**  
+**`create_archive(archive_path, files, preset="balanced") -> None`**
 Create archive from files/directories.
 
 **Parameters:**
@@ -257,22 +257,22 @@ Create archive from files/directories.
 - `files` (List[str | Path]): Files/directories to archive
 - `preset` (str): Compression preset ('fast', 'balanced', 'backup', 'ultra')
 
-**`extract_archive(archive_path, output_dir=".", overwrite=True) -> None`**  
+**`extract_archive(archive_path, output_dir=".", overwrite=True) -> None`**
 Extract archive with automatic Windows filename compatibility.
 
-**`list_archive(archive_path) -> List[str]`**  
+**`list_archive(archive_path) -> List[str]`**
 List all files in an archive (deprecated, use SevenZipFile.namelist()).
 
-**`compress_file(input_path, output_path=None, preset="balanced") -> Path`**  
+**`compress_file(input_path, output_path=None, preset="balanced") -> Path`**
 Compress a single file.
 
-**`compress_directory(input_dir, output_path=None, preset="balanced") -> Path`**  
+**`compress_directory(input_dir, output_path=None, preset="balanced") -> Path`**
 Compress a directory.
 
-**`test_archive(archive_path) -> bool`**  
+**`test_archive(archive_path) -> bool`**
 Test archive integrity.
 
-**`get_archive_info(archive_path) -> Dict[str, Any]`**  
+**`get_archive_info(archive_path) -> Dict[str, Any]`**
 Get archive statistics. Returns dictionary with:
 - `file_count` (int): Number of files
 - `uncompressed_size` (int): Total uncompressed size
@@ -281,34 +281,34 @@ Get archive statistics. Returns dictionary with:
 
 ### Batch Operations
 
-**`batch_create_archives(operations, preset="balanced") -> None`**  
+**`batch_create_archives(operations, preset="balanced") -> None`**
 Create multiple archives efficiently.
 
 **Parameters:**
 - `operations` (List[Tuple[str, List[str]]]): List of (archive_path, files) tuples
 - `preset` (str): Compression preset
 
-**`batch_extract_archives(archive_paths, output_dir=".", overwrite=True, create_dirs=True) -> None`**  
+**`batch_extract_archives(archive_paths, output_dir=".", overwrite=True, create_dirs=True) -> None`**
 Extract multiple archives.
 
 ### Archive Utilities
 
-**`get_compression_ratio(archive_path) -> float`**  
+**`get_compression_ratio(archive_path) -> float`**
 Calculate compression ratio (0.0 = no compression, 1.0 = 100% compression).
 
-**`get_archive_format(archive_path) -> str`**  
+**`get_archive_format(archive_path) -> str`**
 Detect archive format ('7z', 'zip', 'tar', etc.).
 
-**`compare_archives(archive1, archive2, compare_content=False) -> bool`**  
+**`compare_archives(archive1, archive2, compare_content=False) -> bool`**
 Compare two archives for equality.
 
-**`convert_archive_format(source_archive, target_archive, target_format=None, preset="balanced") -> None`**  
+**`convert_archive_format(source_archive, target_archive, target_format=None, preset="balanced") -> None`**
 Convert archive between formats.
 
-**`copy_archive(source_archive, target_archive, recompress=False, preset="balanced") -> None`**  
+**`copy_archive(source_archive, target_archive, recompress=False, preset="balanced") -> None`**
 Copy archive, optionally recompressing.
 
-**`recompress_archive(source_path, target_path, preset="balanced", backup_original=False, backup_suffix=".bak") -> None`**  
+**`recompress_archive(source_path, target_path, preset="balanced", backup_original=False, backup_suffix=".bak") -> None`**
 Recompress an archive to a new location with different settings.
 
 This is the safe, industry-standard approach that creates a new file instead of modifying the original in-place.
@@ -338,51 +338,51 @@ async with py7zz.AsyncSevenZipFile('archive.7z', 'r') as asz:
 
 #### Methods
 
-**`await namelist() -> List[str]`**  
+**`await namelist() -> List[str]`**
 Get list of archive member names asynchronously.
 
-**`await getnames() -> List[str]`**  
+**`await getnames() -> List[str]`**
 Get list of archive member names asynchronously (tarfile compatible).
 
-**`await infolist() -> List[ArchiveInfo]`**  
+**`await infolist() -> List[ArchiveInfo]`**
 Get detailed information about all members.
 
-**`await getmembers() -> List[ArchiveInfo]`**  
+**`await getmembers() -> List[ArchiveInfo]`**
 Get detailed information about all members (tarfile compatible).
 
-**`await read(name: str) -> bytes`**  
+**`await read(name: str) -> bytes`**
 Read file content asynchronously.
 
-**`await writestr(filename: str, data: Union[str, bytes]) -> None`**  
+**`await writestr(filename: str, data: Union[str, bytes]) -> None`**
 Write data to archive asynchronously.
 
-**`await add(name: Union[str, Path], arcname=None, progress_callback=None) -> None`**  
+**`await add(name: Union[str, Path], arcname=None, progress_callback=None) -> None`**
 Add file to archive with optional progress callback.
 
-**`await extractall(path=".", members=None, progress_callback=None) -> None`**  
+**`await extractall(path=".", members=None, progress_callback=None) -> None`**
 Extract archive with optional progress callback.
 
-**`await testzip() -> Optional[str]`**  
+**`await testzip() -> Optional[str]`**
 Test archive integrity asynchronously.
 
 ### Async Functions
 
-**`create_archive_async(archive_path, files, progress_callback=None) -> None`**  
+**`create_archive_async(archive_path, files, progress_callback=None) -> None`**
 Create archive asynchronously with progress reporting.
 
-**`extract_archive_async(archive_path, output_dir=".", overwrite=True, progress_callback=None) -> None`**  
+**`extract_archive_async(archive_path, output_dir=".", overwrite=True, progress_callback=None) -> None`**
 Extract archive asynchronously with progress reporting.
 
-**`compress_file_async(input_path, output_path=None, preset="balanced", progress_callback=None) -> Path`**  
+**`compress_file_async(input_path, output_path=None, preset="balanced", progress_callback=None) -> Path`**
 Compress file asynchronously.
 
-**`compress_directory_async(input_dir, output_path=None, preset="balanced", progress_callback=None) -> Path`**  
+**`compress_directory_async(input_dir, output_path=None, preset="balanced", progress_callback=None) -> Path`**
 Compress directory asynchronously.
 
-**`batch_compress_async(operations, progress_callback=None) -> None`**  
+**`batch_compress_async(operations, progress_callback=None) -> None`**
 Compress multiple archives concurrently.
 
-**`batch_extract_async(operations, progress_callback=None) -> None`**  
+**`batch_extract_async(operations, progress_callback=None) -> None`**
 Extract multiple archives concurrently.
 
 ### Progress Callbacks
@@ -411,16 +411,16 @@ Progress callbacks receive `ProgressInfo` objects with the following structure:
 
 #### Predefined Callbacks
 
-**`console_progress_callback(progress: ProgressInfo) -> None`**  
+**`console_progress_callback(progress: ProgressInfo) -> None`**
 Simple console progress display.
 
-**`detailed_console_callback(progress: ProgressInfo) -> None`**  
+**`detailed_console_callback(progress: ProgressInfo) -> None`**
 Detailed console progress with comprehensive information.
 
-**`json_progress_callback(progress: ProgressInfo) -> None`**  
+**`json_progress_callback(progress: ProgressInfo) -> None`**
 JSON-formatted progress output.
 
-**`create_callback(callback_type: str, **options) -> Callable`**  
+**`create_callback(callback_type: str, **options) -> Callable`**
 Factory function for creating callbacks ('console', 'detailed', 'json').
 
 ## Configuration
@@ -453,10 +453,10 @@ Predefined compression configurations.
 - `Presets.STORE`: No compression
 - `Presets.BACKUP`: Optimized for backups
 
-**`create_custom_config(**kwargs) -> Config`**  
+**`create_custom_config(**kwargs) -> Config`**
 Create custom configuration.
 
-**`get_recommended_preset(purpose: str) -> Config`**  
+**`get_recommended_preset(purpose: str) -> Config`**
 Get recommended preset for purpose ('backup', 'distribution', 'storage').
 
 ### GlobalConfig
@@ -556,7 +556,7 @@ with py7zz.SevenZipFile('output.7z', 'w') as sz:
 ```
 Py7zzError (base exception)
 ├── ValidationError
-├── OperationError  
+├── OperationError
 ├── CompatibilityError
 ├── FileNotFoundError
 ├── ArchiveNotFoundError
@@ -587,26 +587,26 @@ All exceptions inherit from `Py7zzError` and provide:
 
 ### Error Utilities
 
-**`handle_7z_errors(func) -> Callable`**  
+**`handle_7z_errors(func) -> Callable`**
 Decorator for handling 7z-specific errors.
 
-**`handle_file_errors(func) -> Callable`**  
+**`handle_file_errors(func) -> Callable`**
 Decorator for handling file-related errors.
 
-**`handle_validation_errors(func) -> Callable`**  
+**`handle_validation_errors(func) -> Callable`**
 Decorator for handling validation errors.
 
-**`classify_error_type(error: Exception) -> str`**  
+**`classify_error_type(error: Exception) -> str`**
 Classify error type for logging.
 
-**`get_error_suggestions(error: Exception) -> List[str]`**  
+**`get_error_suggestions(error: Exception) -> List[str]`**
 Get actionable suggestions for resolving errors.
 
 ## Logging Configuration
 
 ### Setup Functions
 
-**`setup_logging(level="INFO", **options) -> None`**  
+**`setup_logging(level="INFO", **options) -> None`**
 Configure py7zz logging.
 
 **Parameters:**
@@ -617,41 +617,41 @@ Configure py7zz logging.
 - `structured` (bool): Use structured JSON logging
 - `performance_monitoring` (bool): Enable performance logging
 
-**`enable_debug_logging() -> None`**  
+**`enable_debug_logging() -> None`**
 Enable debug logging.
 
-**`disable_warnings() -> None`**  
+**`disable_warnings() -> None`**
 Disable warning messages.
 
 ### Configuration Functions
 
-**`set_log_level(level: str) -> None`**  
+**`set_log_level(level: str) -> None`**
 Set logging level.
 
-**`enable_file_logging(log_file: str, max_file_size: int = 10485760, backup_count: int = 3) -> None`**  
+**`enable_file_logging(log_file: str, max_file_size: int = 10485760, backup_count: int = 3) -> None`**
 Enable file logging with rotation.
 
-**`disable_file_logging() -> None`**  
+**`disable_file_logging() -> None`**
 Disable file logging.
 
-**`enable_structured_logging(enable: bool = True) -> None`**  
+**`enable_structured_logging(enable: bool = True) -> None`**
 Enable/disable structured JSON logging.
 
-**`enable_performance_monitoring(enable: bool = True) -> None`**  
+**`enable_performance_monitoring(enable: bool = True) -> None`**
 Enable/disable performance monitoring.
 
-**`get_logging_config() -> Dict`**  
+**`get_logging_config() -> Dict`**
 Get current logging configuration.
 
-**`get_log_statistics() -> Dict`**  
+**`get_log_statistics() -> Dict`**
 Get logging statistics.
 
-**`clear_logging_handlers() -> None`**  
+**`clear_logging_handlers() -> None`**
 Clear all logging handlers.
 
 ### Performance Logging
 
-**`log_performance(operation: str, duration: float, size: Optional[int] = None, **kwargs) -> None`**  
+**`log_performance(operation: str, duration: float, size: Optional[int] = None, **kwargs) -> None`**
 Log performance metrics. Can also be used as a decorator.
 
 **Args:**
@@ -663,7 +663,7 @@ Log performance metrics. Can also be used as a decorator.
 **Examples:**
     Direct usage:
     >>> log_performance("compression", 2.5, size=1024000)
-    
+
     Decorator usage:
     >>> @log_performance("my_operation")
     ... def my_function():
@@ -682,54 +682,54 @@ with PerformanceLogger("compression", size=file_size) as perf:
 
 ### Version Functions
 
-**`get_version() -> str`**  
+**`get_version() -> str`**
 Get current py7zz version.
 
-**`parse_version(version_string: str) -> Tuple[int, int, int, str, int]`**  
+**`parse_version(version_string: str) -> Tuple[int, int, int, str, int]`**
 Parse version string into components.
 
-**`get_base_version() -> str`**  
+**`get_base_version() -> str`**
 Get base version without pre-release suffix.
 
-**`get_build_number() -> int`**  
+**`get_build_number() -> int`**
 Get build number.
 
-**`get_version_type() -> str`**  
+**`get_version_type() -> str`**
 Get version type ('stable', 'auto', 'dev').
 
-**`is_stable_version() -> bool`**  
+**`is_stable_version() -> bool`**
 Check if current version is stable.
 
-**`is_auto_version() -> bool`**  
+**`is_auto_version() -> bool`**
 Check if current version is auto-release.
 
-**`is_dev_version() -> bool`**  
+**`is_dev_version() -> bool`**
 Check if current version is development.
 
-**`generate_auto_version(base_version: str, build_number: int) -> str`**  
+**`generate_auto_version(base_version: str, build_number: int) -> str`**
 Generate auto-release version string.
 
-**`generate_dev_version(base_version: str, build_number: int) -> str`**  
+**`generate_dev_version(base_version: str, build_number: int) -> str`**
 Generate development version string.
 
 ### Release Type Functions
 
-**`get_bundled_7zz_version() -> str`**  
+**`get_bundled_7zz_version() -> str`**
 Get bundled 7zz binary version.
 
-**`get_release_type() -> str`**  
+**`get_release_type() -> str`**
 Get release type ('stable', 'auto', 'dev').
 
-**`is_stable_release() -> bool`**  
+**`is_stable_release() -> bool`**
 Check if stable release.
 
-**`is_auto_release() -> bool`**  
+**`is_auto_release() -> bool`**
 Check if auto-release.
 
-**`is_dev_release() -> bool`**  
+**`is_dev_release() -> bool`**
 Check if development release.
 
-**`get_version_info() -> Dict[str, str]`**  
+**`get_version_info() -> Dict[str, str]`**
 Get complete version information dictionary.
 
 ## Library Migration Guide

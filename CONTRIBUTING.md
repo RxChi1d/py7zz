@@ -138,12 +138,12 @@ def create_archive(
     preset: str = "balanced"
 ) -> None:
     """Create an archive with specified files.
-    
+
     Args:
         archive_path: Path to create the archive
         files: List of files/directories to include
         preset: Compression preset ('fast', 'balanced', 'ultra')
-        
+
     Raises:
         FileNotFoundError: If any input file doesn't exist
         CompressionError: If compression fails

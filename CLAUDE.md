@@ -64,7 +64,7 @@
 - 列出相關的測試項目
 - 確認所有檢查清單項目
 
-**模板位置**：`.github/pull_request_template.md`  
+**模板位置**：`.github/pull_request_template.md`
 **風格**：Google 風格
 
 ### CHANGELOG 撰寫規範
@@ -73,7 +73,7 @@
 
 #### 基本原則
 1. **面向用戶**：描述功能影響，而非技術實現細節
-2. **語義化描述**：歸納整理變更，避免直接複製 commit 訊息  
+2. **語義化描述**：歸納整理變更，避免直接複製 commit 訊息
 3. **完整版本記錄**：包含所有版本（包括 pre-release）
 4. **標準分類**：僅使用 Keep a Changelog 的六個類別
    - **Added**：新功能
@@ -94,7 +94,7 @@
 #### 內容撰寫要求
 - **用戶導向**：描述用戶能感受到的變化和價值
 - **簡潔明確**：每項變更一行，易於掃讀
-- **粗體標題**：使用 **功能名稱** 突出重要特性  
+- **粗體標題**：使用 **功能名稱** 突出重要特性
 - **避免技術細節**：不包含 commit hash、內部重構、開發工具變更等
 
 #### 範例格式
@@ -105,7 +105,7 @@
 - **Windows Filename Compatibility**: Automatic sanitization of problematic filenames
 - **Enhanced Security Features**: Built-in protection against ZIP bombs
 
-### Changed  
+### Changed
 - **API Architecture**: Redesigned for better performance and maintainability
 
 ### Fixed
@@ -122,7 +122,14 @@ py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 二進位檔案 (7-Zi
 
 ### 核心開發循環
 
-⚠️ **重要**：每次commit前**必須**執行完整的品質檢查流程 (`scripts/ci-local.sh`)，並通過所有檢測。
+#### Git Hooks（pre-commit）
+
+專案使用 **pre-commit** 工具進行自動化品質檢查，配置檔案：`.pre-commit-config.yaml`。
+
+可以手動執行所有檢查：
+```bash
+uv run pre-commit run --all-files
+```
 
 開發過程中也可以使用以下命令做基本的檢查與測試：
 ```bash

@@ -1,0 +1,44 @@
+# Pre-commit configuration for py7zz
+# See https://pre-commit.com for more information
+
+repos:
+  # Basic file formatting (fast)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+
+  # Pre-commit: Fast format and lint checks
+  - repo: local
+    hooks:
+      - id: format-and-lint
+        name: Format and lint checks
+        entry: ./scripts/format-and-lint.sh
+        language: script
+        stages: [pre-commit]
+        pass_filenames: false
+        always_run: true
+
+  # Pre-push: Complete CI simulation
+  - repo: local
+    hooks:
+      - id: ci-local
+        name: Complete CI checks
+        entry: ./scripts/ci-local.sh
+        language: script
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+
+# Configure pre-commit to use the latest Python version
+default_language_version:
+  python: python3

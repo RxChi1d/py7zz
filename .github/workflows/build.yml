@@ -29,15 +29,15 @@ jobs:
             platform: windows
             arch: x64
             binary_name: 7zz.exe
-    
+
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Verify CI status
       shell: bash
       run: |
         echo "Verifying CI workflow status for commit: $GITHUB_SHA"
-        
+
         # Query CI workflow status for the specific commit using gh run list
         # This avoids Windows Git Bash path rewriting issues with gh api
         CI_STATUS=$(gh run list \
@@ -45,9 +45,9 @@ jobs:
           --json conclusion,headSha \
           --jq ".[] | select(.headSha == \"$GITHUB_SHA\") | .conclusion" \
           | head -1)
-        
+
         echo "CI workflow status: $CI_STATUS"
-        
+
         if [ "$CI_STATUS" = "success" ]; then
           echo "✅ CI workflow passed - proceeding with build"
         elif [ "$CI_STATUS" = "failure" ]; then
@@ -66,23 +66,23 @@ jobs:
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    
+
     - name: Install uv
       uses: astral-sh/setup-uv@v3
       with:
         version: "latest"  # Use latest version for better lock file support
       timeout-minutes: 3  # Add timeout to prevent hanging
-    
+
     - name: Set up Python
       run: uv python install 3.11
-    
+
     - name: Install dependencies
       timeout-minutes: 5  # Add timeout for dependency installation
       run: |
         # Use uv sync for proper dependency management
         uv sync --dev
         uv pip install -e .
-    
+
     - name: Validate tag format and determine release type
       id: validate_tag
       shell: bash
@@ -93,9 +93,9 @@ jobs:
         else
           TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
         fi
-        
+
         echo "Git tag: $TAG"
-        
+
         # Validate tag format (PEP 440 compliant)
         if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?$ ]]; then
           echo "✓ Tag format is valid: $TAG"
@@ -105,7 +105,7 @@ jobs:
           echo "Examples: v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1"
           exit 1
         fi
-        
+
         # Determine if this is a stable release (no suffix) or pre-release
         if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
           RELEASE_TYPE="stable"
@@ -114,25 +114,25 @@ jobs:
           RELEASE_TYPE="pre-release"
           echo "Release type: Pre-release"
         fi
-        
+
         # Get 7zz version (hardcoded for stability)
         SEVEN_ZZ_VERSION="25.00"
         echo "Using 7zz version: $SEVEN_ZZ_VERSION"
-        
+
         # Set outputs
         echo "git_tag=$TAG" >> $GITHUB_OUTPUT
         echo "seven_zz_version=$SEVEN_ZZ_VERSION" >> $GITHUB_OUTPUT
         echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
-    
+
     - name: Validate stable release ancestry (for stable releases only)
       if: steps.validate_tag.outputs.release_type == 'stable'
       shell: bash
       run: |
         echo "Validating stable release ancestry..."
-        
+
         # Fetch origin/main to ensure we have latest main branch
         git fetch origin main
-        
+
         # Check if current tag commit is an ancestor of main
         if git merge-base --is-ancestor $GITHUB_SHA origin/main; then
           echo "✓ Tag commit is an ancestor of main branch - valid for stable release"
@@ -142,7 +142,7 @@ jobs:
           echo "Main branch head: $(git rev-parse origin/main)"
           exit 1
         fi
-    
+
     - name: Download 7zz binary
       shell: bash
       run: |
@@ -150,12 +150,12 @@ jobs:
         PLATFORM="${{ matrix.platform }}"
         ARCH="${{ matrix.arch }}"
         BINARY_NAME="${{ matrix.binary_name }}"
-        
+
         # Convert version format (25.00 -> 2500)
         VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')
         echo "Original version: $VERSION"
         echo "Asset version: $VERSION_FOR_ASSET"
-        
+
         # Map platform/arch to 7zz release naming
         case "$PLATFORM-$ARCH" in
           "linux-x64")
@@ -172,28 +172,28 @@ jobs:
             exit 1
             ;;
         esac
-        
+
         # Download from GitHub releases
         DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
         echo "Downloading from: $DOWNLOAD_URL"
-        
+
         # Clean up all binary directories and create unified directory
         echo "Cleaning up all binary directories and creating unified directory"
         rm -rf "py7zz/bin"
         mkdir -p "py7zz/bin"
-        
+
         if [[ "$PLATFORM" == "windows" ]]; then
           # Windows installer - download and extract CLI components for full format support
           echo "Downloading installer and extracting CLI components..."
           echo "URL: $DOWNLOAD_URL"
           echo "Target path: py7zz/bin/${BINARY_NAME}"
-          
+
           TEMP_DIR=$(mktemp -d)
           curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
-          
+
           # GitHub Runner has built-in 7z.exe for extraction
           7z x "${TEMP_DIR}/${ASSET_NAME}" -o"${TEMP_DIR}/out" > /dev/null
-          
+
           # Extract complete CLI with DLL for full format support (7z.exe + 7z.dll)
           if [[ -f "${TEMP_DIR}/out/7z.exe" ]] && [[ -f "${TEMP_DIR}/out/7z.dll" ]]; then
             # Rename 7z.exe to 7zz.exe for cross-platform consistency
@@ -206,7 +206,7 @@ jobs:
             ls -la "${TEMP_DIR}/out/"
             exit 1
           fi
-          
+
           # Clean up temp directory
           rm -rf "${TEMP_DIR}"
         else
@@ -214,12 +214,12 @@ jobs:
           echo "Downloading and extracting Unix binary..."
           echo "URL: $DOWNLOAD_URL"
           echo "Target path: py7zz/bin/${BINARY_NAME}"
-          
+
           TEMP_DIR=$(mktemp -d)
           curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
           cd "${TEMP_DIR}"
           tar -xf "${ASSET_NAME}"
-          
+
           # Find and copy the 7zz binary (search only in current extraction directory)
           BINARY_PATH=$(find . -name "7zz" -type f | head -1)
           if [ -n "$BINARY_PATH" ]; then
@@ -231,17 +231,17 @@ jobs:
             ls -la .
             exit 1
           fi
-          
+
           # Clean up temp directory
           cd "$GITHUB_WORKSPACE"
           rm -rf "${TEMP_DIR}"
         fi
-        
+
         # Make binary executable (skip for Windows)
         if [[ "$PLATFORM" != "windows" ]]; then
           chmod +x "py7zz/bin/${BINARY_NAME}"
         fi
-        
+
         # Verify the binary was placed correctly
         echo "Verifying binary placement..."
         if [[ -f "py7zz/bin/${BINARY_NAME}" ]]; then
@@ -253,11 +253,11 @@ jobs:
           find py7zz/bin/ -type f -ls || echo "No files found"
           exit 1
         fi
-        
+
         # Verify binary works
         echo "Verifying binary functionality..."
         BINARY_PATH="py7zz/bin/${BINARY_NAME}"
-        
+
         if [[ "$PLATFORM" == "windows" ]]; then
           # Windows binary verification - verify 7zz.exe (from 7z.exe) with 7z.dll works
           if "$BINARY_PATH" -h > /dev/null 2>&1; then
@@ -279,24 +279,24 @@ jobs:
             exit 1
           fi
         fi
-    
+
     - name: Validate dynamic version generation
       shell: bash
       run: |
         # Test that hatch-vcs can generate version from git tag
         echo "Testing dynamic version generation..."
-        
+
         # Use git describe to get version (no need for hatchling at runtime)
         GENERATED_VERSION=$(git describe --tags --match='v*' | sed 's/^v//')
-        
+
         echo "Generated version: $GENERATED_VERSION"
-        
+
         # Skip validation if version generation failed
         if [ "$GENERATED_VERSION" = "0.0.0" ]; then
           echo "⚠ Version generation failed, skipping validation"
           exit 0
         fi
-        
+
         # Verify version format is PEP 440 compliant
         if [[ $GENERATED_VERSION =~ ^[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?$ ]]; then
           echo "✓ Generated version is PEP 440 compliant: $GENERATED_VERSION"
@@ -304,7 +304,7 @@ jobs:
           echo "✗ Generated version is not PEP 440 compliant: $GENERATED_VERSION"
           exit 1
         fi
-        
+
         # Verify version matches git tag (remove 'v' prefix from tag)
         GIT_TAG="${{ steps.validate_tag.outputs.git_tag }}"
         EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
@@ -314,13 +314,13 @@ jobs:
           echo "✗ Version mismatch - Git tag: $GIT_TAG, Generated: $GENERATED_VERSION"
           exit 1
         fi
-    
+
     - name: Build wheel
       shell: bash
       run: |
         # Build platform-specific wheel by renaming after build
         uv build --wheel
-        
+
         # Rename wheel to include platform tag (using PyPI-compatible tags)
         WHEEL_FILE=$(ls dist/*.whl)
         if [[ "${{ matrix.platform }}" == "windows" ]]; then
@@ -333,10 +333,10 @@ jobs:
           echo "Unsupported platform: ${{ matrix.platform }}-${{ matrix.arch }}"
           exit 1
         fi
-        
+
         echo "Renaming wheel: $WHEEL_FILE -> $NEW_NAME"
         mv "$WHEEL_FILE" "$NEW_NAME"
-    
+
     - name: Verify wheel version consistency
       shell: bash
       run: |
@@ -344,31 +344,31 @@ jobs:
         WHEEL_FILE=$(ls dist/*.whl | head -1)
         WHEEL_VERSION=$(echo "$WHEEL_FILE" | sed -n 's/.*py7zz-\([^-]*\)-.*/\1/p')
         echo "Wheel version: $WHEEL_VERSION"
-        
+
         # Compare with expected version from git tag
         GIT_TAG="${{ steps.validate_tag.outputs.git_tag }}"
         EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
-        
+
         if [ "$WHEEL_VERSION" = "$EXPECTED_VERSION" ]; then
           echo "✓ Wheel version matches git tag: $WHEEL_VERSION"
         else
           echo "✗ Wheel version mismatch - Expected: $EXPECTED_VERSION, Got: $WHEEL_VERSION"
           exit 1
         fi
-        
+
         # Test install and version check
         echo "Testing wheel installation and version verification..."
         uv pip install dist/*.whl --force-reinstall
         INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
         echo "Installed version: $INSTALLED_VERSION"
-        
+
         if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
           echo "✓ Installed version matches git tag: $INSTALLED_VERSION"
         else
           echo "✗ Installed version mismatch - Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
           exit 1
         fi
-    
+
     - name: Upload wheel artifacts
       uses: actions/upload-artifact@v4
       with:
@@ -383,7 +383,7 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    
+
     steps:
     - name: Download all artifacts
       uses: actions/download-artifact@v4
@@ -391,7 +391,7 @@ jobs:
         path: dist/
         pattern: wheels-*
         merge-multiple: true
-    
+
     - name: Final version validation before PyPI publish
       shell: bash
       run: |
@@ -400,13 +400,13 @@ jobs:
         EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
         echo "Git tag: $GIT_TAG"
         echo "Expected PyPI version: $EXPECTED_VERSION"
-        
+
         # Verify all wheels have consistent version
         echo "Verifying wheel versions..."
         for wheel in dist/*.whl; do
           WHEEL_VERSION=$(echo "$wheel" | sed -n 's/.*py7zz-\([^-]*\)-.*/\1/p')
           echo "  $wheel -> $WHEEL_VERSION"
-          
+
           if [ "$WHEEL_VERSION" != "$EXPECTED_VERSION" ]; then
             echo "✗ Wheel version mismatch: $wheel"
             echo "  Expected: $EXPECTED_VERSION"
@@ -414,16 +414,16 @@ jobs:
             exit 1
           fi
         done
-        
+
         echo "✓ All wheels have consistent version: $EXPECTED_VERSION"
-        
+
         # Final confirmation
         echo "🚀 Ready to publish to PyPI:"
         echo "  Git tag: $GIT_TAG"
         echo "  PyPI version: $EXPECTED_VERSION"
         echo "  Wheel count: $(ls dist/*.whl | wc -l)"
         ls -la dist/
-    
+
     - name: Publish to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
@@ -436,20 +436,20 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
       contents: write
-    
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Get full history for changelog
-    
+
     - name: Download all artifacts
       uses: actions/download-artifact@v4
       with:
         path: dist/
         pattern: wheels-*
         merge-multiple: true
-    
-    
+
+
     - name: Get Release Draft
       id: get_release_draft
       uses: release-drafter/release-drafter@v6
@@ -457,22 +457,22 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       # Only run for stable releases
       if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
-    
+
     - name: Generate pre-release notes
       id: pre_release_notes
       if: ${{ contains(github.ref_name, 'a') || contains(github.ref_name, 'b') || contains(github.ref_name, 'rc') }}
       run: |
         # Get commits since last tag (stable or pre-release)
         LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-        
+
         if [ -n "$LAST_TAG" ]; then
           # Generate categorized release notes
           echo "## What's Changed" > release_notes.md
           echo "" >> release_notes.md
-          
+
           # Get commits and categorize them
           git log --format="%s" --no-merges ${LAST_TAG}..HEAD > commits.txt
-          
+
           # Initialize category flags
           has_feat=false
           has_fix=false
@@ -484,7 +484,7 @@ jobs:
           has_style=false
           has_chore=false
           has_other=false
-          
+
           # Check which categories we have
           while IFS= read -r commit; do
             if [[ "$commit" =~ ^feat(\(.+\))?: ]]; then has_feat=true
@@ -499,7 +499,7 @@ jobs:
             else has_other=true
             fi
           done < commits.txt
-          
+
           # Generate sections only for existing categories
           if [ "$has_feat" = true ]; then
             echo "🚀 Features" >> release_notes.md
@@ -507,75 +507,75 @@ jobs:
             grep -E "^feat(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_fix" = true ]; then
             echo "🐛 Bug Fixes" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^fix(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_docs" = true ]; then
             echo "📚 Documentation" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^docs(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_ci" = true ]; then
             echo "🔄 CI/CD" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^ci(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_perf" = true ]; then
             echo "⚡ Performance" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^perf(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_test" = true ]; then
             echo "🧪 Testing" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^test(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_refactor" = true ]; then
             echo "🔧 Maintenance" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^refactor(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_style" = true ]; then
             echo "🔧 Maintenance" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^style(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_chore" = true ]; then
             echo "🔧 Maintenance" >> release_notes.md
             echo "" >> release_notes.md
             grep -E "^chore(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           if [ "$has_other" = true ]; then
             echo "Other Changes" >> release_notes.md
             echo "" >> release_notes.md
             grep -v -E "^(feat|fix|docs|ci|perf|test|refactor|style|chore)(\(.+\))?: " commits.txt | sed 's/^/- /' >> release_notes.md
             echo "" >> release_notes.md
           fi
-          
+
           # Add footer
           echo "---" >> release_notes.md
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${{ github.ref_name }}" >> release_notes.md
-          
+
           # Clean up
           rm commits.txt
         else
@@ -585,7 +585,7 @@ jobs:
           echo "" >> release_notes.md
           echo "**Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ github.ref_name }}" >> release_notes.md
         fi
-        
+
         # Set output
         echo "notes<<EOF" >> $GITHUB_OUTPUT
         cat release_notes.md >> $GITHUB_OUTPUT
