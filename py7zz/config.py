@@ -27,7 +27,9 @@ class Config:
     solid: bool = True  # Solid archive (better compression)
 
     # Performance settings
-    threads: Optional[int] = None  # Number of threads (None = auto)
+    threads: Union[bool, int, None] = (
+        None  # Thread control: True=explicit all cores (-mmt=on), False=single thread (-mmt=off), int=specific count (-mmt=N), None=7zz default (equivalent to all cores)
+    )
     memory_limit: Optional[str] = None  # Memory limit (e.g., "1g", "512m")
 
     # Security settings
@@ -79,8 +81,13 @@ class Config:
             args.append("-ms=off")
 
         # Threads
-        if self.threads is not None:
-            args.append(f"-mmt{self.threads}")
+        if self.threads is False:
+            args.append("-mmt=off")  # Force single thread
+        elif self.threads is True:
+            args.append("-mmt=on")  # Explicitly use all available cores
+        elif isinstance(self.threads, int):
+            args.append(f"-mmt={self.threads}")  # Use specific thread count
+        # self.threads is None: Use 7zz default (which is equivalent to mmt=on)
 
         # Memory limit
         if self.memory_limit:
@@ -146,9 +153,17 @@ class Config:
                 f"Memory limit '{self.memory_limit}' should end with k/m/g suffix"
             )
 
-        # Check thread count
-        if self.threads is not None and self.threads < 1:
-            warnings.append(f"Thread count {self.threads} should be positive")
+        # Check thread configuration
+        if (
+            isinstance(self.threads, int)
+            and not isinstance(self.threads, bool)
+            and self.threads < 1
+        ):
+            raise ValueError(f"Thread count must be positive, got {self.threads}")
+        elif self.threads is not None and not isinstance(self.threads, (bool, int)):
+            raise TypeError(
+                f"threads must be bool, int, or None, got {type(self.threads).__name__}"
+            )
 
         # Check dictionary size format
         if self.dictionary_size and not any(
@@ -220,7 +235,7 @@ class Presets:
             compression="lzma2",
             level=1,
             solid=False,
-            threads=None,  # Use all available threads
+            threads=True,  # Use all available threads
         )
 
     @staticmethod
@@ -269,7 +284,7 @@ class Presets:
             dictionary_size="128m",
             word_size=64,
             fast_bytes=64,
-            threads=1,  # Single thread for maximum compression
+            threads=False,  # Single thread for maximum compression
         )
 
     @staticmethod

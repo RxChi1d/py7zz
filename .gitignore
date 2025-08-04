@@ -156,6 +156,7 @@ $RECYCLE.BIN/
 
 # Claude Code
 .claude/
+.clinerules
 
 # py7zz specific
 py7zz/binaries/macos/7zz

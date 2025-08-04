@@ -433,7 +433,8 @@ Main configuration class for compression settings.
 - `compression_level` (int): Compression level (0-9)
 - `compression_method` (str): Method (lzma2, bzip2, etc.)
 - `solid` (bool): Enable solid compression
-- `multi_thread` (bool): Enable multi-threading
+- `threads` (Optional[Union[bool, int]]): Thread count (int=N threads, True=all cores, False=single thread). Defaults to all cores.
+- `memory_limit` (Optional[str]): Memory limit (e.g., "1g", "512m")
 - `encrypt` (bool): Enable file content encryption (AES-256)
 - `encrypt_headers` (bool): Enable header encryption (file names and structure)
 - `password` (Optional[str]): Archive password
