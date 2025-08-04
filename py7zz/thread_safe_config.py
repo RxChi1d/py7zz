@@ -33,7 +33,9 @@ class ImmutableConfig:
     solid: bool = True
 
     # Performance settings
-    threads: Optional[int] = None
+    threads: Union[bool, int, None] = (
+        None  # Thread control: True=explicit all cores (-mmt=on), False=single thread (-mmt=off), int=specific count (-mmt=N), None=7zz default (equivalent to all cores)
+    )
     memory_limit: Optional[str] = None
 
     # Security settings
@@ -98,8 +100,17 @@ class ImmutableConfig:
                 f"Memory limit '{self.memory_limit}' should end with k/m/g suffix"
             )
 
-        if self.threads is not None and self.threads < 1:
-            warnings.append(f"Thread count {self.threads} should be positive")
+        # Check thread configuration
+        if (
+            isinstance(self.threads, int)
+            and not isinstance(self.threads, bool)
+            and self.threads < 1
+        ):
+            raise ValueError(f"Thread count must be positive, got {self.threads}")
+        elif self.threads is not None and not isinstance(self.threads, (bool, int)):
+            raise TypeError(
+                f"threads must be bool, int, or None, got {type(self.threads).__name__}"
+            )
 
         if self.encrypt_filenames and not self.password:
             warnings.append("Filename encryption requires a password")
@@ -327,7 +338,7 @@ PRESET_CONFIGS = {
         level=1,
         compression="lzma2",
         solid=False,
-        threads=None,
+        threads=True,  # Use all available cores
     ),
     "balanced": ImmutableConfig(
         preset_name="balanced",
@@ -342,7 +353,7 @@ PRESET_CONFIGS = {
         compression="lzma2",
         solid=True,
         dictionary_size="32m",
-        threads=None,
+        threads=False,  # Single thread for maximum compression
     ),
     "backup": ImmutableConfig(
         preset_name="backup",
