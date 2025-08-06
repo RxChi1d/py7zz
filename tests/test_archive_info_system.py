@@ -908,7 +908,8 @@ class TestGetArchiveInfoFunction:
                 info = get_archive_info(mock_archive_path)
 
                 assert info["format"] == expected_format
-                assert info["path"] == archive_path_str
+                # Handle cross-platform path format differences
+                assert Path(info["path"]).resolve() == Path(archive_path_str).resolve()
 
     def test_get_archive_info_empty_archive(self):
         """Test get_archive_info with an empty archive."""
@@ -1058,7 +1059,8 @@ class TestGetArchiveInfoFunction:
             ), patch("py7zz.simple.Path.stat", return_value=mock_stat):
                 info = get_archive_info(mock_archive_path)
 
-                assert info["path"] == unicode_path_str
+                # Handle cross-platform path format differences for Unicode paths
+                assert Path(info["path"]).resolve() == Path(unicode_path_str).resolve()
                 assert info["file_count"] == 1
 
 

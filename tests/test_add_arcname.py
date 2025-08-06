@@ -159,7 +159,14 @@ class TestAddWithArcnameMethod:
 
             assert "/usr/bin/7zz" in args
             assert "a" in args
-            assert str(self.mock_archive_path) in args
+            # Check archive path exists in args, handling cross-platform path formats
+            archive_path_found = any(
+                Path(arg).name == self.mock_archive_path.name
+                and Path(arg).suffix == self.mock_archive_path.suffix
+                for arg in args
+                if isinstance(arg, str) and Path(arg).suffix
+            )
+            assert archive_path_found, f"Archive path not found in args: {args}"
             assert kwargs.get("cwd") == str(mock_temp_dir_path)
 
     @patch("tempfile.TemporaryDirectory")

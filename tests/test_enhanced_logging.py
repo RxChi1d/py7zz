@@ -40,11 +40,43 @@ class TestEnhancedLoggingSetup:
         with tempfile.TemporaryDirectory() as temp_dir:
             log_file = Path(temp_dir) / "test.log"
 
-            py7zz.setup_logging("DEBUG", log_file=log_file)
-            config = get_logging_config()
+            try:
+                py7zz.setup_logging("DEBUG", log_file=log_file)
+                config = get_logging_config()
 
-            assert config["file_enabled"] is True
-            assert config["file_path"] == log_file
+                assert config["file_enabled"] is True
+                assert config["file_path"] == log_file
+            finally:
+                # Comprehensive cleanup to avoid Windows file locking issues
+                import gc
+                import logging
+                import platform
+                import time
+
+                # Close and remove all file handlers from all loggers
+                for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+                    logger_obj = logging.getLogger(logger_name)
+                    for handler in logger_obj.handlers[:]:
+                        if hasattr(handler, "baseFilename"):
+                            handler.close()
+                            logger_obj.removeHandler(handler)
+
+                # Also clean root logger handlers
+                root_logger = logging.getLogger()
+                for handler in root_logger.handlers[:]:
+                    if hasattr(handler, "baseFilename"):
+                        handler.close()
+                        root_logger.removeHandler(handler)
+
+                # Shutdown all logging to ensure complete cleanup
+                logging.shutdown()
+
+                # Force garbage collection to release any remaining references
+                gc.collect()
+
+                # On Windows, give the system time to release file handles
+                if platform.system() == "Windows":
+                    time.sleep(0.1)
 
     def test_structured_logging_setup(self):
         """Test structured logging configuration."""
@@ -124,15 +156,47 @@ class TestFileLogging:
         with tempfile.TemporaryDirectory() as temp_dir:
             log_file = Path(temp_dir) / "test.log"
 
-            py7zz.enable_file_logging(log_file)
+            try:
+                py7zz.enable_file_logging(log_file)
 
-            # Create a test log
-            logger = py7zz.logging_config.get_logger("test")
-            logger.info("Test file logging")
+                # Create a test log
+                logger = py7zz.logging_config.get_logger("test")
+                logger.info("Test file logging")
 
-            assert log_file.exists()
-            content = log_file.read_text()
-            assert "Test file logging" in content
+                assert log_file.exists()
+                content = log_file.read_text()
+                assert "Test file logging" in content
+            finally:
+                # Comprehensive cleanup to avoid Windows file locking issues
+                import gc
+                import logging
+                import platform
+                import time
+
+                # Close and remove all file handlers from all loggers
+                for logger_name in list(logging.Logger.manager.loggerDict.keys()):
+                    logger_obj = logging.getLogger(logger_name)
+                    for handler in logger_obj.handlers[:]:
+                        if hasattr(handler, "baseFilename"):
+                            handler.close()
+                            logger_obj.removeHandler(handler)
+
+                # Also clean root logger handlers
+                root_logger = logging.getLogger()
+                for handler in root_logger.handlers[:]:
+                    if hasattr(handler, "baseFilename"):
+                        handler.close()
+                        root_logger.removeHandler(handler)
+
+                # Shutdown all logging to ensure complete cleanup
+                logging.shutdown()
+
+                # Force garbage collection to release any remaining references
+                gc.collect()
+
+                # On Windows, give the system time to release file handles
+                if platform.system() == "Windows":
+                    time.sleep(0.1)
 
     def test_disable_file_logging(self):
         """Test disabling file logging."""
