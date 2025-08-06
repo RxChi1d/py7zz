@@ -1,0 +1,21 @@
+# Auto-labeling configuration based on file changes
+
+docs:
+  - changed-files:
+    - any-glob-to-any-file: ['**/*.md', 'docs/**/*', '*.rst', '*.txt']
+
+test:
+  - changed-files:
+    - any-glob-to-any-file: ['tests/**/*', '**/*test*', '**/*spec*']
+
+ci:
+  - changed-files:
+    - any-glob-to-any-file: ['.github/**/*', '*.yml', '*.yaml', 'Dockerfile*', '.dockerignore']
+
+build:
+  - changed-files:
+    - any-glob-to-any-file: ['pyproject.toml', 'setup.py', 'setup.cfg', 'requirements*.txt', 'Pipfile*', 'uv.lock']
+
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file: ['requirements*.txt', 'pyproject.toml', 'setup.py', 'uv.lock', 'Pipfile.lock']
