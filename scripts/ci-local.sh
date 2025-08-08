@@ -63,7 +63,7 @@ setup_test_environment() {
     # Set up 7zz binary for testing if not already set
     if [ -z "$PY7ZZ_BINARY" ]; then
         print_status "Searching for 7zz/7z binary for testing..."
-        
+
         # Try to find 7zz in common locations
         if command -v 7zz &> /dev/null; then
             export PY7ZZ_BINARY=$(which 7zz)
@@ -92,11 +92,11 @@ run_comprehensive_tests() {
     print_status "Running pytest with detailed output..."
 
     local pytest_cmd="uv run pytest -v --tb=short"
-    
+
     if [ -n "$PY7ZZ_BINARY" ]; then
         print_status "Test environment: PY7ZZ_BINARY=$PY7ZZ_BINARY"
         echo -e "${PURPLE}Command: $pytest_cmd${NC}"
-        
+
         if $pytest_cmd; then
             print_success "All tests passed with 7zz binary available"
         else
@@ -106,7 +106,7 @@ run_comprehensive_tests() {
     else
         print_warning "Running tests without 7zz binary (some tests may be skipped)"
         echo -e "${PURPLE}Command: $pytest_cmd${NC}"
-        
+
         if $pytest_cmd; then
             print_success "Tests completed (some may have been skipped due to missing 7zz)"
         else

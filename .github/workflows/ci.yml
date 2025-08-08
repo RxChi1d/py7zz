@@ -87,7 +87,7 @@ jobs:
       run: |
         VERSION="25.00"
         VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # 25.00 -> 2500
-        
+
         # Map platform to 7zz release naming (same logic as build.yml)
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
@@ -99,24 +99,24 @@ jobs:
           ASSET_NAME="7z${VERSION_FOR_ASSET}-linux-x64.tar.xz"
           BINARY_NAME="7zz"
         fi
-        
+
         DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
         echo "Downloading from: $DOWNLOAD_URL"
-        
+
         TEMP_DIR=$(mktemp -d)
         curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
-        
+
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           # Windows installer - extract CLI components (same logic as build.yml)
           echo "Downloading installer and extracting CLI components..."
           echo "URL: $DOWNLOAD_URL"
-          
+
           # Create binary directory for testing
           mkdir -p "py7zz/bin"
-          
+
           # GitHub Runner has built-in 7z.exe for extraction
           7z x "${TEMP_DIR}/${ASSET_NAME}" -o"${TEMP_DIR}/out" > /dev/null
-          
+
           # Extract complete CLI with DLL for full format support (7z.exe + 7z.dll)
           if [[ -f "${TEMP_DIR}/out/7z.exe" ]] && [[ -f "${TEMP_DIR}/out/7z.dll" ]]; then
             # Rename 7z.exe to 7zz.exe for cross-platform consistency
@@ -133,22 +133,22 @@ jobs:
           # Unix tar.xz file (same logic as build.yml)
           echo "Downloading and extracting Unix binary..."
           echo "URL: $DOWNLOAD_URL"
-          
+
           # Create binary directory for testing
           mkdir -p "py7zz/bin"
-          
+
           cd "${TEMP_DIR}"
           tar -xf "${ASSET_NAME}"
-          
+
           # Find and copy the 7zz binary (search only in current extraction directory)
           BINARY_PATH=$(find . -name "7zz" -type f | head -1)
           if [ -n "$BINARY_PATH" ]; then
             cp "$BINARY_PATH" "$GITHUB_WORKSPACE/py7zz/bin/${BINARY_NAME}"
             echo "Binary found and copied: $BINARY_PATH -> py7zz/bin/${BINARY_NAME}"
-            
+
             # Return to workspace directory to set permissions
             cd "$GITHUB_WORKSPACE"
-            
+
             # Make binary executable for Unix systems
             if [[ "${{ runner.os }}" != "Windows" ]]; then
               chmod +x "py7zz/bin/${BINARY_NAME}"
@@ -161,10 +161,10 @@ jobs:
             exit 1
           fi
         fi
-        
+
         # Ensure we're in the workspace directory for verification
         cd "$GITHUB_WORKSPACE"
-        
+
         # Verify the binary was placed correctly (same logic as build.yml)
         echo "Verifying binary placement..."
         if [[ -f "py7zz/bin/${BINARY_NAME}" ]]; then
@@ -176,11 +176,11 @@ jobs:
           find py7zz/bin/ -type f -ls || echo "No files found"
           exit 1
         fi
-        
+
         # Verify binary works (same logic as build.yml)
         echo "Verifying binary functionality..."
         BINARY_PATH="py7zz/bin/${BINARY_NAME}"
-        
+
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           # Windows binary verification - verify 7zz.exe (from 7z.exe) with 7z.dll works
           if "$BINARY_PATH" -h > /dev/null 2>&1; then
@@ -202,7 +202,7 @@ jobs:
             exit 1
           fi
         fi
-        
+
         # Clean up
         cd "$GITHUB_WORKSPACE"
         rm -rf "${TEMP_DIR}"

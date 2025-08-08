@@ -66,10 +66,10 @@ setup_environment() {
 # Function to run format and lint checks (delegate to format-and-lint.sh)
 run_format_and_lint_checks() {
     print_status "Running format and lint checks (delegating to format-and-lint.sh)..."
-    
+
     # Make sure the script is executable
     chmod +x scripts/format-and-lint.sh
-    
+
     if ./scripts/format-and-lint.sh; then
         print_success "Format and lint checks completed successfully"
     else
