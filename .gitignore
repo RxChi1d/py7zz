@@ -165,6 +165,9 @@ py7zz/binaries/windows/7zz.exe
 ~/.cache/py7zz/
 NOTES
 
+# Development examples
+/examples/
+
 # Development planning documents (not for distribution)
 py_7_zz_vibe_coding_plan.md
 
