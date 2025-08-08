@@ -1,8 +1,9 @@
 # Pre-commit configuration for py7zz
+# Optimized configuration inspired by modern best practices
 # See https://pre-commit.com for more information
 
 repos:
-  # Basic file formatting (fast)
+  # Standard file checks (fast and essential)
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
@@ -16,28 +17,32 @@ repos:
         name: Check TOML syntax
       - id: check-merge-conflict
         name: Check for merge conflicts
+      - id: check-added-large-files
+        name: Prevent large files from being committed
+        args: ['--maxkb=10240']  # 10MB limit
 
-  # Pre-commit: Fast format and lint checks
+  # Script-based development checks
   - repo: local
     hooks:
+      # Pre-commit: Fast format and lint checks for quick feedback
       - id: format-and-lint
-        name: Format and lint checks
+        name: Format and lint checks (ruff format + check)
         entry: ./scripts/format-and-lint.sh
-        language: script
+        language: system
         stages: [pre-commit]
         pass_filenames: false
         always_run: true
+        verbose: true
 
-  # Pre-push: Complete CI simulation
-  - repo: local
-    hooks:
-      - id: ci-local
-        name: Complete CI checks
-        entry: ./scripts/ci-local.sh
-        language: script
+      # Pre-push: Balanced CI checks (format + lint + types, no full testing)
+      - id: quick-ci-check
+        name: Quick CI checks (format + lint + types)
+        entry: ./scripts/ci-local.sh --quick-only
+        language: system
         stages: [pre-push]
         pass_filenames: false
         always_run: true
+        verbose: true
 
 # Configure pre-commit to use the latest Python version
 default_language_version:
