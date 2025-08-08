@@ -88,9 +88,9 @@ def find_7z_binary() -> str:
 
     raise RuntimeError(
         "7zz binary not found. Please either:\n"
-        "1. Install py7zz from PyPI (pip install py7zz) to get bundled binary\n"
-        "2. Ensure internet connection for auto-download (source installs)\n"
-        "3. Set PY7ZZ_BINARY environment variable to point to your 7zz binary"
+        "1. Ensure internet connection for auto-download (source installs)\n"
+        "2. Set PY7ZZ_BINARY environment variable to point to your 7zz binary\n"
+        "3. Check that the binary was properly bundled during build process"
     )
 
 

@@ -3,7 +3,10 @@ name: Release Drafter
 on:
   push:
     branches:
-      - main
+      - main          # Official releases from PR merges
+      - 'feature/**'  # Draft releases from feature branches
+      - 'dev/**'      # Draft releases from development branches
+      - develop       # Draft releases from main development branch
   pull_request:
     types: [opened, reopened, synchronize]
 
@@ -17,6 +20,171 @@ jobs:
       pull-requests: write
     runs-on: ubuntu-latest
     steps:
-      - uses: release-drafter/release-drafter@v6
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Get full history for commit-based changelog
+
+      # Official release notes for main branch (PR-based)
+      - name: Update Release Draft (Main Branch)
+        if: github.ref == 'refs/heads/main'
+        uses: release-drafter/release-drafter@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Draft release notes for development branches (commit-based)
+      - name: Generate Development Release Notes
+        if: github.ref != 'refs/heads/main' && github.event_name == 'push'
+        id: dev_release_notes
+        run: |
+          echo "Generating development release notes from commit messages..."
+
+          # Get branch name
+          BRANCH_NAME=$(echo ${GITHUB_REF#refs/heads/})
+          echo "Branch: $BRANCH_NAME"
+
+          # Get commits since last tag or last 10 commits if no tags
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+
+          if [ -n "$LAST_TAG" ]; then
+            echo "## What's Changed (Development)" > dev_notes.md
+            echo "" >> dev_notes.md
+            echo "**Branch**: \`$BRANCH_NAME\`" >> dev_notes.md
+            echo "" >> dev_notes.md
+
+            # Parse conventional commits and categorize (same logic as build.yml)
+            # Get all commits since last tag
+            COMMITS=$(git log --format="%s" --no-merges ${LAST_TAG}..HEAD)
+
+            # Initialize category flags
+            HAS_FEATURES=false
+            HAS_FIXES=false
+            HAS_DOCS=false
+            HAS_PERF=false
+            HAS_CHORES=false
+            HAS_TESTS=false
+            HAS_CI=false
+            HAS_OTHER=false
+
+            # Create temporary files for each category
+            mkdir -p /tmp/changelog_dev
+            > /tmp/changelog_dev/features.md
+            > /tmp/changelog_dev/fixes.md
+            > /tmp/changelog_dev/docs.md
+            > /tmp/changelog_dev/perf.md
+            > /tmp/changelog_dev/chores.md
+            > /tmp/changelog_dev/tests.md
+            > /tmp/changelog_dev/ci.md
+            > /tmp/changelog_dev/other.md
+
+            # Categorize commits
+            while IFS= read -r subject; do
+              if [[ "$subject" =~ ^feat(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/features.md
+                HAS_FEATURES=true
+              elif [[ "$subject" =~ ^fix(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/fixes.md
+                HAS_FIXES=true
+              elif [[ "$subject" =~ ^docs(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/docs.md
+                HAS_DOCS=true
+              elif [[ "$subject" =~ ^perf(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/perf.md
+                HAS_PERF=true
+              elif [[ "$subject" =~ ^(chore|refactor|style)(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/chores.md
+                HAS_CHORES=true
+              elif [[ "$subject" =~ ^test(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/tests.md
+                HAS_TESTS=true
+              elif [[ "$subject" =~ ^ci(\(.+\))?: ]]; then
+                echo "- $subject" >> /tmp/changelog_dev/ci.md
+                HAS_CI=true
+              else
+                echo "- $subject" >> /tmp/changelog_dev/other.md
+                HAS_OTHER=true
+              fi
+            done <<< "$COMMITS"
+
+            # Build categorized changelog
+            if [ "$HAS_FEATURES" = true ]; then
+              echo "### 🚀 Features" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/features.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_FIXES" = true ]; then
+              echo "### 🐛 Bug Fixes" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/fixes.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_DOCS" = true ]; then
+              echo "### 📚 Documentation" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/docs.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_PERF" = true ]; then
+              echo "### ⚡ Performance" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/perf.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_CHORES" = true ]; then
+              echo "### 🔧 Maintenance" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/chores.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_TESTS" = true ]; then
+              echo "### 🧪 Testing" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/tests.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_CI" = true ]; then
+              echo "### 🔄 CI/CD" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/ci.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            if [ "$HAS_OTHER" = true ]; then
+              echo "### Other Changes" >> dev_notes.md
+              echo "" >> dev_notes.md
+              cat /tmp/changelog_dev/other.md >> dev_notes.md
+              echo "" >> dev_notes.md
+            fi
+
+            # Clean up temporary files
+            rm -rf /tmp/changelog_dev
+
+            echo "**Full Changelog**: https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${BRANCH_NAME}" >> dev_notes.md
+          else
+            echo "## What's Changed (Development)" > dev_notes.md
+            echo "" >> dev_notes.md
+            echo "**Branch**: \`$BRANCH_NAME\`" >> dev_notes.md
+            echo "" >> dev_notes.md
+            echo "- Initial development on this branch" >> dev_notes.md
+            echo "" >> dev_notes.md
+            echo "**Commits**: https://github.com/${{ github.repository }}/commits/${BRANCH_NAME}" >> dev_notes.md
+          fi
+
+          # Set output for potential future use
+          echo "notes_file=dev_notes.md" >> $GITHUB_OUTPUT
+
+          echo "Development release notes generated:"
+          cat dev_notes.md
+
+      # Also update release draft for PRs (standard behavior)
+      - name: Update Release Draft (Pull Request)
+        if: github.event_name == 'pull_request'
+        uses: release-drafter/release-drafter@v6
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
