@@ -36,6 +36,11 @@ check_project_root() {
         print_error "Expected: pyproject.toml and py7zz/ directory"
         exit 1
     fi
+
+    if [[ ! -f "scripts/format-and-lint.sh" ]]; then
+        print_error "format-and-lint.sh script not found. Please ensure it exists in scripts/"
+        exit 1
+    fi
 }
 
 # Function to ensure uv environment is set up
@@ -58,42 +63,18 @@ setup_environment() {
     print_success "Environment setup complete"
 }
 
-# Function to run code formatting checks
-check_formatting() {
-    print_status "Checking code formatting with ruff..."
-
-    # Check formatting
-    if uv run ruff format --check --diff .; then
-        print_success "Code formatting is correct"
+# Function to run format and lint checks (delegate to format-and-lint.sh)
+run_format_and_lint_checks() {
+    print_status "Running format and lint checks (delegating to format-and-lint.sh)..."
+    
+    # Make sure the script is executable
+    chmod +x scripts/format-and-lint.sh
+    
+    if ./scripts/format-and-lint.sh; then
+        print_success "Format and lint checks completed successfully"
     else
-        print_warning "Code formatting issues found"
-        print_status "Auto-fixing formatting..."
-        if uv run ruff format .; then
-            print_warning "Code has been auto-formatted. Please review changes and commit again."
-            return 1
-        else
-            print_error "Auto-formatting failed"
-            return 1
-        fi
-    fi
-}
-
-# Function to run linting
-check_linting() {
-    print_status "Running linting checks with ruff..."
-
-    if uv run ruff check .; then
-        print_success "Linting checks passed"
-    else
-        print_warning "Linting issues found"
-        print_status "Attempting auto-fix..."
-        if uv run ruff check --fix .; then
-            print_warning "Linting issues have been auto-fixed. Please review changes and commit again."
-            return 1
-        else
-            print_error "Auto-fix failed. Please fix linting issues manually."
-            return 1
-        fi
+        print_error "Format and lint checks failed"
+        return 1
     fi
 }
 
@@ -132,9 +113,7 @@ main() {
     # Run checks
     setup_environment || exit_code=1
     echo
-    check_formatting || exit_code=1
-    echo
-    check_linting || exit_code=1
+    run_format_and_lint_checks || exit_code=1
     echo
     check_types || exit_code=1
 

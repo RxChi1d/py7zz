@@ -1,8 +1,9 @@
 #!/bin/bash
 
-# py7zz Format and Lint Checks
-# Fast format and lint checks suitable for pre-commit hooks
-# For complete CI checks, use scripts/ci-local.sh
+# py7zz Format and Lint Checks Only
+# Ultra-fast format and lint checks (no type checking or environment setup)
+# Use quick-check.sh for format + lint + type checking
+# Use ci-local.sh for complete CI simulation
 
 set -e  # Exit on any error
 
