@@ -288,14 +288,14 @@ jobs:
     - name: Set up Python
       run: uv python install 3.11
 
-    - name: Install dependencies
+    - name: Install SBOM and license tools
       run: |
         uv sync --dev
-        uv pip install cyclonedx-bom pip-licenses
+        uv add --dev cyclonedx-bom pip-licenses
 
     - name: Generate SBOM
       run: |
-        uv run cyclonedx-bom -e -o sbom.json
+        uv run cyclonedx-py environment .venv -o sbom.json --output-format=json
         echo "✅ SBOM generated: sbom.json"
 
     - name: Generate dependency licenses report

@@ -115,7 +115,9 @@ filterwarnings = [
 [dependency-groups]
 dev = [
     "build>=1.2.2.post1",
+    "cyclonedx-bom>=5.5.0",
     "mypy>=1.14.1",
+    "pip-licenses>=4.5.1",
     "pre-commit>=3.5.0",
     "pytest>=8.3.5",
     "pytest-asyncio>=0.24.0",
