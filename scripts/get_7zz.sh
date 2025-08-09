@@ -18,23 +18,23 @@ CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
+    echo -e "${BLUE}[INFO]${NC} $1" >&2
 }
 
 print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
+    echo -e "${GREEN}[SUCCESS]${NC} $1" >&2
 }
 
 print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
+    echo -e "${YELLOW}[WARNING]${NC} $1" >&2
 }
 
 print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
+    echo -e "${RED}[ERROR]${NC} $1" >&2
 }
 
 print_header() {
-    echo -e "${CYAN}=== $1 ===${NC}"
+    echo -e "${CYAN}=== $1 ===${NC}" >&2
 }
 
 # Default values
@@ -328,8 +328,8 @@ download_7zz() {
 
     # Verify the binary
     print_status "Binary information:"
-    file "$output_file" || true
-    ls -lh "$output_file"
+    file "$output_file" >&2 || true
+    ls -lh "$output_file" >&2
 
     # Test the binary
     print_status "Testing binary..."
