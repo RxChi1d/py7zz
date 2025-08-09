@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
 # py7zz Format and Lint Checks Only
 # Ultra-fast format and lint checks (no type checking or environment setup)
 # Use quick-check.sh for format + lint + type checking

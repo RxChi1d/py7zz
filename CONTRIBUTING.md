@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # Contributing to py7zz
 
 Welcome! We're excited you're interested in contributing to py7zz. This guide will help you get started.

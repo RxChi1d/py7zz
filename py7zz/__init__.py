@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
 """
 py7zz - Python wrapper for 7zz CLI tool
 

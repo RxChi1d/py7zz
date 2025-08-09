@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
 """
 Unified exception handling system for py7zz.
 

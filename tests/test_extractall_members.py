@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
 """
 Tests for SevenZipFile.extractall(members=...) parameter implementation.
 

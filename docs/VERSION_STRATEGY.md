@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # Version Strategy
 
 This document describes py7zz's versioning strategy and release process.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
 [build-system]
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
@@ -10,13 +13,16 @@ include = [
 
 [tool.hatch.build.targets.wheel.force-include]
 "py7zz/bin" = "py7zz/bin"
+"LICENSE" = "LICENSE"
+"THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md"
+"LICENSES/LicenseRef-7zip.txt" = "LICENSES/LicenseRef-7zip.txt"
 
 [project]
 name = "py7zz"
 dynamic = ["version"]
 description = "Python wrapper for 7zz CLI tool providing cross-platform compression with multiple archive formats"
 readme = "README.md"
-license = {text = "BSD-3-Clause AND LGPL-2.1-only"}
+license = { file = "LICENSE" }
 requires-python = ">=3.8"
 authors = [
     {name = "py7zz contributors"},
@@ -25,8 +31,7 @@ keywords = ["7zip", "compression", "archive", "7z"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: BSD License",
-    "License :: OSI Approved :: GNU Lesser General Public License v2 (LGPLv2)",
+    "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.8",

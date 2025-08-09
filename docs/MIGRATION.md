@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # Migration Guide
 
 This guide helps you migrate from Python's `zipfile` and `tarfile` to py7zz.

@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
 name: CI
 
 on:
@@ -36,6 +39,9 @@ jobs:
 
     - name: Run ruff format check
       run: uv run ruff format --check --diff .
+
+    - name: REUSE compliance check
+      run: pipx run reuse lint
 
   test:
     runs-on: ${{ matrix.os }}
@@ -214,3 +220,94 @@ jobs:
     - name: Run mypy
       shell: bash
       run: uv run mypy .
+
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "latest"
+        enable-cache: true
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Install build dependencies
+      run: |
+        uv sync --dev
+        uv pip install build
+
+    - name: Build wheel and sdist
+      run: uv run python -m build
+
+    - name: Check wheel contents
+      run: |
+        WHL=$(ls dist/*.whl | head -n1)
+        echo "Checking wheel contents: $WHL"
+        unzip -l "$WHL" | grep -E "(LICENSE|THIRD_PARTY_NOTICES\.md|licenses/7zip-LICENSE\.txt)" || {
+          echo "❌ Missing required license files in wheel"
+          echo "Wheel contents:"
+          unzip -l "$WHL"
+          exit 1
+        }
+        echo "✅ All required license files found in wheel"
+
+    - name: Check sdist contents
+      run: |
+        SDIST=$(ls dist/*.tar.gz | head -n1)
+        echo "Checking sdist contents: $SDIST"
+        tar tzf "$SDIST" | grep -E "(LICENSE|THIRD_PARTY_NOTICES\.md|licenses/7zip-LICENSE\.txt)" || {
+          echo "❌ Missing required license files in sdist"
+          echo "Sdist contents:"
+          tar tzf "$SDIST"
+          exit 1
+        }
+        echo "✅ All required license files found in sdist"
+
+    - name: Install and test wheel
+      run: |
+        WHL=$(ls dist/*.whl | head -n1)
+        uv pip install "$WHL"
+        uv run python -c "import py7zz; print('✅ Wheel installation successful')"
+
+  sbom-generation:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' || github.ref == 'refs/heads/main'
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        version: "latest"
+        enable-cache: true
+
+    - name: Set up Python
+      run: uv python install 3.11
+
+    - name: Install dependencies
+      run: |
+        uv sync --dev
+        uv pip install cyclonedx-bom pip-licenses
+
+    - name: Generate SBOM
+      run: |
+        uv run cyclonedx-bom -e -o sbom.json
+        echo "✅ SBOM generated: sbom.json"
+
+    - name: Generate dependency licenses report
+      run: |
+        uv run pip-licenses --format=markdown > licenses-dependencies.md
+        echo "✅ Dependency licenses generated: licenses-dependencies.md"
+
+    - name: Upload SBOM and licenses as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: compliance-reports
+        path: |
+          sbom.json
+          licenses-dependencies.md
+        retention-days: 90

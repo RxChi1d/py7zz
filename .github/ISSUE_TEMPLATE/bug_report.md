@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 ---
 name: Bug report
 about: Report a bug to help us improve
