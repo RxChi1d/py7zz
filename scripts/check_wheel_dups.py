@@ -259,12 +259,12 @@ Examples:
 
     if overall_success:
         print_success(
-            f"✅ All {len(wheel_files)} wheel(s) passed duplicate filename checks"
+            f"All {len(wheel_files)} wheel(s) passed duplicate filename checks"
         )
         print_status("Wheels should be acceptable for PyPI upload")
         return 0
     else:
-        print_error(f"❌ {total_issues} wheel(s) have duplicate filename issues")
+        print_error(f"{total_issues} wheel(s) have duplicate filename issues")
         print_error("These wheels will likely be rejected by PyPI")
         print()
         print_status("How to fix:")
