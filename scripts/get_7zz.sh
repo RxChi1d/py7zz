@@ -211,11 +211,13 @@ download_windows() {
 
     # Try different extraction methods
     if command -v 7z &> /dev/null; then
-        if ! 7z x "$archive" -o"$extract_dir" -y; then
+        print_status "Using 7z to extract Windows installer..."
+        if ! 7z x "$archive" -o"$extract_dir" -y >&2; then
             print_error "Failed to extract Windows archive with 7z"
             return 1
         fi
     elif command -v unzip &> /dev/null; then
+        print_status "Using unzip to extract Windows installer..."
         # Some 7-Zip installers can be extracted as ZIP
         if ! unzip -q "$archive" -d "$extract_dir" 2>/dev/null; then
             print_error "Failed to extract Windows archive with unzip"
@@ -227,14 +229,26 @@ download_windows() {
         return 1
     fi
 
-    # Find required files: 7zz.exe and 7z.dll
-    local exe_binary=$(find "$extract_dir" -name "7zz.exe" -type f | head -n 1)
+    # Debug: show what was extracted
+    print_status "Extracted files:"
+    find "$extract_dir" -type f | head -20 | while read file; do
+        print_status "  $(basename "$file")"
+    done
+
+    # Find required files: Windows installer contains 7z.exe (not 7zz.exe)
+    local exe_binary=$(find "$extract_dir" -name "7z.exe" -type f | head -n 1)
     local dll_file=$(find "$extract_dir" -name "7z.dll" -type f | head -n 1)
 
     if [ -z "$exe_binary" ]; then
-        print_error "7zz.exe binary not found in Windows archive"
+        print_error "7z.exe not found in Windows installer"
+        print_status "Available exe files:"
+        find "$extract_dir" -name "*.exe" -type f | head -10 | while read file; do
+            print_status "  $(basename "$file")"
+        done
         return 1
     fi
+
+    print_status "Found Windows binary: $(basename "$exe_binary")"
 
     if [ -z "$dll_file" ]; then
         print_warning "7z.dll not found - Windows functionality may be limited"
@@ -313,9 +327,10 @@ download_7zz() {
 
                     mkdir -p "$OUTPUT_DIR"
 
-                    # Copy 7zz.exe
+                    # Copy 7z.exe and rename to 7zz.exe for consistency
                     output_file="${OUTPUT_DIR}/7zz.exe"
                     cp "$exe_file" "$output_file"
+                    print_status "Copied $(basename "$exe_file") as 7zz.exe"
 
                     # Copy 7z.dll if available
                     if [ -n "$dll_file" ] && [ "$dll_file" != "null" ] && [ -f "$dll_file" ]; then
