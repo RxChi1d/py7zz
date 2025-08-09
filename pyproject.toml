@@ -7,12 +7,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["py7zz"]
-include = [
-    "py7zz/bin/**/*",
-]
+# Include all files in py7zz package (including bin/ directory)
+# Binary files will be downloaded during CI build process only
 
 [tool.hatch.build.targets.wheel.force-include]
-"py7zz/bin" = "py7zz/bin"
 "LICENSE" = "LICENSE"
 "THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md"
 "LICENSES/LicenseRef-7zip.txt" = "LICENSES/LicenseRef-7zip.txt"

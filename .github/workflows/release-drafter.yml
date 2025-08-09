@@ -54,7 +54,7 @@ jobs:
             echo "**Branch**: \`$BRANCH_NAME\`" >> dev_notes.md
             echo "" >> dev_notes.md
 
-            # Parse conventional commits and categorize (same logic as build.yml)
+            # Parse conventional commits and categorize (same logic as release.yml)
             # Get all commits since last tag
             COMMITS=$(git log --format="%s" --no-merges ${LAST_TAG}..HEAD)
 

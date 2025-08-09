@@ -12,6 +12,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **PyPI Upload Issues**: Fixed "Duplicate filename in local headers" error preventing wheel uploads
+- **Platform-Specific Wheels**: Replaced macOS universal2 binaries with separate ARM64 and x86_64 wheels
+- **Windows Functionality**: Ensured 7z.dll inclusion for complete format support
+
+### Added
+- **Duplicate Detection**: Comprehensive wheel filename checking prevents PyPI rejection
+- **TestPyPI Validation**: Two-stage upload process validates packages before production
+- **Enhanced CI/CD**: Multi-platform build matrix for optimized platform-specific wheels
+- **Binary Management**: Unified download script for 7zz binaries across all platforms
+
+### Changed
+- **Release Process**: Updated GitHub Actions release workflow for separate platform builds
+- **File Structure**: Streamlined binary packaging reduces wheel complexity
+- **Release Strategy**: Automated TestPyPI-first workflow ensures release quality
+
+## [1.0.1] - 2025-08-08
+
+### Fixed
+- **Critical Fixes**: Various stability and compatibility improvements
+
 ## [1.0.0] - 2025-08-01
 
 ### Added
@@ -78,7 +99,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0
 [1.0.0b2]: https://github.com/rxchi1d/py7zz/compare/v1.0.0b1...v1.0.0b2
 [1.0.0b1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0a1...v1.0.0b1

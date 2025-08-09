@@ -94,7 +94,7 @@ jobs:
         VERSION="25.00"
         VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # 25.00 -> 2500
 
-        # Map platform to 7zz release naming (same logic as build.yml)
+        # Map platform to 7zz release naming (same logic as release.yml)
         if [[ "${{ runner.os }}" == "Windows" ]]; then
           ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
           BINARY_NAME="7zz.exe"
@@ -113,7 +113,7 @@ jobs:
         curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
 
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-          # Windows installer - extract CLI components (same logic as build.yml)
+          # Windows installer - extract CLI components (same logic as release.yml)
           echo "Downloading installer and extracting CLI components..."
           echo "URL: $DOWNLOAD_URL"
 
@@ -136,7 +136,7 @@ jobs:
             exit 1
           fi
         else
-          # Unix tar.xz file (same logic as build.yml)
+          # Unix tar.xz file (same logic as release.yml)
           echo "Downloading and extracting Unix binary..."
           echo "URL: $DOWNLOAD_URL"
 
@@ -171,7 +171,7 @@ jobs:
         # Ensure we're in the workspace directory for verification
         cd "$GITHUB_WORKSPACE"
 
-        # Verify the binary was placed correctly (same logic as build.yml)
+        # Verify the binary was placed correctly (same logic as release.yml)
         echo "Verifying binary placement..."
         if [[ -f "py7zz/bin/${BINARY_NAME}" ]]; then
           echo "✓ Binary correctly placed at: py7zz/bin/${BINARY_NAME}"
@@ -183,7 +183,7 @@ jobs:
           exit 1
         fi
 
-        # Verify binary works (same logic as build.yml)
+        # Verify binary works (same logic as release.yml)
         echo "Verifying binary functionality..."
         BINARY_PATH="py7zz/bin/${BINARY_NAME}"
 

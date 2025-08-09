@@ -285,8 +285,9 @@ py7zz.batch_extract_archives(archives, 'output/')
 git clone https://github.com/rxchi1d/py7zz.git
 cd py7zz
 
-# Install dependencies
-pip install -e .
+# Install dependencies (development mode)
+uv sync --dev
+uv pip install -e .
 ```
 
 ### Testing

@@ -145,7 +145,7 @@ def get_version_info():
 - **Beta**: `v1.1.0b1`
 - **RC**: `v1.1.0rc1`
 
-#### Build Workflow (`.github/workflows/build.yml`)
+#### Release Workflow (`.github/workflows/release.yml`)
 - Validates PEP 440 tag format
 - Enforces main branch ancestry for stable releases
 - Builds cross-platform wheels with embedded 7zz binary
