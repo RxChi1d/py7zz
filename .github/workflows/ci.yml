@@ -91,8 +91,12 @@ jobs:
     - name: Download 7zz binary for testing
       shell: bash
       run: |
-        VERSION="25.00"
-        VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # 25.00 -> 2500
+        # Auto-detect latest 7-Zip version
+        echo "Detecting latest 7-Zip version..."
+        chmod +x scripts/get_7zz.sh
+        VERSION=$(./scripts/get_7zz.sh --detect-version)
+        echo "Detected version: $VERSION"
+        VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # e.g., 25.01 -> 2501
 
         # Map platform to 7zz release naming (same logic as release.yml)
         if [[ "${{ runner.os }}" == "Windows" ]]; then

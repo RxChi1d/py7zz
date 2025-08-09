@@ -38,7 +38,7 @@ print_header() {
 }
 
 # Default values
-SEVEN_ZIP_VERSION="25.01"
+SEVEN_ZIP_VERSION=""  # Will be auto-detected
 BASE_URL="https://7-zip.org/a"
 PLATFORM=""
 ARCH=""
@@ -85,11 +85,7 @@ auto_detect() {
     case "$os_name" in
         Darwin)
             PLATFORM="macos"
-            case "$arch_name" in
-                arm64) ARCH="arm64" ;;
-                x86_64) ARCH="x86_64" ;;
-                *) ARCH="x86_64" ;;  # Default fallback
-            esac
+            ARCH="universal2"  # 7-Zip only provides universal2 for macOS
             ;;
         Linux)
             PLATFORM="linux"
@@ -111,33 +107,54 @@ auto_detect() {
     print_status "Auto-detected: $PLATFORM $ARCH"
 }
 
-# Download and extract 7zz for macOS
-download_macos() {
-    local target_arch="$1"
-    local version_str="${SEVEN_ZIP_VERSION//./}"
+# Auto-detect latest 7-Zip version
+detect_latest_version() {
+    print_status "Detecting latest 7-Zip version from official website..."
 
-    local url="${BASE_URL}/7z${version_str}-mac-${target_arch}.tar.xz"
-    local archive="${BUILD_DIR}/macos/7z-mac-${target_arch}.tar.xz"
-    local extract_dir="${BUILD_DIR}/macos/${target_arch}"
-
-    mkdir -p "$extract_dir"
-
-    print_status "Downloading macOS ${target_arch} from: $url"
-    if ! curl -fsSL "$url" -o "$archive"; then
-        print_error "Failed to download macOS ${target_arch} version"
+    local download_page
+    if ! download_page=$(curl -s --max-time 10 "https://7-zip.org/download.html"); then
+        print_error "Failed to fetch 7-Zip download page"
         return 1
     fi
 
-    print_status "Extracting macOS ${target_arch}..."
+    # Extract version from "Download 7-Zip XX.XX" pattern
+    local version
+    version=$(echo "$download_page" | grep -i "Download 7-Zip" | grep -o "[0-9]\+\.[0-9]\+" | head -1)
+
+    if [ -z "$version" ]; then
+        print_error "Could not detect 7-Zip version from download page"
+        return 1
+    fi
+
+    print_status "Detected latest version: $version"
+    echo "$version"
+}
+
+# Download and extract 7zz for macOS universal2
+download_macos_universal2() {
+    local version_str="${SEVEN_ZIP_VERSION//./}"
+    local url="${BASE_URL}/7z${version_str}-mac.tar.xz"
+    local archive="${BUILD_DIR}/macos/7z-mac-universal2.tar.xz"
+    local extract_dir="${BUILD_DIR}/macos/universal2"
+
+    mkdir -p "$extract_dir"
+
+    print_status "Downloading macOS universal2 from: $url"
+    if ! curl -fsSL "$url" -o "$archive"; then
+        print_error "Failed to download macOS universal2 version"
+        return 1
+    fi
+
+    print_status "Extracting macOS universal2..."
     if ! tar -xf "$archive" -C "$extract_dir"; then
-        print_error "Failed to extract macOS ${target_arch} archive"
+        print_error "Failed to extract macOS universal2 archive"
         return 1
     fi
 
     # Find the 7zz binary
     local binary=$(find "$extract_dir" -name "7zz" -type f | head -n 1)
     if [ -z "$binary" ]; then
-        print_error "7zz binary not found in ${target_arch} archive"
+        print_error "7zz binary not found in universal2 archive"
         return 1
     fi
 
@@ -241,14 +258,11 @@ download_7zz() {
     case "$PLATFORM" in
         macos)
             case "$ARCH" in
-                arm64|x86_64)
-                    # Map x86_64 to x64 for macOS download URLs
-                    local download_arch="$ARCH"
-                    [ "$ARCH" = "x86_64" ] && download_arch="x64"
-
-                    local binary=$(download_macos "$download_arch")
+                universal2)
+                    # macOS universal2 binary from official 7-Zip
+                    local binary=$(download_macos_universal2)
                     if [ -z "$binary" ]; then
-                        print_error "Failed to download macOS binary"
+                        print_error "Failed to download macOS universal2 binary"
                         return 1
                     fi
 
@@ -259,7 +273,7 @@ download_7zz() {
                     ;;
                 *)
                     print_error "Unsupported macOS architecture: $ARCH"
-                    print_error "Supported: arm64, x86_64 (no universal2)"
+                    print_error "Supported: universal2 (official 7-Zip distribution)"
                     return 1
                     ;;
             esac
@@ -363,6 +377,15 @@ while [[ $# -gt 0 ]]; do
             SEVEN_ZIP_VERSION="$2"
             shift 2
             ;;
+        --detect-version)
+            if detected_version=$(detect_latest_version); then
+                echo "$detected_version"
+                exit 0
+            else
+                print_error "Version detection failed"
+                exit 1
+            fi
+            ;;
         --output)
             OUTPUT_DIR="$2"
             shift 2
@@ -389,14 +412,26 @@ if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
     auto_detect
 fi
 
+# Auto-detect version if not specified
+if [ -z "$SEVEN_ZIP_VERSION" ]; then
+    print_status "Auto-detecting 7-Zip version..."
+    if detected_version=$(detect_latest_version); then
+        SEVEN_ZIP_VERSION="$detected_version"
+        print_success "Using detected version: $SEVEN_ZIP_VERSION"
+    else
+        print_warning "Version detection failed, using fallback version: 25.01"
+        SEVEN_ZIP_VERSION="25.01"
+    fi
+fi
+
 # Validate combinations
 case "$PLATFORM" in
     macos)
         case "$ARCH" in
-            arm64|x86_64) ;;
+            universal2) ;;
             *)
                 print_error "Invalid macOS architecture: $ARCH"
-                print_error "Supported: arm64, x86_64 (no universal2)"
+                print_error "Supported: universal2 (official 7-Zip distribution)"
                 exit 1
                 ;;
         esac
