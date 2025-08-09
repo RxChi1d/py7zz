@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # Changelog
 
 All notable changes to this project will be documented in this file.

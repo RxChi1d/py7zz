@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
 # Quick CI checks for local development
 # This script performs lightweight checks that can be run frequently during development
 

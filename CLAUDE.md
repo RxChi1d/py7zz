@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # CLAUDE.md
 
 此檔案提供 Claude Code (claude.ai/code) 在此儲存庫中工作時的指引。

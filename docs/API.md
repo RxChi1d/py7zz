@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # py7zz API Reference
 
 A Python wrapper for the 7zz CLI tool providing cross-platform archive operations with Windows filename compatibility.

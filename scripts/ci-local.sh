@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
 # Complete CI workflow simulation for local testing
 # This script runs all CI checks locally to minimize remote CI failures
 
@@ -83,6 +86,102 @@ setup_test_environment() {
     fi
 
     print_success "Test environment setup complete"
+}
+
+# Function to run REUSE compliance check
+run_reuse_check() {
+    print_section "Running REUSE Compliance Check"
+
+    print_status "Checking REUSE compliance..."
+
+    if command -v reuse &> /dev/null; then
+        if reuse lint; then
+            print_success "REUSE compliance check passed"
+        else
+            print_error "REUSE compliance check failed"
+            return 1
+        fi
+    else
+        print_status "Installing reuse temporarily..."
+        if uv run --with reuse reuse lint; then
+            print_success "REUSE compliance check passed"
+        else
+            print_error "REUSE compliance check failed"
+            return 1
+        fi
+    fi
+}
+
+# Function to run build verification
+run_build_verification() {
+    print_section "Running Build Verification"
+
+    print_status "Building wheel and sdist..."
+
+    # Clean previous builds
+    rm -rf dist/ build/ *.egg-info/
+
+    if uv run python -m build; then
+        print_success "Build completed successfully"
+    else
+        print_error "Build failed"
+        return 1
+    fi
+
+    print_status "Verifying license files in packages..."
+
+    # Check wheel contents
+    local wheel_file=$(ls dist/*.whl 2>/dev/null | head -n1)
+    if [ -n "$wheel_file" ]; then
+        print_status "Checking wheel: $wheel_file"
+        if uv run python -c "
+import zipfile
+import sys
+z = zipfile.ZipFile('$wheel_file')
+required_files = ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'LICENSES/LicenseRef-7zip.txt']
+missing = [f for f in required_files if f not in z.namelist()]
+if missing:
+    print(f'❌ Missing files in wheel: {missing}')
+    sys.exit(1)
+else:
+    print('✅ All required license files found in wheel')
+"; then
+            print_success "Wheel verification passed"
+        else
+            print_error "Wheel verification failed"
+            return 1
+        fi
+    else
+        print_error "No wheel file found"
+        return 1
+    fi
+
+    # Check sdist contents
+    local sdist_file=$(ls dist/*.tar.gz 2>/dev/null | head -n1)
+    if [ -n "$sdist_file" ]; then
+        print_status "Checking sdist: $sdist_file"
+        if uv run python -c "
+import tarfile
+import sys
+t = tarfile.open('$sdist_file')
+names = t.getnames()
+required_patterns = ['LICENSE', 'THIRD_PARTY_NOTICES.md', 'LICENSES/LicenseRef-7zip.txt']
+missing = [p for p in required_patterns if not any(p in name for name in names)]
+if missing:
+    print(f'❌ Missing files in sdist: {missing}')
+    sys.exit(1)
+else:
+    print('✅ All required license files found in sdist')
+"; then
+            print_success "Sdist verification passed"
+        else
+            print_error "Sdist verification failed"
+            return 1
+        fi
+    else
+        print_error "No sdist file found"
+        return 1
+    fi
 }
 
 # Function to run comprehensive tests
@@ -177,9 +276,11 @@ show_help() {
     echo
     echo "This script simulates the complete CI workflow locally, including:"
     echo "  1. Quick checks (formatting, linting, type checking)"
-    echo "  2. Test environment setup (PY7ZZ_BINARY detection)"
-    echo "  3. Comprehensive testing with pytest"
-    echo "  4. Cleanup of temporary files and caches"
+    echo "  2. REUSE compliance check"
+    echo "  3. Build verification (wheel/sdist with license files)"
+    echo "  4. Test environment setup (PY7ZZ_BINARY detection)"
+    echo "  5. Comprehensive testing with pytest"
+    echo "  6. Cleanup of temporary files and caches"
     echo
     echo "Environment variables:"
     echo "  PY7ZZ_BINARY    Path to 7zz binary for testing (auto-detected if not set)"
@@ -252,17 +353,27 @@ main() {
 
     echo
 
-    # Step 2: Set up test environment
+    # Step 2: REUSE compliance check
+    run_reuse_check || exit_code=1
+
+    echo
+
+    # Step 3: Build verification
+    run_build_verification || exit_code=1
+
+    echo
+
+    # Step 4: Set up test environment
     setup_test_environment || exit_code=1
 
     echo
 
-    # Step 3: Comprehensive testing
+    # Step 5: Comprehensive testing
     run_comprehensive_tests || exit_code=1
 
     echo
 
-    # Step 4: Cleanup (unless disabled)
+    # Step 6: Cleanup (unless disabled)
     if [[ "$no_cleanup" != true ]]; then
         cleanup_temp_files
     else

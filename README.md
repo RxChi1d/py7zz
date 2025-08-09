@@ -1,3 +1,8 @@
+<!--
+SPDX-License-Identifier: MIT
+SPDX-FileCopyrightText: 2025 py7zz contributors
+-->
+
 # py7zz
 
 [![PyPI](https://img.shields.io/pypi/v/py7zz)](https://pypi.org/project/py7zz/)
@@ -345,12 +350,9 @@ We welcome contributions! See [Contributing Guide](CONTRIBUTING.md) for:
 
 ## License
 
-py7zz is distributed under dual license:
-
-- **Python code**: BSD-3-Clause
-- **7zz binary**: LGPL-2.1
-
-See [LICENSE](LICENSE) for details.
+Python source code: MIT (see LICENSE)
+Bundled runtime: 7-Zip 7zz under its own licenses (LGPL v2.1 + unRAR; parts BSD).
+See THIRD_PARTY_NOTICES.md and licenses/7zip-LICENSE.txt.
 
 ## Acknowledgments
 

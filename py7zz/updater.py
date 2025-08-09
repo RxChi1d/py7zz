@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
 """Auto-update module for py7zz.
 
 This module handles automatic downloading and caching of the latest 7zz binaries
