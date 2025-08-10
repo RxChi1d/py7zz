@@ -161,10 +161,11 @@ $RECYCLE.BIN/
 .claude/
 .clinerules
 
-# py7zz specific
-py7zz/binaries/macos/7zz
-py7zz/binaries/linux/7zz
-py7zz/binaries/windows/7zz.exe
+# py7zz specific - binaries downloaded during CI only
+py7zz/bin/7zz*
+py7zz/bin/*.exe
+py7zz/bin/*.dll
+py7zz/bin/*.tar.xz
 ~/.cache/py7zz/
 NOTES
 

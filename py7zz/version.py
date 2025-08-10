@@ -104,49 +104,78 @@ def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
         >>> parse_version('1.1.0.dev1')
         {'major': 1, 'minor': 1, 'patch': 0, 'version_type': 'dev', 'build_number': 1}
     """
-    # Pattern for PEP 440 version formats
-    patterns = [
-        # Dev version: 1.1.0.dev1 or 0.1.dev21
-        (r"^(\d+)\.(\d+)\.(\d+)\.dev(\d+)$", "dev"),
-        (r"^(\d+)\.(\d+)\.dev(\d+)$", "dev"),
-        # Beta version: 1.0.0b1
-        (r"^(\d+)\.(\d+)\.(\d+)b(\d+)$", "beta"),
-        # RC version: 1.0.0rc1
-        (r"^(\d+)\.(\d+)\.(\d+)rc(\d+)$", "rc"),
-        # Alpha version: 1.0.0a1
-        (r"^(\d+)\.(\d+)\.(\d+)a(\d+)$", "alpha"),
-        # Release version: 1.0.0
-        (r"^(\d+)\.(\d+)\.(\d+)$", "stable"),
-    ]
+    # Use a comprehensive PEP 440 regex pattern
+    # Pattern: [N!]N(.N)*[{a|b|rc}N][.postN][.devN]
+    pep440_pattern = (
+        r"^(\d+)\.(\d+)\.(\d+)(?:(a|b|rc)(\d+))?(?:\.post(\d+))?(?:\.dev(\d+))?$"
+    )
 
-    for pattern, version_type in patterns:
-        match = re.match(pattern, version_string)
-        if match:
-            groups = match.groups()
-            major, minor = int(groups[0]), int(groups[1])
+    match = re.match(pep440_pattern, version_string)
+    if match:
+        groups = match.groups()
+        major = int(groups[0])
+        minor = int(groups[1])
+        patch = int(groups[2])
 
-            # Handle different pattern lengths
-            if len(groups) == 3:
-                # Format: 0.1.dev21
-                patch = 0
-                build_number: Optional[int] = int(groups[2])
-            elif len(groups) == 4:
-                # Format: 1.1.0.dev1 or 1.0.0a1
-                patch = int(groups[2])
-                build_number = int(groups[3]) if groups[3] is not None else None
-            else:
-                # Format: 1.0.0
-                patch = int(groups[2])
-                build_number = None
+        pre_type = groups[3]  # 'a', 'b', 'rc', or None
+        pre_num = int(groups[4]) if groups[4] else None
+        post_num = int(groups[5]) if groups[5] else None
+        dev_num = int(groups[6]) if groups[6] else None
 
-            return {
-                "major": major,
-                "minor": minor,
-                "patch": patch,
-                "version_type": version_type,
-                "build_number": build_number,
-                "base_version": f"{major}.{minor}.{patch}",
-            }
+        # Determine version type based on presence of suffixes
+        if dev_num is not None:
+            version_type = "dev"
+            build_number: Optional[int] = dev_num
+        elif pre_type == "a":
+            version_type = "alpha"
+            build_number = pre_num
+            assert (
+                build_number is not None
+            )  # pre_num is guaranteed to be int when pre_type is "a"
+        elif pre_type == "b":
+            version_type = "beta"
+            build_number = pre_num
+            assert (
+                build_number is not None
+            )  # pre_num is guaranteed to be int when pre_type is "b"
+        elif pre_type == "rc":
+            version_type = "rc"
+            build_number = pre_num
+            assert (
+                build_number is not None
+            )  # pre_num is guaranteed to be int when pre_type is "rc"
+        elif post_num is not None:
+            version_type = "post"
+            build_number = post_num
+        else:
+            version_type = "stable"
+            build_number = None
+
+        return {
+            "major": major,
+            "minor": minor,
+            "patch": patch,
+            "version_type": version_type,
+            "build_number": build_number,
+            "base_version": f"{major}.{minor}.{patch}",
+        }
+
+    # Fallback for older dev formats like 0.1.dev21
+    dev_pattern = r"^(\d+)\.(\d+)\.dev(\d+)$"
+    match = re.match(dev_pattern, version_string)
+    if match:
+        major = int(match.group(1))
+        minor = int(match.group(2))
+        dev_num = int(match.group(3))
+
+        return {
+            "major": major,
+            "minor": minor,
+            "patch": 0,
+            "version_type": "dev",
+            "build_number": dev_num,
+            "base_version": f"{major}.{minor}.0",
+        }
 
     raise ValueError(f"Invalid version format: {version_string}")
 
@@ -260,7 +289,7 @@ def get_base_version(version_string: Optional[str] = None) -> str:
     return str(parsed["base_version"])
 
 
-def get_build_number(version_string: Optional[str] = None) -> Optional[int]:
+def get_build_number(version_string: Optional[str] = None) -> int:
     """
     Get the build number from a version string.
 
@@ -268,20 +297,20 @@ def get_build_number(version_string: Optional[str] = None) -> Optional[int]:
         version_string: Version string to parse (defaults to current version)
 
     Returns:
-        Build number or None for stable versions
+        Build number or 0 for stable versions
 
     Example:
         >>> get_build_number('1.0.0a1')
         1
         >>> get_build_number('1.0.0')
-        None
+        0
     """
     if version_string is None:
         version_string = get_version()
 
     parsed = parse_version(version_string)
     build_number = parsed["build_number"]
-    return build_number if isinstance(build_number, int) else None
+    return build_number if isinstance(build_number, int) else 0
 
 
 # Legacy compatibility functions for backward compatibility

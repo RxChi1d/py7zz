@@ -12,6 +12,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Resolved critical PyPI packaging issue where wheels were only 86.3 KB instead of containing multi-MB platform binaries
+- Fixed Hatchling configuration to properly include 7zz binaries using artifacts mechanism
+- Corrected CI workflow ordering to download binaries before dependency installation
+- Fixed macOS architecture support to use official universal2 distribution
+- Resolved Windows binary extraction and 7z.dll inclusion issues
+- Fixed Unicode compatibility by removing emoji characters from scripts
+- Corrected script output handling to prevent stdout contamination
+
+### Added
+- Comprehensive PEP 440 version parser supporting all standard formats
+- Automatic 7-Zip version detection from official website with fallback
+- Wheel duplicate detection script for PyPI validation
+- Unified cross-platform binary download script
+- Platform-specific wheels with correct binary inclusion
+
+### Changed
+- Improved release workflow with proper binary packaging validation
+- Enhanced version parsing with MyPy compatibility
+- Streamlined CI/CD pipeline with better error handling
+
+## [1.0.1] - 2025-08-08
+
+### Fixed
+- **Critical Fixes**: Various stability and compatibility improvements
+
 ## [1.0.0] - 2025-08-01
 
 ### Added
@@ -78,7 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0b1...HEAD
+[1.1.0b1]: https://github.com/rxchi1d/py7zz/compare/v1.0.1...v1.1.0b1
+[1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0
 [1.0.0b2]: https://github.com/rxchi1d/py7zz/compare/v1.0.0b1...v1.0.0b2
 [1.0.0b1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0a1...v1.0.0b1
