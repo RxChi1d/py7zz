@@ -12,7 +12,6 @@ from pathlib import Path
 import pytest
 
 import py7zz
-from py7zz import get_version, parse_version
 
 
 class TestPyPIVersionValidation:
@@ -60,7 +59,7 @@ class TestPyPIVersionValidation:
             assert version_from_wheel == "0.1.5a1"
 
             # Verify it's recognized as alpha
-            parsed = parse_version(version_from_wheel)
+            parsed = py7zz.parse_version(version_from_wheel)
             assert parsed["version_type"] == "alpha"
 
     def test_dev_version_pypi_consistency(self):
@@ -84,7 +83,7 @@ class TestPyPIVersionValidation:
             assert version_from_wheel == "0.1.5.dev1"
 
             # Verify it's recognized as dev
-            parsed = parse_version(version_from_wheel)
+            parsed = py7zz.parse_version(version_from_wheel)
             assert parsed["version_type"] == "dev"
 
     def test_ci_version_validation_logic(self):
@@ -117,14 +116,14 @@ class TestPyPIVersionValidation:
 
     def test_pypi_version_metadata(self):
         """Test that package metadata contains correct version."""
-        current_version = get_version()
+        current_version = py7zz.get_version()
 
         # Test that version is valid
         assert current_version is not None
         assert len(current_version) > 0
 
         # Test that version is parseable
-        parsed = parse_version(current_version)
+        parsed = py7zz.parse_version(current_version)
         assert isinstance(parsed["major"], int) and parsed["major"] >= 0
         assert isinstance(parsed["minor"], int) and parsed["minor"] >= 0
         assert isinstance(parsed["patch"], int) and parsed["patch"] >= 0
@@ -132,13 +131,13 @@ class TestPyPIVersionValidation:
     def test_installation_version_consistency(self):
         """Test version consistency after installation."""
         # This simulates the user installation experience
-        current_version = get_version()
+        current_version = py7zz.get_version()
 
         # Test that get_version() returns a valid version
         assert current_version is not None
 
         # Test that version follows our expected format
-        parsed = parse_version(current_version)
+        parsed = py7zz.parse_version(current_version)
         assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test that version is PEP 440 compliant
@@ -245,13 +244,13 @@ class TestUserInstallationExperience:
     def test_version_discovery(self):
         """Test that users can discover version information."""
         # Test that get_version() works
-        version = get_version()
+        version = py7zz.get_version()
         assert version is not None
         assert isinstance(version, str)
         assert len(version) > 0
 
         # Test that version can be parsed
-        parsed = parse_version(version)
+        parsed = py7zz.parse_version(version)
         assert "major" in parsed
         assert "minor" in parsed
         assert "patch" in parsed
@@ -259,8 +258,8 @@ class TestUserInstallationExperience:
 
     def test_version_type_identification(self):
         """Test that users can identify version type."""
-        version = get_version()
-        parsed = parse_version(version)
+        version = py7zz.get_version()
+        parsed = py7zz.parse_version(version)
 
         # Version type should be one of our supported types
         assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
@@ -300,7 +299,7 @@ class TestUserInstallationExperience:
 
         if result.returncode == 0:
             cli_version = result.stdout.strip()
-            package_version = get_version()
+            package_version = py7zz.get_version()
             assert cli_version == package_version
 
     def test_import_version_consistency(self):
@@ -309,7 +308,7 @@ class TestUserInstallationExperience:
         from py7zz import get_version as import_get_version
 
         import_version = import_get_version()
-        core_version = get_version()
+        core_version = py7zz.get_version()
 
         assert import_version == core_version
 
@@ -318,8 +317,8 @@ class TestUserInstallationExperience:
 
     def test_version_upgrade_path(self):
         """Test version upgrade path clarity."""
-        version = get_version()
-        parsed = parse_version(version)
+        version = py7zz.get_version()
+        parsed = py7zz.parse_version(version)
 
         # Test that version has clear upgrade path
         if parsed["version_type"] == "dev":
