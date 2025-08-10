@@ -144,9 +144,8 @@ class TestPyPIVersionValidation:
         # Test that version is PEP 440 compliant
         import re
 
-        pep440_pattern = (
-            r"^[0-9]+\.[0-9]+(\.[0-9]+)?(\.dev[0-9]+|a[0-9]+|b[0-9]+|rc[0-9]+)?$"
-        )
+        # Updated PEP 440 pattern to support alpha.dev format like 1.1.0a4.dev1
+        pep440_pattern = r"^[0-9]+\.[0-9]+(\.[0-9]+)?((a|b|rc)[0-9]+)?(\.dev[0-9]+)?$"
         assert re.match(pep440_pattern, current_version)
 
     def _setup_test_repo(self, repo_path: Path):

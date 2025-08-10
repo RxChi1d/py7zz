@@ -55,20 +55,19 @@ Usage: $0 [OPTIONS]
 
 Options:
   --os, --platform OS    Target OS: macos, linux, windows
-  --arch ARCH            Target architecture: arm64, x86_64 (no universal2)
+  --arch ARCH            Target architecture: universal2, x86_64
   --version VERSION      7-Zip version to download (default: $SEVEN_ZIP_VERSION)
   --output DIR           Output directory (default: $OUTPUT_DIR)
   --build-dir DIR        Build directory for temporary files (default: $BUILD_DIR)
   --help, -h             Show this help message
 
 Supported combinations:
-  macOS:   arm64, x86_64 (separate wheels, no universal2)
+  macOS:   universal2 (official 7-Zip distribution supports both ARM64 and x86_64)
   Linux:   x86_64
   Windows: x86_64 (includes 7z.exe + 7z.dll for complete functionality)
 
 Examples:
-  $0 --os macos --arch arm64
-  $0 --os macos --arch x86_64
+  $0 --os macos --arch universal2
   $0 --os linux --arch x86_64
   $0 --os windows --arch x86_64
 
