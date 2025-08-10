@@ -77,7 +77,6 @@ def find_7z_binary() -> str:
     # Auto-download binary for source installs
     # Skip auto-download to prevent circular dependency with bundled_info
     # This feature requires manual version specification to avoid loops
-    pass
 
     raise RuntimeError(
         "7zz binary not found. Please either:\n"
@@ -773,10 +772,10 @@ class SevenZipFile:
                 if isinstance(self._password, bytes)
                 else str(self._password)
             )
+            # Create safe command representation for logging
+            safe_args = args + ["-p<password_hidden>"]
+            logger.debug(f"Added password parameter to command: {safe_args}")
             args.append(f"-p{password_str}")
-            logger.debug(
-                f"Added password parameter to command: {args[:-1] + ['<password_hidden>']}"
-            )
         else:
             logger.debug(f"No password set, command: {args}")
 

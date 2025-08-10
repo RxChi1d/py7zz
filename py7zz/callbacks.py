@@ -167,7 +167,7 @@ class ProgressCallback(Protocol):
         Args:
             progress: Structured progress information
         """
-        ...
+        pass
 
 
 class ProgressTracker:
@@ -318,18 +318,16 @@ class ProgressTracker:
         # Update speed every second
         if time_diff >= 1.0:
             bytes_diff = self.bytes_processed - self._last_bytes_for_speed
+            current_speed = bytes_diff / time_diff
 
-            if time_diff > 0:
-                current_speed = bytes_diff / time_diff
+            # Add to samples for smoothing
+            self._speed_samples.append(current_speed)
+            if len(self._speed_samples) > self._max_speed_samples:
+                self._speed_samples.pop(0)
 
-                # Add to samples for smoothing
-                self._speed_samples.append(current_speed)
-                if len(self._speed_samples) > self._max_speed_samples:
-                    self._speed_samples.pop(0)
-
-                # Update tracking variables
-                self._last_speed_update = current_time
-                self._last_bytes_for_speed = self.bytes_processed
+            # Update tracking variables
+            self._last_speed_update = current_time
+            self._last_bytes_for_speed = self.bytes_processed
 
         # Return average speed from samples
         if self._speed_samples:

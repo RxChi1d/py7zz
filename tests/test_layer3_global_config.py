@@ -69,7 +69,6 @@ class TestGlobalConfig:
         # Should use defaults
         # May contain default settings, just verify it's a dict\n        assert isinstance(py7zz.GlobalConfig._loaded_config, dict)
         # File should not be opened when it doesn't exist
-        pass
 
     @patch("builtins.open", new_callable=mock_open, read_data="invalid json")
     @patch("os.path.exists", return_value=True)

@@ -62,7 +62,7 @@ class TestCrossPlatformBinaryDetection:
         try:
             # Make it executable on Unix-like systems
             if platform.system() != "Windows":
-                os.chmod(fake_path, 0o755)
+                os.chmod(fake_path, 0o700)
 
             # Set environment variable
             os.environ["PY7ZZ_BINARY"] = fake_path
@@ -446,7 +446,7 @@ class TestPlatformSpecificEdgeCases:
                     sz.extract(readonly_dir)
             finally:
                 # Restore permissions for cleanup
-                os.chmod(readonly_dir, 0o755)
+                os.chmod(readonly_dir, 0o700)
 
     def test_disk_space_handling(self, tmp_path):
         """Test behavior when disk space is limited."""
