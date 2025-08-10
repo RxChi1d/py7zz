@@ -311,8 +311,107 @@ jobs:
         name: wheels-${{ matrix.platform }}-${{ matrix.arch }}
         path: dist/*.whl
 
-  publish-pypi:
+  publish-testpypi:
     needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    environment: testpypi
+    permissions:
+      contents: read
+      id-token: write
+    name: Publish to TestPyPI
+
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+      with:
+        path: dist/
+        pattern: wheels-*
+        merge-multiple: true
+
+    - name: Final version validation before TestPyPI publish
+      shell: bash
+      run: |
+        # Get git tag and expected version
+        GIT_TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
+        EXPECTED_VERSION=$(echo "$GIT_TAG" | sed 's/^v//')
+        echo "Git tag: $GIT_TAG"
+        echo "Expected TestPyPI version: $EXPECTED_VERSION"
+
+        # Verify all wheels have consistent version
+        echo "Verifying wheel versions..."
+        for wheel in dist/*.whl; do
+          WHEEL_VERSION=$(echo "$wheel" | sed -n 's/.*py7zz-\([^-]*\)-.*/\1/p')
+          echo "  $wheel -> $WHEEL_VERSION"
+
+          if [ "$WHEEL_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "✗ Wheel version mismatch: $wheel"
+            echo "  Expected: $EXPECTED_VERSION"
+            echo "  Got: $WHEEL_VERSION"
+            exit 1
+          fi
+        done
+
+        echo "✓ All wheels have consistent version: $EXPECTED_VERSION"
+
+        # Final confirmation
+        echo "🚀 Ready to publish to TestPyPI:"
+        echo "  Git tag: $GIT_TAG"
+        echo "  TestPyPI version: $EXPECTED_VERSION"
+        echo "  Wheel count: $(ls dist/*.whl | wc -l)"
+        ls -la dist/
+
+    - name: Final duplicate filename check before upload
+      shell: bash
+      run: |
+        echo "Running final duplicate filename check on all wheels..."
+        pip install zipfile-deflate64  # For better wheel support
+        python -c "
+        import glob, zipfile, collections, sys
+        wheels = glob.glob('dist/*.whl')
+        print(f'Checking {len(wheels)} wheels for duplicates...')
+        errors = False
+        for wheel in wheels:
+            try:
+                z = zipfile.ZipFile(wheel)
+                files = [i.filename for i in z.infolist()]
+
+                # Check exact duplicates
+                cnt = collections.Counter(files)
+                dups = [k for k,v in cnt.items() if v>1]
+
+                # Check case-insensitive duplicates
+                lower = collections.Counter(f.lower() for f in files)
+                case_dups = [k for k,v in lower.items() if v>1]
+
+                if dups or case_dups:
+                    print(f'ERROR {wheel}:')
+                    if dups: print(f'  Exact duplicates: {dups}')
+                    if case_dups: print(f'  Case duplicates: {case_dups}')
+                    errors = True
+                else:
+                    print(f'OK {wheel} - clean ({len(files)} files)')
+            except Exception as e:
+                print(f'ERROR checking {wheel}: {e}')
+                errors = True
+
+        if errors:
+            print('ERROR: Duplicate filename errors found - aborting upload')
+            sys.exit(1)
+        else:
+            print('SUCCESS: All wheels passed duplicate check!')
+        "
+
+    - name: Publish to TestPyPI
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
+        attestations: true
+        packages-dir: dist/
+        verbose: true
+
+  publish-pypi:
+    needs: publish-testpypi
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     environment: pypi
@@ -355,7 +454,7 @@ jobs:
         echo "✓ All wheels have consistent version: $EXPECTED_VERSION"
 
         # Final confirmation
-        echo "🚀 Ready to publish to PyPI:"
+        echo "🚀 Ready to publish to PyPI (after TestPyPI success):"
         echo "  Git tag: $GIT_TAG"
         echo "  PyPI version: $EXPECTED_VERSION"
         echo "  Wheel count: $(ls dist/*.whl | wc -l)"
