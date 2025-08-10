@@ -437,7 +437,7 @@ class TestPlatformSpecificEdgeCases:
         if platform.system() != "Windows":
             readonly_dir = tmp_path / "readonly"
             readonly_dir.mkdir()
-            os.chmod(readonly_dir, 0o444)  # Read-only
+            os.chmod(readonly_dir, 0o400)  # Read-only for owner only
 
             try:
                 with SevenZipFile(archive_path, "r") as sz, pytest.raises(
