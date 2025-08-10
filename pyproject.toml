@@ -10,7 +10,11 @@ packages = ["py7zz"]
 # Include all files in py7zz package (including bin/ directory)
 # Binary files will be downloaded during CI build process only
 
+# Explicitly include binary files in py7zz/bin/ directory and other required files
 [tool.hatch.build.targets.wheel.force-include]
+"py7zz/bin/7zz" = "py7zz/bin/7zz"
+"py7zz/bin/7zz.exe" = "py7zz/bin/7zz.exe"
+"py7zz/bin/7z.dll" = "py7zz/bin/7z.dll"
 "LICENSE" = "LICENSE"
 "THIRD_PARTY_NOTICES.md" = "THIRD_PARTY_NOTICES.md"
 "LICENSES/LicenseRef-7zip.txt" = "LICENSES/LicenseRef-7zip.txt"
