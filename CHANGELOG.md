@@ -12,30 +12,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2025-08-10
+
 ### Fixed
-- **Bundled Version Display Issue**: Resolved "Bundled 7zz version: unknown" by implementing intelligent auto-detection system
-- **Cross-Python Compatibility**: Fixed circular dependency causing stack overflow on Python 3.8 environments
-- Resolved critical PyPI packaging issue where wheels were only 86.3 KB instead of containing multi-MB platform binaries
-- Fixed Hatchling configuration to properly include 7zz binaries using artifacts mechanism
-- Corrected CI workflow ordering to download binaries before dependency installation
-- Fixed macOS architecture support to use official universal2 distribution
-- Resolved Windows binary extraction and 7z.dll inclusion issues
-- Fixed Unicode compatibility by removing emoji characters from scripts
-- Corrected script output handling to prevent stdout contamination
+- **Critical Package Distribution Issue**: Resolved PyPI packages being non-functional due to missing binaries (wheels were only 86KB instead of required multi-MB with 7zz executables)
+- **Version Information Display**: Fixed "Bundled 7zz version: unknown" issue by implementing intelligent auto-detection system
+- **Python 3.8 Compatibility**: Resolved circular dependency causing infinite recursion and test failures on older Python versions
+- **Cross-Platform Binary Support**: Enhanced macOS universal2 and Windows executable packaging with proper dependency inclusion
 
 ### Added
-- **Smart Version Detection**: Hybrid system using registry with runtime auto-detection fallback
-- **Simplified CLI Interface**: Streamlined `py7zz -V` output focusing on essential information only
-- Comprehensive PEP 440 version parser supporting all standard formats
-- Automatic 7-Zip version detection from official website with fallback
-- Wheel duplicate detection script for PyPI validation
-- Unified cross-platform binary download script
-- Platform-specific wheels with correct binary inclusion
+- **Smart Version Detection System**: Zero-maintenance version detection that automatically identifies bundled 7zz version without manual registry updates
+- **Streamlined CLI Interface**: Simplified `py7zz -V` output focusing on essential version information (py7zz version and bundled 7zz version only)
+- **Comprehensive License Compliance**: Full REUSE specification compliance with automated license scanning and SBOM generation
+- **Enhanced API Design**: Improved configuration validation and error handling for better developer experience
 
 ### Changed
-- Improved release workflow with proper binary packaging validation
-- Enhanced version parsing with MyPy compatibility
-- Streamlined CI/CD pipeline with better error handling
+- **Simplified User Experience**: CLI version output reduced from verbose 6-line format to clean 2-line essential information display
+- **Robust Error Handling**: Enhanced graceful degradation when version detection or binary operations fail
+- **Modernized Development Workflow**: Integrated pre-commit hooks, automated code quality checks, and streamlined CI/CD pipeline
 
 ## [1.0.1] - 2025-08-08
 
@@ -108,8 +102,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0b1...HEAD
-[1.1.0b1]: https://github.com/rxchi1d/py7zz/compare/v1.0.1...v1.1.0b1
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
 [1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0
 [1.0.0b2]: https://github.com/rxchi1d/py7zz/compare/v1.0.0b1...v1.0.0b2
