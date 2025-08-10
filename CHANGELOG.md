@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- **Bundled Version Display Issue**: Resolved "Bundled 7zz version: unknown" by implementing intelligent auto-detection system
+- **Cross-Python Compatibility**: Fixed circular dependency causing stack overflow on Python 3.8 environments
 - Resolved critical PyPI packaging issue where wheels were only 86.3 KB instead of containing multi-MB platform binaries
 - Fixed Hatchling configuration to properly include 7zz binaries using artifacts mechanism
 - Corrected CI workflow ordering to download binaries before dependency installation
@@ -22,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Corrected script output handling to prevent stdout contamination
 
 ### Added
+- **Smart Version Detection**: Hybrid system using registry with runtime auto-detection fallback
+- **Simplified CLI Interface**: Streamlined `py7zz -V` output focusing on essential information only
 - Comprehensive PEP 440 version parser supporting all standard formats
 - Automatic 7-Zip version detection from official website with fallback
 - Wheel duplicate detection script for PyPI validation
