@@ -11,7 +11,8 @@ from pathlib import Path
 
 import pytest
 
-import py7zz
+from py7zz.core import get_version
+from py7zz.version import parse_version
 
 
 class TestPyPIVersionValidation:
@@ -59,7 +60,7 @@ class TestPyPIVersionValidation:
             assert version_from_wheel == "0.1.5a1"
 
             # Verify it's recognized as alpha
-            parsed = py7zz.version.parse_version(version_from_wheel)
+            parsed = parse_version(version_from_wheel)
             assert parsed["version_type"] == "alpha"
 
     def test_dev_version_pypi_consistency(self):
@@ -313,6 +314,7 @@ class TestUserInstallationExperience:
         assert import_version == core_version
 
         # Test that version is accessible from main package
+        import py7zz
 
         assert hasattr(py7zz, "get_version")
 
