@@ -22,14 +22,15 @@ def print_version_info(format_type: str = "human") -> None:
         info = get_version_info()
 
         if format_type == "json":
-            print(json.dumps(info, indent=2))
+            # Only include essential info in JSON output
+            essential_info = {
+                "py7zz_version": info["py7zz_version"],
+                "bundled_7zz_version": info["bundled_7zz_version"],
+            }
+            print(json.dumps(essential_info, indent=2))
         else:
             print(f"py7zz version: {info['py7zz_version']}")
             print(f"Bundled 7zz version: {info['bundled_7zz_version']}")
-            print(f"Release type: {info['release_type']}")
-            print(f"Release date: {info['release_date']}")
-            print(f"GitHub tag: {info['github_tag']}")
-            print(f"Changelog: {info['changelog_url']}")
     except Exception as e:
         print(f"py7zz error: {e}", file=sys.stderr)
         sys.exit(1)

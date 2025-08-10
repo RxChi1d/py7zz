@@ -29,23 +29,21 @@ VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
 }
 
 
-def detect_7zz_version() -> str:
+def detect_7zz_version(binary_path: str) -> str:
     """
     Automatically detect the version of bundled 7zz binary.
+
+    Args:
+        binary_path: Path to the 7zz binary
 
     Returns:
         Detected 7zz version string or "unknown" if detection fails
 
     Example:
-        >>> detect_7zz_version()
+        >>> detect_7zz_version("/path/to/7zz")
         '25.00'
     """
     try:
-        # Import here to avoid circular import
-        from .core import find_7z_binary
-
-        binary_path = find_7z_binary()
-
         # Run 7zz without arguments to get help output with version info
         result = subprocess.run(
             [binary_path], capture_output=True, text=True, timeout=10
@@ -107,7 +105,13 @@ def get_version_info() -> Dict[str, Union[str, None]]:
     bundled_7zz_version = info.get("7zz_version")
     if bundled_7zz_version is None:
         # Not in registry, try auto-detection
-        bundled_7zz_version = detect_7zz_version()
+        try:
+            from .core import find_7z_binary
+
+            binary_path = find_7z_binary()
+            bundled_7zz_version = detect_7zz_version(binary_path)
+        except Exception:
+            bundled_7zz_version = "unknown"
 
     return {
         "py7zz_version": current_version,

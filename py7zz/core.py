@@ -75,18 +75,9 @@ def find_7z_binary() -> str:
         return str(binary_path)
 
     # Auto-download binary for source installs
-    try:
-        from .bundled_info import get_bundled_7zz_version
-        from .updater import get_cached_binary
-
-        seven_zz_version = get_bundled_7zz_version()
-        cached_binary = get_cached_binary(seven_zz_version, auto_update=True)
-        if cached_binary and cached_binary.exists():
-            return str(cached_binary)
-    except ImportError:
-        pass  # updater module not available
-    except Exception:
-        pass  # Auto-download failed, continue to error
+    # Skip auto-download to prevent circular dependency with bundled_info
+    # This feature requires manual version specification to avoid loops
+    pass
 
     raise RuntimeError(
         "7zz binary not found. Please either:\n"
