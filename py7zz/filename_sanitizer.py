@@ -209,7 +209,7 @@ def sanitize_path(
         changes_dict maps original components to sanitized versions
     """
     if existing_paths is None:
-        existing_paths = set()
+        _ = set()  # Parameter reserved for future conflict resolution
 
     # Normalize path separators
     filepath = filepath.replace("\\", "/")

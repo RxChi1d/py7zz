@@ -575,7 +575,8 @@ def log_performance(
     size: Optional[int] = None,
     logger_name: str = "py7zz.performance",
     **kwargs: Any,
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]: ...
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    pass
 
 
 @overload
@@ -585,7 +586,8 @@ def log_performance(
     size: Optional[int] = None,
     logger_name: str = "py7zz.performance",
     **kwargs: Any,
-) -> None: ...
+) -> None:
+    pass
 
 
 def log_performance(

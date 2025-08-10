@@ -221,6 +221,7 @@ def _parse_datetime(value: str) -> Tuple[Optional[Tuple], Optional[float]]:
             timestamp = dt.timestamp()
             return date_tuple, timestamp
     except (ValueError, TypeError):
+        # Date parsing failed, fall back to warning and return None
         pass
 
     logger.warning(f"Failed to parse datetime value: {value}")

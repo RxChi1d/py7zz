@@ -11,6 +11,7 @@ from pathlib import Path
 
 import pytest
 
+import py7zz
 from py7zz.core import get_version
 from py7zz.version import parse_version
 
@@ -314,7 +315,6 @@ class TestUserInstallationExperience:
         assert import_version == core_version
 
         # Test that version is accessible from main package
-        import py7zz
 
         assert hasattr(py7zz, "get_version")
 

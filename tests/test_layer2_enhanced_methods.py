@@ -410,7 +410,6 @@ class TestEnhancedMethodsIntegration:
         """Test password handling functionality."""
         with py7zz.SevenZipFile("test.7z", "r") as sz:
             # Password handling is not yet implemented
-            pass
 
             # Test setting various password types
             sz.setpassword(b"binary_password")

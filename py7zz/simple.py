@@ -500,9 +500,11 @@ def get_archive_format(archive_path: Union[str, Path]) -> str:
             archive_format = archive_info.get("format", "unknown")
             return str(archive_format) if archive_format is not None else "unknown"
         except Exception:
+            # Failed to get format info, try other methods
             pass
 
     except Exception:
+        # All format detection methods failed
         pass
 
     return "unknown"
@@ -637,7 +639,9 @@ def convert_archive_format(
     # Auto-detect target format from extension if not specified
     if target_format is None:
         ext = target_path.suffix.lower().lstrip(".")
-        target_format = ext if ext in ["7z", "zip", "tar", "gz", "bz2"] else "7z"
+        _ = (
+            ext if ext in ["7z", "zip", "tar", "gz", "bz2"] else "7z"
+        )  # Format detection for future use
 
     # Create target directory if needed
     target_path.parent.mkdir(parents=True, exist_ok=True)
