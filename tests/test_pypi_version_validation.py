@@ -12,8 +12,7 @@ from pathlib import Path
 import pytest
 
 import py7zz
-from py7zz.core import get_version
-from py7zz.version import parse_version
+from py7zz import get_version, parse_version
 
 
 class TestPyPIVersionValidation:
