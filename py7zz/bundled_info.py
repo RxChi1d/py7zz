@@ -7,6 +7,8 @@ This module provides version registry and bundled information for the py7zz pack
 supporting the new PEP 440 compliant version system.
 """
 
+import re
+import subprocess
 from typing import Dict, Union
 
 from .version import get_version
@@ -25,6 +27,53 @@ VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
     # Dev versions will be manually added
     # Example: "0.2.0.dev1": {"7zz_version": "24.08", ...}
 }
+
+
+def detect_7zz_version() -> str:
+    """
+    Automatically detect the version of bundled 7zz binary.
+
+    Returns:
+        Detected 7zz version string or "unknown" if detection fails
+
+    Example:
+        >>> detect_7zz_version()
+        '25.00'
+    """
+    try:
+        # Import here to avoid circular import
+        from .core import find_7z_binary
+
+        binary_path = find_7z_binary()
+
+        # Run 7zz without arguments to get help output with version info
+        result = subprocess.run(
+            [binary_path], capture_output=True, text=True, timeout=10
+        )
+
+        # Combine stdout and stderr as version info might be in either
+        output = (result.stdout or "") + (result.stderr or "")
+
+        # Parse version from output using regex patterns
+        # Common patterns: "7-Zip 25.00", "7-zip 24.08", "7zip (z) 23.01"
+        version_patterns = [
+            r"7-?[Zz]ip\s*(?:\([^)]*\))?\s*(\d+\.\d+)",
+            r"(\d+\.\d+)\s*\(.*7-?[Zz]ip",
+            r"Version\s*:?\s*(\d+\.\d+)",
+            r"v(\d+\.\d+)",
+        ]
+
+        for pattern in version_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                return match.group(1)
+
+        # If no pattern matches, return unknown
+        return "unknown"
+
+    except Exception:
+        # If any error occurs during detection, return unknown
+        return "unknown"
 
 
 def get_version_info() -> Dict[str, Union[str, None]]:
@@ -54,9 +103,15 @@ def get_version_info() -> Dict[str, Union[str, None]]:
     current_version = get_version()
     info = VERSION_REGISTRY.get(current_version, {})
 
+    # Use hybrid approach: registry first, then auto-detection
+    bundled_7zz_version = info.get("7zz_version")
+    if bundled_7zz_version is None:
+        # Not in registry, try auto-detection
+        bundled_7zz_version = detect_7zz_version()
+
     return {
         "py7zz_version": current_version,
-        "bundled_7zz_version": info.get("7zz_version", "unknown"),
+        "bundled_7zz_version": bundled_7zz_version,
         "release_type": info.get("release_type", "unknown"),
         "release_date": info.get("release_date", "unknown"),
         "github_tag": info.get("github_tag", f"v{current_version}"),
