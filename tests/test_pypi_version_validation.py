@@ -304,10 +304,8 @@ class TestUserInstallationExperience:
 
     def test_import_version_consistency(self):
         """Test that import version is consistent."""
-        # Test direct import
-        from py7zz import get_version as import_get_version
-
-        import_version = import_get_version()
+        # Test direct import through main module
+        import_version = py7zz.get_version()
         core_version = py7zz.get_version()
 
         assert import_version == core_version
