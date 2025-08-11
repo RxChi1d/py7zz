@@ -446,19 +446,23 @@ class TestErrorHandlingIntegration:
         assert info["context"]["progress"] == "3/5"
         assert len(info["suggestions"]) == 2
 
-    def test_error_handling_with_existing_py7zz_errors(self):
-        """Test error handling integration with existing py7zz error types."""
-        # Test that existing error types still work
+    def test_file_not_found_error_raising(self):
+        """Test that FileNotFoundError can be raised and caught properly."""
         with pytest.raises(py7zz.FileNotFoundError):
             raise py7zz.FileNotFoundError("test.txt")
 
+    def test_compression_error_raising(self):
+        """Test that CompressionError can be raised and caught properly."""
         with pytest.raises(py7zz.CompressionError):
             raise py7zz.CompressionError("Compression failed")
 
+    def test_extraction_error_raising(self):
+        """Test that ExtractionError can be raised and caught properly."""
         with pytest.raises(py7zz.ExtractionError):
             raise py7zz.ExtractionError("Extraction failed")
 
-        # Test that they're still Py7zzError instances
+    def test_existing_py7zz_errors_inheritance(self):
+        """Test that existing error types are still Py7zzError instances."""
         error = py7zz.CompressionError("Test")
         assert isinstance(error, py7zz.Py7zzError)
 

@@ -265,25 +265,16 @@ class TestUserInstallationExperience:
         assert parsed["version_type"] in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test version type functions
-        from py7zz.version import (
-            get_version_type,
-            is_alpha_version,
-            is_beta_version,
-            is_dev_version,
-            is_rc_version,
-            is_stable_version,
-        )
-
-        version_type = get_version_type(version)
+        version_type = py7zz.version.get_version_type(version)
         assert version_type in ["stable", "alpha", "beta", "rc", "dev"]
 
         # Test that exactly one version type function returns True
         type_checks = [
-            is_stable_version(version),
-            is_alpha_version(version),
-            is_beta_version(version),
-            is_rc_version(version),
-            is_dev_version(version),
+            py7zz.version.is_stable_version(version),
+            py7zz.version.is_alpha_version(version),
+            py7zz.version.is_beta_version(version),
+            py7zz.version.is_rc_version(version),
+            py7zz.version.is_dev_version(version),
         ]
         assert sum(type_checks) == 1, "Exactly one version type should be True"
 
