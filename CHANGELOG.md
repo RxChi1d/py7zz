@@ -12,17 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.1.1] - 2025-09-07
-
 ### Fixed
 - **Filename Listing and Reading with Spaces**: Preserve multiple consecutive spaces and avoid truncation when listing contents; `read()` reliably locates files like `puzzles/puzzle 10.txt`.
 - **Robust Listing Parser**: Accept minimal `-slt` outputs without separators, improving reliability of `infolist()` and `open()` across environments.
 
 ### Changed
 - **List Methods Consistency**: `namelist()` and `getnames()` return files only (directories excluded) for consistency with `zipfile.ZipFile`; both methods now return the same results.
+- **CLI Version Command**: Standardized to `--version`/`-V` and now prints only the version string (no extra fields).
 
 ### Security
 - **Sensitive Data Protection**: Debug logging avoids exposing passwords by masking command arguments when a password is provided.
+
+### Removed
+- **CLI Subcommand**: Removed `py7zz version` subcommand and non-standard fields (release type, GitHub tag/changelog link) from CLI output.
 
 ## [1.1.0] - 2025-08-10
 
@@ -114,8 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...HEAD
-[1.1.1]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...v1.1.1
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...HEAD
 [1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
 [1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0

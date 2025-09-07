@@ -11,7 +11,7 @@ import re
 import subprocess
 from typing import Dict, Union
 
-from .version import get_version
+from .version import get_version, get_version_type
 
 # Version registry containing all version information
 VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
@@ -113,10 +113,19 @@ def get_version_info() -> Dict[str, Union[str, None]]:
         except Exception:
             bundled_7zz_version = "unknown"
 
+    # Determine release type: prefer registry, otherwise derive from version string
+    release_type = info.get("release_type")
+    if not isinstance(release_type, str) or release_type == "unknown":
+        try:
+            derived = get_version_type(current_version)
+            release_type = derived
+        except Exception:
+            release_type = "unknown"
+
     return {
         "py7zz_version": current_version,
         "bundled_7zz_version": bundled_7zz_version,
-        "release_type": info.get("release_type", "unknown"),
+        "release_type": release_type,
         "release_date": info.get("release_date", "unknown"),
         "github_tag": info.get("github_tag", f"v{current_version}"),
         "changelog_url": info.get(

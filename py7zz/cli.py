@@ -7,33 +7,13 @@ Directly passes through to the official 7zz binary, ensuring users get complete 
 py7zz's value is in automatic binary management and providing Python API.
 """
 
-import json
 import os
 import subprocess
 import sys
 
-from .bundled_info import get_version_info
 from .core import find_7z_binary
 
-
-def print_version_info(format_type: str = "human") -> None:
-    """Print version information in specified format."""
-    try:
-        info = get_version_info()
-
-        if format_type == "json":
-            # Only include essential info in JSON output
-            essential_info = {
-                "py7zz_version": info["py7zz_version"],
-                "bundled_7zz_version": info["bundled_7zz_version"],
-            }
-            print(json.dumps(essential_info, indent=2))
-        else:
-            print(f"py7zz version: {info['py7zz_version']}")
-            print(f"Bundled 7zz version: {info['bundled_7zz_version']}")
-    except Exception as e:
-        print(f"py7zz error: {e}", file=sys.stderr)
-        sys.exit(1)
+## Intentionally minimal: CLI only exposes --version/-V for version string
 
 
 def main() -> None:
@@ -47,29 +27,19 @@ def main() -> None:
     4. py7zz focuses on Python API and binary management
     """
     try:
-        # Handle py7zz-specific commands
+        # Handle py7zz-specific minimal commands
         if len(sys.argv) > 1:
             command = sys.argv[1]
 
-            if command == "version":
-                # Handle version command
-                format_type = "human"
-                if len(sys.argv) > 2 and sys.argv[2] == "--format":
-                    if len(sys.argv) > 3:
-                        format_type = sys.argv[3]
-                    else:
-                        print(
-                            "Error: --format requires a value (human or json)",
-                            file=sys.stderr,
-                        )
-                        sys.exit(1)
+            if command in ["--version", "-V"]:
+                # Handle quick version command: print only version string
+                try:
+                    from .version import get_version as _get_version
 
-                print_version_info(format_type)
-                return
-
-            elif command in ["--py7zz-version", "-V"]:
-                # Handle quick version command
-                print_version_info("human")
+                    print(_get_version())
+                except Exception as _e:
+                    print(f"py7zz error: {_e}", file=sys.stderr)
+                    sys.exit(1)
                 return
 
         # Get py7zz-managed 7zz binary

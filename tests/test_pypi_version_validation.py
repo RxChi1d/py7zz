@@ -282,7 +282,7 @@ class TestUserInstallationExperience:
         """Test CLI version command."""
         # Test that CLI version command works
         result = subprocess.run(
-            ["python", "-m", "py7zz", "--py7zz-version"],
+            ["python", "-m", "py7zz", "--version"],
             capture_output=True,
             text=True,
             cwd=Path(__file__).parent.parent,

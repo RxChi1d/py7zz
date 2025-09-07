@@ -197,20 +197,16 @@ pip install --pre py7zz
 ```python
 import py7zz
 print(py7zz.get_version())          # Current version
-print(py7zz.get_version_info())     # Complete details
+print(py7zz.get_version_info())     # Complete details (Python API)
 
-# CLI
-py7zz --version                     # Version information
-py7zz version                       # Detailed version info
+# CLI (standard)
+py7zz --version                     # Version string
+py7zz -V                            # Alias for --version
 ```
 
 #### Command Line
 ```bash
-# Version information
-py7zz version
-py7zz version --format json
-
-# Quick version check
+# Quick version check (standard CLI flags)
 py7zz --version
 py7zz -V
 ```
