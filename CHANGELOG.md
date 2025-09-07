@@ -12,14 +12,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-09-07
+
 ### Fixed
-- **Filename Listing and Reading with Spaces**: Correctly preserve multiple consecutive spaces in filenames and avoid truncation when listing contents. `_list_contents()` now uses detailed parser output, and `read()` matches against accurate file lists (resolves issue with paths like `puzzles/puzzle 10.txt`).
+- **Filename Listing and Reading with Spaces**: Preserve multiple consecutive spaces and avoid truncation when listing contents; `read()` reliably locates files like `puzzles/puzzle 10.txt`.
+- **Robust Listing Parser**: Accept minimal `-slt` outputs without separators, improving reliability of `infolist()` and `open()` across environments.
 
 ### Changed
-- **List Methods Consistency**: `namelist()` and `getnames()` now return files only (directories excluded) for consistency with `zipfile.ZipFile`; both methods return the same results.
+- **List Methods Consistency**: `namelist()` and `getnames()` return files only (directories excluded) for consistency with `zipfile.ZipFile`; both methods now return the same results.
 
-### Added
-- **Test Coverage**: Added comprehensive unit tests covering filenames with multiple spaces, normalization, and cross-method consistency for listing and reading operations.
+### Security
+- **Sensitive Data Protection**: Debug logging avoids exposing passwords by masking command arguments when a password is provided.
 
 ## [1.1.0] - 2025-08-10
 
@@ -111,7 +114,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
 [1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0

@@ -173,7 +173,7 @@ try:
     __version__ = get_version()
 except Exception:
     # Fallback to a reasonable default if version detection fails
-    __version__ = "0.1.0.dev0"
+    __version__ = "1.1.1"
 from .version import (  # noqa: E402
     get_version_info as get_legacy_version_info,
 )

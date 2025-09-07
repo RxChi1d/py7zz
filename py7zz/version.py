@@ -80,7 +80,7 @@ def get_version() -> str:
         pass
 
     # Last resort: Return a reasonable default version for development
-    return "0.1.0.dev0"
+    return "1.1.1"
 
 
 def parse_version(version_string: str) -> Dict[str, Union[str, int, None]]:
@@ -517,4 +517,4 @@ def generate_auto_version(base_version: str, build_number: int = 1) -> str:
 
 # Simple default version to avoid circular import issues
 # Real version will be set dynamically in __init__.py
-__version__ = "0.1.0.dev0"
+__version__ = "1.1.1"
