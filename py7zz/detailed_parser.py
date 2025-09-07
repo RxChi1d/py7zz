@@ -41,8 +41,9 @@ def parse_7zz_slt_output(output: str) -> List[ArchiveInfo]:
     Returns:
         List of ArchiveInfo objects with parsed metadata
     """
-    members = []
-    current_member = None
+    members: List[ArchiveInfo] = []
+    current_member: Optional[ArchiveInfo] = None
+    member_has_props = False  # Track if current member has any file-level properties
     in_archive_header = True  # Track if we're still in archive header section
 
     lines = output.split("\n")
@@ -79,9 +80,10 @@ def parse_7zz_slt_output(output: str) -> List[ArchiveInfo]:
             prop = prop.strip()
             value = value.strip()
 
-            # Skip archive-level properties when in header section
+            # Skip known archive-level properties when in header section,
+            # but allow "Path" to start a member for minimal outputs where
+            # the separator lines (----------) are omitted.
             if in_archive_header and prop in [
-                "Path",
                 "Type",
                 "Physical Size",
                 "Headers Size",
@@ -93,12 +95,13 @@ def parse_7zz_slt_output(output: str) -> List[ArchiveInfo]:
 
             # Start of new file entry
             if prop == "Path":
-                # Save previous member if exists
-                if current_member is not None:
+                # Save previous member if it had any file-level properties
+                if current_member is not None and member_has_props:
                     members.append(current_member)
 
                 # Start new member
                 current_member = ArchiveInfo(value)
+                member_has_props = False
                 continue
 
             # Skip if no current member
@@ -108,37 +111,50 @@ def parse_7zz_slt_output(output: str) -> List[ArchiveInfo]:
             # Parse different properties
             if prop == "Size":
                 current_member.file_size = _parse_int(value, 0)
+                member_has_props = True
 
             elif prop == "Packed Size":
                 current_member.compress_size = _parse_int(value, 0)
+                member_has_props = True
 
             elif prop == "Modified":
                 current_member.date_time, current_member.mtime = _parse_datetime(value)
+                member_has_props = True
 
             elif prop == "Attributes":
                 current_member.external_attr = _parse_attributes(value)
                 current_member.type = _determine_file_type(
                     value, current_member.filename
                 )
+                member_has_props = True
 
             elif prop == "CRC":
                 current_member.CRC = _parse_int(value, 0, base=16) if value != "" else 0
+                member_has_props = True
 
             elif prop == "Method":
                 current_member.compress_type = value if value else ""
                 current_member.method = value if value else ""
+                # Method may appear for both archive and file entries; do not
+                # mark as file-level property by itself when still in header.
+                if not in_archive_header:
+                    member_has_props = True
 
             elif prop == "Solid":
                 current_member.solid = value == "+"
+                if not in_archive_header:
+                    member_has_props = True
 
             elif prop == "Encrypted":
                 current_member.encrypted = value == "+"
+                member_has_props = True
 
             elif prop == "Comment":
                 current_member.comment = value
+                member_has_props = True
 
-    # Add the last member
-    if current_member is not None:
+    # Add the last member if it had any file-level properties
+    if current_member is not None and member_has_props:
         members.append(current_member)
 
     logger.debug(f"Parsed {len(members)} archive members from 7zz -slt output")
