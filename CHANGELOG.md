@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2025-09-07
+
 ### Fixed
 - **Filename Listing and Reading with Spaces**: Preserve multiple consecutive spaces and avoid truncation when listing contents; `read()` reliably locates files like `puzzles/puzzle 10.txt`.
 - **Robust Listing Parser**: Accept minimal `-slt` outputs without separators, improving reliability of `infolist()` and `open()` across environments.
@@ -116,7 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
 [1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/rxchi1d/py7zz/compare/v0.1.1...v1.0.0
