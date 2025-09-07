@@ -103,9 +103,12 @@ SevenZipFile(file, mode='r', level='normal', preset=None, config=None)
 
 **`namelist() -> List[str]`**
 Get list of archive member names (zipfile compatible).
+- Returns files only (directories are excluded) for consistency with `zipfile.ZipFile`.
+- Paths are normalized to use forward slashes in results.
 
 **`getnames() -> List[str]`**
 Get list of archive member names (tarfile compatible).
+- Returns the same result as `namelist()` for consistency (files only).
 
 **`infolist() -> List[ArchiveInfo]`**
 Get detailed information about all members (zipfile compatible).
@@ -125,6 +128,10 @@ Get information about specific member (tarfile compatible).
 Read file content as bytes.
 - **Returns:** File content as bytes
 - **Raises:** `FileNotFoundError`, `ExtractionError`
+
+Notes:
+- Filename matching is robust to common path variations (e.g., `\\` vs `/`).
+- Filenames containing multiple consecutive spaces are fully supported.
 
 **`readall() -> bytes`**
 Read all files from archive as concatenated bytes.

@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Filename Listing and Reading with Spaces**: Correctly preserve multiple consecutive spaces in filenames and avoid truncation when listing contents. `_list_contents()` now uses detailed parser output, and `read()` matches against accurate file lists (resolves issue with paths like `puzzles/puzzle 10.txt`).
+
+### Changed
+- **List Methods Consistency**: `namelist()` and `getnames()` now return files only (directories excluded) for consistency with `zipfile.ZipFile`; both methods return the same results.
+
+### Added
+- **Test Coverage**: Added comprehensive unit tests covering filenames with multiple spaces, normalization, and cross-method consistency for listing and reading operations.
+
 ## [1.1.0] - 2025-08-10
 
 ### Fixed
