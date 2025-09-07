@@ -762,92 +762,13 @@ class SevenZipFile:
         if not self.file.exists():
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
-        args = ["l", str(self.file)]
-
-        # Add password if available
-        if hasattr(self, "_password") and self._password is not None:
-            # Convert bytes password to string for 7zz command
-            password_str = (
-                self._password.decode("utf-8")
-                if isinstance(self._password, bytes)
-                else str(self._password)
-            )
-            # Create safe command representation for logging
-            safe_args = args + ["-p<password_hidden>"]
-            logger.debug(f"Added password parameter to command: {safe_args}")
-            args.append(f"-p{password_str}")
-        else:
-            logger.debug(f"No password set, command: {args}")
-
+        # Use detailed info parsing for reliable filename extraction
+        # This avoids issues with space parsing in standard 7zz list output
         try:
-            result = run_7z(args)
-            # Parse the output to extract file names
-            lines = result.stdout.split("\n")
-            files = []
+            detailed_info = self._get_detailed_info()
 
-            # Find the start of the file list (after the header)
-            in_file_list = False
-            for line in lines:
-                if "---" in line and "Name" in lines[lines.index(line) - 1]:
-                    in_file_list = True
-                    continue
-                elif in_file_list and "---" in line:
-                    break
-                elif in_file_list and line.strip():
-                    # Skip summary lines (e.g., "7 files, 5 folders", "1 files")
-                    parts = line.strip().split()
-                    if ("files," in line and "folders" in line) or (
-                        line.strip().endswith("files")
-                        and len(parts) >= 2
-                        and parts[-2].isdigit()  # Check the number before "files"
-                    ):
-                        continue
-
-                    # Extract filename from the line
-                    # 7zz output format variations:
-                    # Standard: Date Time Attr Size [Compressed] Name
-                    # Nested archives: ..... [Size [Compressed]] Name
-
-                    # Split line preserving whitespace structure for better parsing
-                    parts = line.split()
-
-                    # Handle different output formats
-                    if len(parts) >= 5 and parts[0] != ".....":
-                        # Standard format: Date Time Attr Size [Compressed] Name
-                        if len(parts) >= 6:
-                            # Format: Date Time Attr Size Compressed Name
-                            filename = " ".join(parts[5:])
-                        else:
-                            # Format: Date Time Attr Size Name (no Compressed column)
-                            filename = " ".join(parts[4:])
-                    elif "...." in line or parts[0] == ".....":
-                        # Nested archive format - find filename after numeric fields
-                        # Examples:
-                        # "                    .....                            test_bzip2.tar"
-                        # "                    .....           36           88  test_xz.tar"
-
-                        # Find the rightmost non-numeric part as filename
-                        filename = None
-                        for i in range(len(parts) - 1, -1, -1):
-                            part = parts[i]
-                            # Skip numeric parts (sizes) and dots
-                            if not part.replace(".", "").isdigit() and part != ".....":
-                                # Found filename, include this and any remaining parts
-                                filename = " ".join(parts[i:])
-                                break
-
-                        # Fallback: if no filename found, take last part
-                        if not filename and len(parts) > 1:
-                            filename = parts[-1]
-                    else:
-                        # Try fallback: assume last part is filename if line has content
-                        if len(parts) >= 1:
-                            filename = " ".join(parts[-1:])
-                        else:
-                            continue
-
-                    if filename and filename != "....." and filename.strip():
-                        files.append(filename)
+            # Extract filenames, excluding directories
+            files = [info.filename for info in detailed_info if not info.is_dir()]
 
             # Perform security checks on file list
             from .security import check_file_count_security
@@ -859,9 +780,14 @@ class SevenZipFile:
                 # Re-raise security exceptions to prevent processing dangerous archives
                 raise
 
+            logger.debug(
+                f"Listed {len(files)} files from archive using detailed parser"
+            )
             return files
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to list archive contents: {e.stderr}") from e
+
+        except Exception as e:
+            # If detailed parsing fails, reraise as runtime error for consistency
+            raise RuntimeError(f"Failed to list archive contents: {e}") from e
 
     def _get_detailed_info(self) -> List[ArchiveInfo]:
         """
@@ -882,6 +808,8 @@ class SevenZipFile:
         """
         Return a list of archive members by name.
         Compatible with zipfile.ZipFile.namelist() and tarfile.TarFile.getnames().
+
+        Only returns files, not directories, for consistency with zipfile behavior.
         """
         if self.mode == "w":
             from .exceptions import OperationError
@@ -890,11 +818,15 @@ class SevenZipFile:
                 "Cannot list contents from archive opened in write mode",
                 operation="namelist",
             )
-        all_contents = self._list_contents()
-        # Filter and normalize paths for consistency
+
+        # Use infolist() and filter out directories for consistency with zipfile behavior
+        info_list = self.infolist()
         normalized_files = []
-        for item in all_contents:
-            normalized = self._normalize_path(item)
+        for info in info_list:
+            # Skip directories - zipfile.ZipFile.namelist() only returns files
+            if info.is_dir():
+                continue
+            normalized = self._normalize_path(info.filename)
             if normalized:  # Skip empty or invalid entries
                 normalized_files.append(normalized)
         return normalized_files
@@ -903,8 +835,10 @@ class SevenZipFile:
         """
         Return a list of archive members by name.
         Compatible with tarfile.TarFile.getnames().
+
+        Returns the same result as namelist() for consistency.
         """
-        return self._list_contents()
+        return self.namelist()
 
     def infolist(self) -> List[ArchiveInfo]:
         """
@@ -1178,8 +1112,10 @@ class SevenZipFile:
         # Normalize the requested filename
         normalized_name = self._normalize_path(name)
 
-        # Get the actual file list to find the best match
-        actual_files = self._list_contents()
+        # Get the actual file list from infolist to ensure accurate matching
+        # This uses the same data source as namelist() for consistency
+        info_list = self.infolist()
+        actual_files = [info.filename for info in info_list]
         actual_file_to_use = None
 
         # Try to find exact match first
@@ -1204,9 +1140,11 @@ class SevenZipFile:
                     break
 
         if not actual_file_to_use:
-            # List available files for better error message
+            # List available files for better error message using normalized names
             available_files = [
-                self._normalize_path(f) for f in actual_files if self._normalize_path(f)
+                self._normalize_path(info.filename)
+                for info in info_list
+                if self._normalize_path(info.filename)
             ]
             raise FileNotFoundError(
                 f"File '{name}' not found in archive. Available files: {available_files[:5]}..."
