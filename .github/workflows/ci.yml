@@ -91,11 +91,11 @@ jobs:
     - name: Download 7zz binary for testing
       shell: bash
       run: |
-        # Auto-detect latest 7-Zip version
-        echo "Detecting latest 7-Zip version..."
+        # Use locked version from file
+        echo "Reading configured 7-Zip version..."
         chmod +x scripts/get_7zz.sh
-        VERSION=$(./scripts/get_7zz.sh --detect-version)
-        echo "Detected version: $VERSION"
+        VERSION=$(./scripts/get_7zz.sh --get-current)
+        echo "Configured version: $VERSION"
         VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # e.g., 25.01 -> 2501
 
         # Map platform to 7zz release naming (same logic as release.yml)

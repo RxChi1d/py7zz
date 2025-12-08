@@ -38,13 +38,20 @@ print_header() {
 }
 
 # Default values
-SEVEN_ZIP_VERSION=""  # Will be auto-detected
+SEVEN_ZIP_VERSION="" 
 BASE_URL="https://7-zip.org/a"
 PLATFORM=""
 ARCH=""
-CREATE_UNIVERSAL2=false
 OUTPUT_DIR="py7zz/bin"
 BUILD_DIR="build"
+VERSION_FILE="py7zz/7zz_version.txt"
+
+# Modes
+MODE_DOWNLOAD="download"
+MODE_DETECT_ONLY="detect"
+MODE_UPDATE_CONFIG="update"
+MODE_GET_CURRENT="get_current"
+CURRENT_MODE="$MODE_DOWNLOAD"
 
 # Show help
 show_help() {
@@ -56,28 +63,28 @@ Usage: $0 [OPTIONS]
 Options:
   --os, --platform OS    Target OS: macos, linux, windows
   --arch ARCH            Target architecture: universal2, x86_64
-  --version VERSION      7-Zip version to download (default: $SEVEN_ZIP_VERSION)
+  --version VERSION      Specific 7-Zip version to download (overrides file)
   --output DIR           Output directory (default: $OUTPUT_DIR)
   --build-dir DIR        Build directory for temporary files (default: $BUILD_DIR)
+  
+  --detect-latest        Detect latest version from website and exit (prints version)
+  --get-current          Print currently configured version from file and exit
+  --update-config        Detect latest version, update configuration file, and proceed
+  
   --help, -h             Show this help message
+
+Default Behavior:
+  Reads version from $VERSION_FILE and downloads that version.
 
 Supported combinations:
   macOS:   universal2 (official 7-Zip distribution supports both ARM64 and x86_64)
   Linux:   x86_64
   Windows: x86_64 (includes 7z.exe + 7z.dll for complete functionality)
-
-Examples:
-  $0 --os macos --arch universal2
-  $0 --os linux --arch x86_64
-  $0 --os windows --arch x86_64
-
-Auto-detection:
-  If no platform/arch specified, will auto-detect current system.
 EOF
 }
 
 # Auto-detect platform and architecture
-auto_detect() {
+auto_detect_platform() {
     local os_name=$(uname -s)
     local arch_name=$(uname -m)
 
@@ -106,8 +113,8 @@ auto_detect() {
     print_status "Auto-detected: $PLATFORM $ARCH"
 }
 
-# Auto-detect latest 7-Zip version
-detect_latest_version() {
+# Auto-detect latest 7-Zip version from website
+detect_latest_version_online() {
     print_status "Detecting latest 7-Zip version from official website..."
 
     local download_page
@@ -125,8 +132,24 @@ detect_latest_version() {
         return 1
     fi
 
-    print_status "Detected latest version: $version"
     echo "$version"
+}
+
+# Read version from local file
+read_version_file() {
+    if [ -f "$VERSION_FILE" ]; then
+        cat "$VERSION_FILE" | tr -d '[:space:]'
+    else
+        return 1
+    fi
+}
+
+# Write version to local file
+write_version_file() {
+    local version="$1"
+    mkdir -p "$(dirname "$VERSION_FILE")"
+    echo "$version" > "$VERSION_FILE"
+    print_success "Updated configuration file: $VERSION_FILE -> $version"
 }
 
 # Download and extract 7zz for macOS universal2
@@ -228,22 +251,12 @@ download_windows() {
         return 1
     fi
 
-    # Debug: show what was extracted
-    print_status "Extracted files:"
-    find "$extract_dir" -type f | head -20 | while read file; do
-        print_status "  $(basename "$file")"
-    done
-
     # Find required files: Windows installer contains 7z.exe (not 7zz.exe)
     local exe_binary=$(find "$extract_dir" -name "7z.exe" -type f | head -n 1)
     local dll_file=$(find "$extract_dir" -name "7z.dll" -type f | head -n 1)
 
     if [ -z "$exe_binary" ]; then
         print_error "7z.exe not found in Windows installer"
-        print_status "Available exe files:"
-        find "$extract_dir" -name "*.exe" -type f | head -10 | while read file; do
-            print_status "  $(basename "$file")"
-        done
         return 1
     fi
 
@@ -256,7 +269,6 @@ download_windows() {
     # Return both files separated by space
     echo "$exe_binary $dll_file"
 }
-
 
 # Main download function
 download_7zz() {
@@ -272,7 +284,6 @@ download_7zz() {
         macos)
             case "$ARCH" in
                 universal2)
-                    # macOS universal2 binary from official 7-Zip
                     local binary=$(download_macos_universal2)
                     if [ -z "$binary" ]; then
                         print_error "Failed to download macOS universal2 binary"
@@ -286,7 +297,6 @@ download_7zz() {
                     ;;
                 *)
                     print_error "Unsupported macOS architecture: $ARCH"
-                    print_error "Supported: universal2 (official 7-Zip distribution)"
                     return 1
                     ;;
             esac
@@ -320,18 +330,15 @@ download_7zz() {
                         return 1
                     fi
 
-                    # Parse returned files (exe_binary dll_file)
                     local exe_file=$(echo $files | cut -d' ' -f1)
                     local dll_file=$(echo $files | cut -d' ' -f2)
 
                     mkdir -p "$OUTPUT_DIR"
 
-                    # Copy 7z.exe and rename to 7zz.exe for consistency
                     output_file="${OUTPUT_DIR}/7zz.exe"
                     cp "$exe_file" "$output_file"
                     print_status "Copied $(basename "$exe_file") as 7zz.exe"
 
-                    # Copy 7z.dll if available
                     if [ -n "$dll_file" ] && [ "$dll_file" != "null" ] && [ -f "$dll_file" ]; then
                         cp "$dll_file" "${OUTPUT_DIR}/7z.dll"
                         print_status "Copied 7z.dll for complete Windows functionality"
@@ -391,14 +398,17 @@ while [[ $# -gt 0 ]]; do
             SEVEN_ZIP_VERSION="$2"
             shift 2
             ;;
-        --detect-version)
-            if detected_version=$(detect_latest_version); then
-                echo "$detected_version"
-                exit 0
-            else
-                print_error "Version detection failed"
-                exit 1
-            fi
+        --detect-latest|--detect-version) # Keep detect-version for partial back-compat (though behavior changed to pure detect)
+            CURRENT_MODE="$MODE_DETECT_ONLY"
+            shift
+            ;;
+        --get-current)
+            CURRENT_MODE="$MODE_GET_CURRENT"
+            shift
+            ;;
+        --update-config)
+            CURRENT_MODE="$MODE_UPDATE_CONFIG"
+            shift
             ;;
         --output)
             OUTPUT_DIR="$2"
@@ -420,62 +430,71 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Auto-detect if not specified
-if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
-    print_status "Auto-detecting platform and architecture..."
-    auto_detect
-fi
+# === MODE EXECUTION ===
 
-# Auto-detect version if not specified
-if [ -z "$SEVEN_ZIP_VERSION" ]; then
-    print_status "Auto-detecting 7-Zip version..."
-    if detected_version=$(detect_latest_version); then
-        SEVEN_ZIP_VERSION="$detected_version"
-        print_success "Using detected version: $SEVEN_ZIP_VERSION"
+# 1. Detect Only Mode
+if [ "$CURRENT_MODE" == "$MODE_DETECT_ONLY" ]; then
+    if detected_version=$(detect_latest_version_online); then
+        echo "$detected_version"
+        exit 0
     else
-        print_warning "Version detection failed, using fallback version: 25.01"
-        SEVEN_ZIP_VERSION="25.01"
+        print_error "Version detection failed"
+        exit 1
     fi
 fi
 
-# Validate combinations
-case "$PLATFORM" in
-    macos)
-        case "$ARCH" in
-            universal2) ;;
-            *)
-                print_error "Invalid macOS architecture: $ARCH"
-                print_error "Supported: universal2 (official 7-Zip distribution)"
-                exit 1
-                ;;
-        esac
-        ;;
-    linux)
-        case "$ARCH" in
-            x86_64) ;;
-            *)
-                print_error "Invalid Linux architecture: $ARCH"
-                print_error "Supported: x86_64"
-                exit 1
-                ;;
-        esac
-        ;;
-    windows)
-        case "$ARCH" in
-            x86_64) ;;
-            *)
-                print_error "Invalid Windows architecture: $ARCH"
-                print_error "Supported: x86_64"
-                exit 1
-                ;;
-        esac
-        ;;
-    *)
-        print_error "Invalid platform: $PLATFORM"
-        print_error "Supported: macos, linux, windows"
+# 2. Get Current Mode
+if [ "$CURRENT_MODE" == "$MODE_GET_CURRENT" ]; then
+    if current_version=$(read_version_file); then
+        echo "$current_version"
+        exit 0
+    else
+        print_error "Configuration file not found: $VERSION_FILE"
         exit 1
-        ;;
-esac
+    fi
+fi
+
+# 3. Update Config Mode
+if [ "$CURRENT_MODE" == "$MODE_UPDATE_CONFIG" ]; then
+    print_status "Checking for updates..."
+    if detected_version=$(detect_latest_version_online); then
+        print_status "Detected version: $detected_version"
+        write_version_file "$detected_version"
+        
+        # Set version for download
+        SEVEN_ZIP_VERSION="$detected_version"
+        # Continue to download to verify it works
+        print_status "Proceeding to verify download..."
+    else
+        print_error "Version detection failed"
+        exit 1
+    fi
+fi
+
+# 4. Download Mode (Default)
+if [ -z "$SEVEN_ZIP_VERSION" ]; then
+    # Try to read from file first
+    print_status "Checking configured version..."
+    if file_version=$(read_version_file); then
+        SEVEN_ZIP_VERSION="$file_version"
+        print_success "Using configured version: $SEVEN_ZIP_VERSION"
+    else
+        print_warning "Configuration file not found. Falling back to auto-detection..."
+        if detected_version=$(detect_latest_version_online); then
+            SEVEN_ZIP_VERSION="$detected_version"
+            print_success "Auto-detected version: $SEVEN_ZIP_VERSION"
+        else
+            print_error "Could not determine version. Please specify --version or create $VERSION_FILE"
+            exit 1
+        fi
+    fi
+fi
+
+# Auto-detect platform if not specified
+if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
+    print_status "Auto-detecting platform and architecture..."
+    auto_detect_platform
+fi
 
 # Main execution
 print_header "7zz Binary Downloader"

@@ -32,11 +32,27 @@ def main() -> None:
             command = sys.argv[1]
 
             if command in ["--version", "-V"]:
-                # Handle quick version command: print only version string
+                # Handle quick version command: print version strings
                 try:
                     from .version import get_version as _get_version
 
-                    print(_get_version())
+                    # Get package version
+                    pkg_ver = _get_version()
+                    
+                    # Get bundled 7zz version from file
+                    bundled_ver = "unknown"
+                    try:
+                        import os
+                        current_dir = os.path.dirname(os.path.abspath(__file__))
+                        ver_file = os.path.join(current_dir, "7zz_version.txt")
+                        if os.path.exists(ver_file):
+                            with open(ver_file, "r") as f:
+                                bundled_ver = f.read().strip()
+                    except Exception:
+                        pass
+
+                    print(f"py7zz {pkg_ver}")
+                    print(f"7zz   {bundled_ver} (bundled)")
                 except Exception as _e:
                     print(f"py7zz error: {_e}", file=sys.stderr)
                     sys.exit(1)

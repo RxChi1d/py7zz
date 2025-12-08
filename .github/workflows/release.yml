@@ -114,11 +114,11 @@ jobs:
           echo "Release type: Pre-release"
         fi
 
-        # Auto-detect latest 7zz version
-        echo "Detecting latest 7-Zip version..."
+        # Get 7zz version from locked file
+        echo "Reading configured 7-Zip version..."
         chmod +x scripts/get_7zz.sh
-        SEVEN_ZZ_VERSION=$(./scripts/get_7zz.sh --detect-version)
-        echo "Detected 7zz version: $SEVEN_ZZ_VERSION"
+        SEVEN_ZZ_VERSION=$(./scripts/get_7zz.sh --get-current)
+        echo "Configured 7zz version: $SEVEN_ZZ_VERSION"
 
         # Set outputs
         echo "git_tag=$TAG" >> $GITHUB_OUTPUT

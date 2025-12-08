@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
+name: Check Upstream 7zz
+
+on:
+  schedule:
+    - cron: '30 0 * * *'  # Run daily at 00:30 UTC (avoiding midnight congestion)
+  workflow_dispatch:      # Allow manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  check-and-update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for git describe
+
+      - name: Check for updates
+        id: check
+        run: |
+          chmod +x scripts/get_7zz.sh
+          
+          # Get versions
+          LATEST_ONLINE=$(./scripts/get_7zz.sh --detect-latest)
+          CURRENT_BUNDLED=$(./scripts/get_7zz.sh --get-current)
+          
+          echo "Latest online 7zz: $LATEST_ONLINE"
+          echo "Current bundled 7zz: $CURRENT_BUNDLED"
+          
+          # Compare versions using sort -V
+          NEWER=$(echo -e "$CURRENT_BUNDLED\n$LATEST_ONLINE" | sort -V | tail -n1)
+          
+          if [ "$NEWER" == "$LATEST_ONLINE" ] && [ "$CURRENT_BUNDLED" != "$LATEST_ONLINE" ]; then
+            echo "✨ Update found: $CURRENT_BUNDLED -> $LATEST_ONLINE"
+            echo "update_needed=true" >> $GITHUB_OUTPUT
+            echo "new_version=$LATEST_ONLINE" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Up to date"
+            echo "update_needed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update and Release
+        if: steps.check.outputs.update_needed == 'true'
+        run: |
+          NEW_VERSION="${{ steps.check.outputs.new_version }}"
+          
+          # 1. Update the configuration file
+          echo "Updating configuration..."
+          ./scripts/get_7zz.sh --update-config
+          
+          # 2. Configure Git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # 3. Commit the change
+          git add py7zz/7zz_version.txt
+          git commit -m "build: upgrade bundled 7zz to $NEW_VERSION"
+          
+          # 4. Calculate next patch version for py7zz
+          # Get latest tag (e.g., v1.1.0)
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Previous tag: $LATEST_TAG"
+          
+          # Strip 'v' prefix
+          VERSION_NUM=${LATEST_TAG#v}
+          
+          # Split major.minor.patch
+          IFS='.' read -r -a parts <<< "$VERSION_NUM"
+          MAJOR=${parts[0]}
+          MINOR=${parts[1]}
+          PATCH=${parts[2]}
+          
+          # Remove any suffixes from patch (e.g., 0rc1 -> 0) to ensure we increment the number
+          CLEAN_PATCH=$(echo $PATCH | sed 's/[^0-9]*//g')
+          
+          # Increment patch
+          NEXT_PATCH=$((CLEAN_PATCH + 1))
+          
+          NEW_TAG="v$MAJOR.$MINOR.$NEXT_PATCH"
+          echo "🚀 Bumping version to: $NEW_TAG"
+          
+          # 5. Push Commit and Tag
+          # Note: Pushing the tag will trigger release.yml
+          git push origin HEAD
+          git tag $NEW_TAG
+          git push origin $NEW_TAG

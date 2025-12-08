@@ -14,7 +14,8 @@ packages = ["py7zz"]
 # However, since they're in .gitignore, we use artifacts to include them when they exist
 # Note: Each platform wheel will only contain the relevant binary files for that platform
 artifacts = [
-    "py7zz/bin/*"
+    "py7zz/bin/*",
+    "py7zz/7zz_version.txt",
 ]
 
 # Include license and legal files
