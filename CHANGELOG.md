@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **7zz Version Detection**: Automatically tracks and reports bundled 7zz version changes in release notes.
+
+### Changed
+- **Release Note Structure**: Adopted nested "Keep a Changelog" hierarchy for clearer section separation.
+- **Category Standardization**: Aligned categories with Conventional Changelog (Angular preset) standards.
+
+### Removed
+- **Development Dependencies**: Removed unused `pyyaml` and `zstandard` packages and obsolete documentation.
+
 ## [1.1.2] - 2025-12-13
 
 ### Added
