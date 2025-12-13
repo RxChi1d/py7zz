@@ -430,6 +430,42 @@ jobs:
         pattern: wheels-*
         merge-multiple: true
 
+    - name: Check 7zz version change
+      id: check_7zz_version
+      run: |
+        # Read current bundled 7zz version
+        CURRENT_7ZZ=$(cat py7zz/7zz_version.txt | tr -d '[:space:]')
+        echo "Current 7zz version: $CURRENT_7ZZ"
+
+        # Get last tag to compare
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        echo "Last tag: $LAST_TAG"
+
+        if [ -n "$LAST_TAG" ]; then
+          # Try to read 7zz version from previous tag
+          PREV_7ZZ=$(git show ${LAST_TAG}:py7zz/7zz_version.txt 2>/dev/null | tr -d '[:space:]' || echo "")
+          echo "Previous 7zz version: $PREV_7ZZ"
+
+          if [ -n "$PREV_7ZZ" ] && [ "$CURRENT_7ZZ" != "$PREV_7ZZ" ]; then
+            echo "7zz version changed: $PREV_7ZZ -> $CURRENT_7ZZ"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "message=Update bundled 7zz from $PREV_7ZZ to $CURRENT_7ZZ" >> $GITHUB_OUTPUT
+          elif [ -z "$PREV_7ZZ" ]; then
+            # Version file didn't exist in previous tag
+            echo "7zz version file is new in this release"
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "message=Bundled 7zz $CURRENT_7ZZ" >> $GITHUB_OUTPUT
+          else
+            echo "7zz version unchanged: $CURRENT_7ZZ"
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+        else
+          # First release ever
+          echo "First release, showing 7zz version"
+          echo "changed=true" >> $GITHUB_OUTPUT
+          echo "message=Bundled 7zz $CURRENT_7ZZ" >> $GITHUB_OUTPUT
+        fi
+
     - name: Get Release Draft
       id: get_release_draft
       uses: release-drafter/release-drafter@v6
@@ -551,6 +587,14 @@ jobs:
             echo "" >> release_notes.md
           fi
 
+          # Add Build System section if 7zz version changed
+          if [ "${{ steps.check_7zz_version.outputs.changed }}" == "true" ]; then
+            echo "🏗️ Build System" >> release_notes.md
+            echo "" >> release_notes.md
+            echo "- ${{ steps.check_7zz_version.outputs.message }}" >> release_notes.md
+            echo "" >> release_notes.md
+          fi
+
           # Add footer
           echo "---" >> release_notes.md
           echo "" >> release_notes.md
@@ -586,13 +630,40 @@ jobs:
         artifactErrorsFailBuild: true
         makeLatest: false
 
+    - name: Prepare stable release body
+      id: prepare_stable_body
+      if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
+      env:
+        DRAFT_BODY: ${{ steps.get_release_draft.outputs.body }}
+        VERSION_CHANGED: ${{ steps.check_7zz_version.outputs.changed }}
+        VERSION_MESSAGE: ${{ steps.check_7zz_version.outputs.message }}
+      run: |
+        if [ "$VERSION_CHANGED" == "true" ]; then
+          # Insert Build System section before Contributors using awk
+          echo "$DRAFT_BODY" | awk -v msg="$VERSION_MESSAGE" '
+            /^## Contributors/ {
+              print "## 🏗️ Build System"
+              print ""
+              print "- " msg
+              print ""
+            }
+            { print }
+          ' > final_body.md
+        else
+          echo "$DRAFT_BODY" > final_body.md
+        fi
+
+        echo "body<<EOF" >> $GITHUB_OUTPUT
+        cat final_body.md >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
     - name: Create GitHub Release (Stable)
       uses: ncipollo/release-action@v1
       if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
       with:
         tag: ${{ github.ref_name }}
         name: "${{ github.ref_name }}"
-        body: ${{ steps.get_release_draft.outputs.body }}
+        body: ${{ steps.prepare_stable_body.outputs.body }}
         artifacts: "dist/*.whl"
         draft: false
         prerelease: false
