@@ -38,7 +38,7 @@ print_header() {
 }
 
 # Default values
-SEVEN_ZIP_VERSION="" 
+SEVEN_ZIP_VERSION=""
 BASE_URL="https://7-zip.org/a"
 PLATFORM=""
 ARCH=""
@@ -66,11 +66,11 @@ Options:
   --version VERSION      Specific 7-Zip version to download (overrides file)
   --output DIR           Output directory (default: $OUTPUT_DIR)
   --build-dir DIR        Build directory for temporary files (default: $BUILD_DIR)
-  
+
   --detect-latest        Detect latest version from website and exit (prints version)
   --get-current          Print currently configured version from file and exit
   --update-config        Detect latest version, update configuration file, and proceed
-  
+
   --help, -h             Show this help message
 
 Default Behavior:
@@ -460,7 +460,7 @@ if [ "$CURRENT_MODE" == "$MODE_UPDATE_CONFIG" ]; then
     if detected_version=$(detect_latest_version_online); then
         print_status "Detected version: $detected_version"
         write_version_file "$detected_version"
-        
+
         # Set version for download
         SEVEN_ZIP_VERSION="$detected_version"
         # Continue to download to verify it works
