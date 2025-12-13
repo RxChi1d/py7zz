@@ -4,6 +4,7 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
+  # Order follows Conventional Changelog (Angular preset) specification
   - title: '🚀 Features'
     labels:
       - 'feat'
@@ -14,32 +15,40 @@ categories:
       - 'fix'
       - 'bug'
       - 'bugfix'
+  - title: '⚡ Performance Improvements'
+    labels:
+      - 'perf'
+      - 'performance'
+  - title: '↩️ Reverts'
+    labels:
+      - 'revert'
   - title: '📚 Documentation'
     labels:
       - 'docs'
       - 'documentation'
-  - title: '⚡ Performance'
+  - title: '🎨 Styles'
     labels:
-      - 'perf'
-      - 'performance'
-  - title: '🔧 Maintenance'
-    labels:
-      - 'chore'
-      - 'maintenance'
-      - 'refactor'
       - 'style'
-  - title: '🧪 Testing'
+  - title: '♻️ Code Refactoring'
+    labels:
+      - 'refactor'
+  - title: '🧪 Tests'
     labels:
       - 'test'
       - 'testing'
-  - title: '🔄 CI/CD'
+  - title: '🏗️ Build System'
+    labels:
+      - 'build'
+      - 'deps'
+  - title: '🔄 Continuous Integration'
     labels:
       - 'ci'
       - 'cd'
       - 'workflow'
-  - title: '↩️ Reverts'
+  - title: '🔧 Maintenance'
     labels:
-      - 'revert'
+      - 'chore'
+      - 'maintenance'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
@@ -103,6 +112,10 @@ autolabeler:
     title:
       - '/^revert(\(.+\))?: .+/'
       - '/^revert(\(.+\))?!: .+/'
+  - label: 'build'
+    title:
+      - '/^build(\(.+\))?: .+/'
+      - '/^build(\(.+\))?!: .+/'
 template: |
   $CHANGES
 
