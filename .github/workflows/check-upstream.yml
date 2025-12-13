@@ -23,17 +23,35 @@ jobs:
         id: check
         run: |
           chmod +x scripts/get_7zz.sh
-          
-          # Get versions
-          LATEST_ONLINE=$(./scripts/get_7zz.sh --detect-latest)
-          CURRENT_BUNDLED=$(./scripts/get_7zz.sh --get-current)
-          
+
+          # Get latest version from online (with error handling)
+          echo "Detecting latest 7zz version from upstream..."
+          if ! LATEST_ONLINE=$(./scripts/get_7zz.sh --detect-latest 2>&1); then
+            echo "::error::Failed to detect latest 7zz version from upstream"
+            echo "Output: $LATEST_ONLINE"
+            exit 1
+          fi
+
+          # Validate version format (should be like "25.01")
+          if ! [[ "$LATEST_ONLINE" =~ ^[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format detected: '$LATEST_ONLINE'"
+            exit 1
+          fi
+
+          # Get current bundled version (with error handling)
+          echo "Reading current bundled version..."
+          if ! CURRENT_BUNDLED=$(./scripts/get_7zz.sh --get-current 2>&1); then
+            echo "::error::Failed to read current bundled version"
+            echo "Output: $CURRENT_BUNDLED"
+            exit 1
+          fi
+
           echo "Latest online 7zz: $LATEST_ONLINE"
           echo "Current bundled 7zz: $CURRENT_BUNDLED"
-          
+
           # Compare versions using sort -V
           NEWER=$(echo -e "$CURRENT_BUNDLED\n$LATEST_ONLINE" | sort -V | tail -n1)
-          
+
           if [ "$NEWER" == "$LATEST_ONLINE" ] && [ "$CURRENT_BUNDLED" != "$LATEST_ONLINE" ]; then
             echo "✨ Update found: $CURRENT_BUNDLED -> $LATEST_ONLINE"
             echo "update_needed=true" >> $GITHUB_OUTPUT
@@ -43,48 +61,150 @@ jobs:
             echo "update_needed=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Update and Release
+      - name: Check if latest py7zz tag is stable
+        id: check_stable
         if: steps.check.outputs.update_needed == 'true'
         run: |
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "Latest py7zz tag: $LATEST_TAG"
+
+          # Check if tag contains pre-release suffix (a/b/rc)
+          if [[ "$LATEST_TAG" =~ (a|b|rc)[0-9]+$ ]]; then
+            echo "⚠️ Latest tag is pre-release: $LATEST_TAG"
+            echo "Will create PR instead of auto-release"
+            echo "is_stable=false" >> $GITHUB_OUTPUT
+          else
+            echo "✓ Latest tag is stable: $LATEST_TAG"
+            echo "is_stable=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Update and Auto-Release
+        if: steps.check.outputs.update_needed == 'true' && steps.check_stable.outputs.is_stable == 'true'
+        run: |
+          set -e  # Exit on any error
+
           NEW_VERSION="${{ steps.check.outputs.new_version }}"
-          
+
           # 1. Update the configuration file
           echo "Updating configuration..."
-          ./scripts/get_7zz.sh --update-config
-          
+          if ! ./scripts/get_7zz.sh --update-config; then
+            echo "::error::Failed to update configuration file"
+            exit 1
+          fi
+
+          # Verify the file was updated
+          UPDATED_VERSION=$(cat py7zz/7zz_version.txt | tr -d '[:space:]')
+          if [ "$UPDATED_VERSION" != "$NEW_VERSION" ]; then
+            echo "::error::Version file mismatch after update"
+            echo "Expected: $NEW_VERSION, Got: $UPDATED_VERSION"
+            exit 1
+          fi
+
           # 2. Configure Git
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # 3. Commit the change
           git add py7zz/7zz_version.txt
-          git commit -m "build: upgrade bundled 7zz to $NEW_VERSION"
-          
+          if ! git commit -m "build: upgrade bundled 7zz to $NEW_VERSION"; then
+            echo "::error::Failed to commit version update"
+            exit 1
+          fi
+
           # 4. Calculate next patch version for py7zz
           # Get latest tag (e.g., v1.1.0)
           LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
           echo "Previous tag: $LATEST_TAG"
-          
+
           # Strip 'v' prefix
           VERSION_NUM=${LATEST_TAG#v}
-          
+
           # Split major.minor.patch
           IFS='.' read -r -a parts <<< "$VERSION_NUM"
           MAJOR=${parts[0]}
           MINOR=${parts[1]}
           PATCH=${parts[2]}
-          
-          # Remove any suffixes from patch (e.g., 0rc1 -> 0) to ensure we increment the number
-          CLEAN_PATCH=$(echo $PATCH | sed 's/[^0-9]*//g')
-          
+
+          # Remove any suffixes from patch (e.g., 1rc1 -> 1) to ensure we increment the number
+          CLEAN_PATCH=$(echo $PATCH | sed 's/[^0-9].*//')
+
           # Increment patch
           NEXT_PATCH=$((CLEAN_PATCH + 1))
-          
+
           NEW_TAG="v$MAJOR.$MINOR.$NEXT_PATCH"
           echo "🚀 Bumping version to: $NEW_TAG"
-          
+
           # 5. Push Commit and Tag
           # Note: Pushing the tag will trigger release.yml
-          git push origin HEAD
-          git tag $NEW_TAG
-          git push origin $NEW_TAG
+          if ! git push origin HEAD; then
+            echo "::error::Failed to push commit to origin"
+            exit 1
+          fi
+
+          git tag "$NEW_TAG"
+          if ! git push origin "$NEW_TAG"; then
+            echo "::error::Failed to push tag $NEW_TAG to origin"
+            # Attempt to clean up: delete local tag
+            git tag -d "$NEW_TAG" || true
+            exit 1
+          fi
+
+          echo "::notice::Successfully upgraded 7zz to $NEW_VERSION and created tag $NEW_TAG"
+
+      - name: Create PR for 7zz Update
+        if: steps.check.outputs.update_needed == 'true' && steps.check_stable.outputs.is_stable == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e  # Exit on any error
+
+          NEW_VERSION="${{ steps.check.outputs.new_version }}"
+          BRANCH_NAME="bot/update-7zz-${NEW_VERSION}"
+
+          # 1. Check if txt already updated (PR merged case)
+          CURRENT_VERSION=$(cat py7zz/7zz_version.txt | tr -d '[:space:]')
+          if [ "$CURRENT_VERSION" == "$NEW_VERSION" ]; then
+            echo "✅ Already up to date: $NEW_VERSION"
+            exit 0
+          fi
+
+          # 2. Check if open PR already exists (PR pending case)
+          if gh pr list --state open --search "7zz to $NEW_VERSION in:title" --json number | grep -q .; then
+            echo "⚠️ Open PR already exists for 7zz $NEW_VERSION"
+            exit 0
+          fi
+
+          # 3. Update version file
+          echo "$NEW_VERSION" > py7zz/7zz_version.txt
+
+          # 4. Create branch and commit
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH_NAME"
+          git add py7zz/7zz_version.txt
+          git commit -m "build: upgrade bundled 7zz to $NEW_VERSION"
+          git push origin "$BRANCH_NAME"
+
+          # 5. Create PR
+          gh pr create \
+            --title "build: upgrade bundled 7zz to $NEW_VERSION" \
+            --body "## Summary
+
+          Automatically detected new 7-Zip release: **$NEW_VERSION**
+
+          This PR updates the bundled 7zz version. Since the latest py7zz release is a pre-release version, this update is submitted as a PR for manual review instead of automatic release.
+
+          ## Changes
+          - Update \`py7zz/7zz_version.txt\`: $CURRENT_VERSION → $NEW_VERSION
+
+          ## Next Steps
+          - Review and merge this PR
+          - The next stable py7zz release will bundle 7zz $NEW_VERSION
+
+          🤖 Generated by [Check Upstream 7zz workflow](https://github.com/${{ github.repository }}/actions/workflows/check-upstream.yml)" \
+            --base main \
+            --head "$BRANCH_NAME" \
+            --label "dependencies" \
+            --label "automated"
+
+          echo "::notice::Created PR for 7zz upgrade to $NEW_VERSION"

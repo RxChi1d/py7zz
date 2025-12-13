@@ -7,7 +7,6 @@ Directly passes through to the official 7zz binary, ensuring users get complete 
 py7zz's value is in automatic binary management and providing Python API.
 """
 
-import os
 import subprocess
 import sys
 
@@ -38,15 +37,16 @@ def main() -> None:
 
                     # Get package version
                     pkg_ver = _get_version()
-                    
+
                     # Get bundled 7zz version from file
                     bundled_ver = "unknown"
                     try:
                         import os
+
                         current_dir = os.path.dirname(os.path.abspath(__file__))
                         ver_file = os.path.join(current_dir, "7zz_version.txt")
                         if os.path.exists(ver_file):
-                            with open(ver_file, "r") as f:
+                            with open(ver_file) as f:
                                 bundled_ver = f.read().strip()
                     except Exception:
                         pass
