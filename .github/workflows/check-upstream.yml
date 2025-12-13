@@ -27,7 +27,7 @@ jobs:
 
           # Get latest version from online (with error handling)
           echo "Detecting latest 7zz version from upstream..."
-          if ! LATEST_ONLINE=$(./scripts/get_7zz.sh --detect-latest 2>&1); then
+          if ! LATEST_ONLINE=$(./scripts/get_7zz.sh --detect-latest); then
             echo "::error::Failed to detect latest 7zz version from upstream"
             echo "Output: $LATEST_ONLINE"
             exit 1
