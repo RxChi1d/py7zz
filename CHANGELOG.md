@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-12-13
+
+### Added
+- **Bundled 7zz Version Locking & PR-Only Updates**: Lock bundled 7zz in `py7zz/7zz_version.txt` and add a scheduled check-upstream workflow that opens/refreshes a single PR (no direct push/tag; release remains owner-driven).
+- **Repository Guidance**: Document AI attribution rules and required shell tool usage to align with repo standards.
+
 ## [1.1.1] - 2025-09-07
 
 ### Fixed
@@ -118,7 +124,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.2...HEAD
+[1.1.2]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
 [1.0.1]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.0.1
