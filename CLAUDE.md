@@ -177,3 +177,20 @@ uv run pytest              # 4. 執行單元測試
 - **除非有明確指示，或任務需求（見 `TASK.md`），**否則**不得刪除或覆蓋現有程式碼。**
 - **需要分析或拆解問題，通過 sequential thinking 進行更深度思考**
 - **與 GitHub 互動需使用 gh CLI**
+- **不准在未經允許的情況下，擅自在任何的文檔、訊息等文字中，包含 AI 編輯器或是 AI 模型的名稱**，例如:
+  - Generated with [Claude Code]
+  - Co-Authored-By: Claude
+
+
+## Shell 工具使用指引
+
+⚠️ **重要**：使用以下專業工具替代傳統 Unix 指令（若缺少請安裝）：
+
+| 任務類型 | 必須使用 | 禁止使用 |
+|---------|---------|---------|
+| 檔案搜尋 | `fd` | `find`, `ls -R` |
+| 文字搜尋 | `rg` (ripgrep) | `grep`, `ag` |
+| 程式碼結構分析 | `ast-grep` | `grep`, `sed` |
+| 互動式選擇 | `fzf` | 手動篩選 |
+| 處理 JSON | `jq` | `python -m json.tool` |
+| 處理 YAML/XML | `yq` | 手動解析 |
