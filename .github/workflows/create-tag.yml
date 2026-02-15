@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+
+name: Create Release Tag
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to create (e.g., v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1)'
+        required: true
+        type: string
+
+jobs:
+  create-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Validate tag format
+      shell: bash
+      run: |
+        TAG="${{ github.event.inputs.tag }}"
+        echo "Validating tag format: $TAG"
+
+        if [[ $TAG =~ ^v[0-9]+\.[0-9]+\.[0-9]+(a[0-9]+|b[0-9]+|rc[0-9]+)?$ ]]; then
+          echo "Tag format is valid: $TAG"
+        else
+          echo "Invalid tag format: $TAG"
+          echo "Expected format: v{major}.{minor}.{patch}[a{N}|b{N}|rc{N}]"
+          echo "Examples: v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1"
+          exit 1
+        fi
+
+    - name: Check tag does not already exist
+      shell: bash
+      run: |
+        TAG="${{ github.event.inputs.tag }}"
+        echo "Checking if tag already exists: $TAG"
+
+        if git ls-remote --tags origin | grep -q "refs/tags/${TAG}$"; then
+          echo "Tag $TAG already exists on remote"
+          exit 1
+        fi
+
+        echo "Tag $TAG does not exist - safe to create"
+
+    - name: Verify CI status on main
+      shell: bash
+      run: |
+        MAIN_SHA=$(git rev-parse HEAD)
+        echo "Verifying CI workflow status for main HEAD: $MAIN_SHA"
+
+        CI_STATUS=$(gh run list \
+          --workflow="CI" \
+          --json conclusion,headSha \
+          --jq ".[] | select(.headSha == \"$MAIN_SHA\") | .conclusion" \
+          | head -1)
+
+        echo "CI workflow status: $CI_STATUS"
+
+        if [ "$CI_STATUS" = "success" ]; then
+          echo "CI workflow passed - proceeding"
+        elif [ "$CI_STATUS" = "failure" ]; then
+          echo "CI workflow failed on main HEAD - aborting"
+          exit 1
+        elif [ -z "$CI_STATUS" ]; then
+          echo "No CI workflow found for main HEAD"
+          echo "Please ensure CI workflow runs and passes before creating a tag"
+          exit 1
+        else
+          echo "CI workflow status: $CI_STATUS"
+          echo "Please wait for CI workflow to complete successfully"
+          exit 1
+        fi
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create and push tag
+      shell: bash
+      run: |
+        TAG="${{ github.event.inputs.tag }}"
+        echo "Creating tag $TAG on main HEAD..."
+
+        git tag "$TAG"
+        git push origin "$TAG"
+
+        echo "Tag $TAG created and pushed successfully"
+        echo "The release workflow will be triggered automatically"

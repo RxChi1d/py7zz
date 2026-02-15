@@ -7,12 +7,6 @@ on:
   push:
     tags:
       - 'v*'  # Only trigger on tags starting with 'v'
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to build (e.g., v1.0.0, v1.0.0a1, v1.0.0b1, v1.0.0rc1)'
-        required: true
-        type: string
 
 jobs:
   build:
@@ -86,12 +80,8 @@ jobs:
       id: validate_tag
       shell: bash
       run: |
-        # Get tag from push event or workflow dispatch
-        if [ "${{ github.event.inputs.tag }}" != "" ]; then
-          TAG="${{ github.event.inputs.tag }}"
-        else
-          TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
-        fi
+        # Get tag from push event
+        TAG=$(echo ${{ github.ref }} | sed 's/refs\/tags\///')
 
         echo "Git tag: $TAG"
 
