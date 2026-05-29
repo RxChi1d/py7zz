@@ -52,6 +52,19 @@ class TestPlatformInfo:
 
     @patch("platform.system")
     @patch("platform.machine")
+    def test_get_platform_info_linux_arm64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
+        """Test Linux ARM64 platform detection."""
+        mock_system.return_value = "Linux"
+        mock_machine.return_value = "aarch64"
+
+        platform, arch = get_platform_info()
+        assert platform == "linux"
+        assert arch == "arm64"
+
+    @patch("platform.system")
+    @patch("platform.machine")
     def test_get_platform_info_windows_x64(
         self, mock_machine: Mock, mock_system: Mock
     ) -> None:
@@ -62,6 +75,19 @@ class TestPlatformInfo:
         platform, arch = get_platform_info()
         assert platform == "windows"
         assert arch == "x64"
+
+    @patch("platform.system")
+    @patch("platform.machine")
+    def test_get_platform_info_windows_arm64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
+        """Test Windows ARM64 platform detection."""
+        mock_system.return_value = "Windows"
+        mock_machine.return_value = "ARM64"
+
+        platform, arch = get_platform_info()
+        assert platform == "windows"
+        assert arch == "arm64"
 
     @patch("platform.system")
     def test_get_platform_info_unsupported_system(self, mock_system: Mock) -> None:
@@ -90,6 +116,7 @@ class TestAssetName:
     def test_get_asset_name_windows(self) -> None:
         """Test Windows asset name generation."""
         assert get_asset_name("2408", "windows", "x64") == "7z2408-x64.exe"
+        assert get_asset_name("2408", "windows", "arm64") == "7z2408-arm64.exe"
 
     def test_get_asset_name_mac(self) -> None:
         """Test macOS asset name generation."""
@@ -98,11 +125,18 @@ class TestAssetName:
     def test_get_asset_name_linux(self) -> None:
         """Test Linux asset name generation."""
         assert get_asset_name("2408", "linux", "x64") == "7z2408-linux-x64.tar.xz"
+        assert get_asset_name("2408", "linux", "arm64") == "7z2408-linux-arm64.tar.xz"
 
     def test_get_asset_name_unsupported(self) -> None:
         """Test unsupported platform raises error."""
         with pytest.raises(UpdateError, match="Unsupported platform"):
             get_asset_name("2408", "freebsd", "x64")
+
+        with pytest.raises(UpdateError, match="Unsupported Linux architecture"):
+            get_asset_name("2408", "linux", "i386")
+
+        with pytest.raises(UpdateError, match="Unsupported Windows architecture"):
+            get_asset_name("2408", "windows", "arm")
 
 
 class TestLatestRelease:
@@ -193,7 +227,7 @@ class TestCachedBinary:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             cache_dir = Path(tmpdir)
-            version_dir = cache_dir / "2408"
+            version_dir = cache_dir / "2408" / "linux-x64"
             version_dir.mkdir(parents=True)
             binary_path = version_dir / "7zz"
             binary_path.touch()

@@ -71,11 +71,19 @@ def get_asset_name(version: str, platform: str, arch: str) -> str:
         version = version.replace(".", "")
 
     if platform == "windows":
-        return f"7z{version}-x64.exe"
+        if arch == "x64":
+            return f"7z{version}-x64.exe"
+        if arch == "arm64":
+            return f"7z{version}-arm64.exe"
+        raise UpdateError(f"Unsupported Windows architecture: {arch}")
     elif platform == "mac":
         return f"7z{version}-mac.tar.xz"
     elif platform == "linux":
-        return f"7z{version}-linux-x64.tar.xz"
+        if arch == "x64":
+            return f"7z{version}-linux-x64.tar.xz"
+        if arch == "arm64":
+            return f"7z{version}-linux-arm64.tar.xz"
+        raise UpdateError(f"Unsupported Linux architecture: {arch}")
     else:
         raise UpdateError(f"Unsupported platform: {platform}")
 
@@ -203,7 +211,7 @@ def get_cached_binary(version: str, auto_update: bool = True) -> Optional[Path]:
     platform, arch = get_platform_info()
     binary_name = "7zz.exe" if platform == "windows" else "7zz"
 
-    version_dir = CACHE_DIR / version
+    version_dir = CACHE_DIR / version / f"{platform}-{arch}"
     binary_path = version_dir / binary_name
 
     # Return cached binary if it exists

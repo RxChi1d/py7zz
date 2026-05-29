@@ -5,7 +5,7 @@
 
 # Universal 7zz binary downloader for py7zz
 # Downloads 7zz binaries for different platforms and architectures
-# Supports: macOS (arm64, x86_64, universal2), Linux (x86_64), Windows (x64)
+# Supports: macOS (arm64, x86_64, universal2), Linux (arm64, x86_64), Windows (arm64, x86_64)
 
 set -euo pipefail
 
@@ -62,7 +62,7 @@ Usage: $0 [OPTIONS]
 
 Options:
   --os, --platform OS    Target OS: macos, linux, windows
-  --arch ARCH            Target architecture: universal2, x86_64
+  --arch ARCH            Target architecture: universal2, arm64, x86_64
   --version VERSION      Specific 7-Zip version to download (overrides file)
   --output DIR           Output directory (default: $OUTPUT_DIR)
   --build-dir DIR        Build directory for temporary files (default: $BUILD_DIR)
@@ -78,9 +78,29 @@ Default Behavior:
 
 Supported combinations:
   macOS:   universal2 (official 7-Zip distribution supports both ARM64 and x86_64)
-  Linux:   x86_64
-  Windows: x86_64 (includes 7z.exe + 7z.dll for complete functionality)
+  Linux:   arm64, x86_64
+  Windows: arm64, x86_64 (includes 7z.exe + 7z.dll for complete functionality)
 EOF
+}
+
+normalize_arch() {
+    case "$1" in
+        x64|amd64|AMD64|x86_64) echo "x86_64" ;;
+        aarch64|arm64|ARM64) echo "arm64" ;;
+        universal2) echo "universal2" ;;
+        *) echo "$1" ;;
+    esac
+}
+
+seven_zip_arch_suffix() {
+    case "$1" in
+        x86_64) echo "x64" ;;
+        arm64) echo "arm64" ;;
+        *)
+            print_error "Unsupported architecture: $1"
+            return 1
+            ;;
+    esac
 }
 
 # Auto-detect platform and architecture
@@ -96,13 +116,24 @@ auto_detect_platform() {
         Linux)
             PLATFORM="linux"
             case "$arch_name" in
-                x86_64) ARCH="x86_64" ;;
-                *) ARCH="x86_64" ;;  # Default fallback
+                x86_64|amd64) ARCH="x86_64" ;;
+                aarch64|arm64) ARCH="arm64" ;;
+                *)
+                    print_error "Unsupported Linux architecture: $arch_name"
+                    exit 1
+                    ;;
             esac
             ;;
         CYGWIN*|MINGW*|MSYS*)
             PLATFORM="windows"
-            ARCH="x64"
+            case "$arch_name" in
+                x86_64|amd64) ARCH="x86_64" ;;
+                aarch64|arm64) ARCH="arm64" ;;
+                *)
+                    print_error "Unsupported Windows architecture: $arch_name"
+                    exit 1
+                    ;;
+            esac
             ;;
         *)
             print_error "Unsupported platform: $os_name"
@@ -185,20 +216,24 @@ download_macos_universal2() {
 
 # Download and extract 7zz for Linux
 download_linux() {
+    local target_arch="$1"
+    local asset_arch
+    asset_arch=$(seven_zip_arch_suffix "$target_arch") || return 1
+
     local version_str="${SEVEN_ZIP_VERSION//./}"
-    local url="${BASE_URL}/7z${version_str}-linux-x64.tar.xz"
-    local archive="${BUILD_DIR}/linux/7z-linux-x64.tar.xz"
-    local extract_dir="${BUILD_DIR}/linux/x86_64"
+    local url="${BASE_URL}/7z${version_str}-linux-${asset_arch}.tar.xz"
+    local archive="${BUILD_DIR}/linux/7z-linux-${asset_arch}.tar.xz"
+    local extract_dir="${BUILD_DIR}/linux/${target_arch}"
 
     mkdir -p "$extract_dir"
 
-    print_status "Downloading Linux x86_64 from: $url"
+    print_status "Downloading Linux ${target_arch} from: $url"
     if ! curl -fsSL "$url" -o "$archive"; then
-        print_error "Failed to download Linux x86_64 version"
+        print_error "Failed to download Linux ${target_arch} version"
         return 1
     fi
 
-    print_status "Extracting Linux x86_64..."
+    print_status "Extracting Linux ${target_arch}..."
     if ! tar -xf "$archive" -C "$extract_dir"; then
         print_error "Failed to extract Linux archive"
         return 1
@@ -216,20 +251,24 @@ download_linux() {
 
 # Download and extract 7zz for Windows
 download_windows() {
+    local target_arch="$1"
+    local asset_arch
+    asset_arch=$(seven_zip_arch_suffix "$target_arch") || return 1
+
     local version_str="${SEVEN_ZIP_VERSION//./}"
-    local url="${BASE_URL}/7z${version_str}-x64.exe"
-    local archive="${BUILD_DIR}/windows/7z-windows-x64.exe"
-    local extract_dir="${BUILD_DIR}/windows/x64"
+    local url="${BASE_URL}/7z${version_str}-${asset_arch}.exe"
+    local archive="${BUILD_DIR}/windows/7z-windows-${asset_arch}.exe"
+    local extract_dir="${BUILD_DIR}/windows/${target_arch}"
 
     mkdir -p "$extract_dir"
 
-    print_status "Downloading Windows x64 from: $url"
+    print_status "Downloading Windows ${target_arch} from: $url"
     if ! curl -fsSL "$url" -o "$archive"; then
-        print_error "Failed to download Windows x64 version"
+        print_error "Failed to download Windows ${target_arch} version"
         return 1
     fi
 
-    print_status "Extracting Windows x64..."
+    print_status "Extracting Windows ${target_arch}..."
 
     # Try different extraction methods
     if command -v 7z &> /dev/null; then
@@ -283,7 +322,7 @@ download_7zz() {
     case "$PLATFORM" in
         macos)
             case "$ARCH" in
-                universal2)
+                universal2|x86_64|arm64)
                     local binary=$(download_macos_universal2)
                     if [ -z "$binary" ]; then
                         print_error "Failed to download macOS universal2 binary"
@@ -303,8 +342,8 @@ download_7zz() {
             ;;
         linux)
             case "$ARCH" in
-                x86_64)
-                    local binary=$(download_linux)
+                x86_64|arm64)
+                    local binary=$(download_linux "$ARCH")
                     if [ -z "$binary" ]; then
                         print_error "Failed to download Linux binary"
                         return 1
@@ -323,8 +362,8 @@ download_7zz() {
             ;;
         windows)
             case "$ARCH" in
-                x86_64)
-                    local files=$(download_windows)
+                x86_64|arm64)
+                    local files=$(download_windows "$ARCH")
                     if [ -z "$files" ]; then
                         print_error "Failed to download Windows files"
                         return 1
@@ -495,6 +534,8 @@ if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
     print_status "Auto-detecting platform and architecture..."
     auto_detect_platform
 fi
+
+ARCH=$(normalize_arch "$ARCH")
 
 # Main execution
 print_header "7zz Binary Downloader"

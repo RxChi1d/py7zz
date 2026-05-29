@@ -19,16 +19,31 @@ jobs:
             arch: x86_64
             binary_name: 7zz
             wheel_tag: manylinux1_x86_64
+            native: true
+          - os: ubuntu-latest
+            platform: linux
+            arch: arm64
+            binary_name: 7zz
+            wheel_tag: manylinux2014_aarch64
+            native: false
           - os: macos-latest  # Universal2 runner
             platform: macos
             arch: universal2
             binary_name: 7zz
             wheel_tag: macosx_10_9_universal2
+            native: true
           - os: windows-latest
             platform: windows
             arch: x86_64
             binary_name: 7zz.exe
             wheel_tag: win_amd64
+            native: true
+          - os: windows-latest
+            platform: windows
+            arch: arm64
+            binary_name: 7zz.exe
+            wheel_tag: win_arm64
+            native: false
 
     steps:
     - uses: actions/checkout@v4
@@ -283,17 +298,20 @@ jobs:
           exit 1
         fi
 
-        # Test install and version check
-        echo "Testing wheel installation and version verification..."
-        uv pip install dist/*.whl --force-reinstall
-        INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
-        echo "Installed version: $INSTALLED_VERSION"
+        if [[ "${{ matrix.native }}" == "true" ]]; then
+          echo "Testing wheel installation and version verification..."
+          uv pip install dist/*.whl --force-reinstall
+          INSTALLED_VERSION=$(uv run python -c "import py7zz; print(py7zz.get_version())")
+          echo "Installed version: $INSTALLED_VERSION"
 
-        if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
-          echo "✓ Installed version matches git tag: $INSTALLED_VERSION"
+          if [ "$INSTALLED_VERSION" = "$EXPECTED_VERSION" ]; then
+            echo "✓ Installed version matches git tag: $INSTALLED_VERSION"
+          else
+            echo "✗ Installed version mismatch - Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
+            exit 1
+          fi
         else
-          echo "✗ Installed version mismatch - Expected: $EXPECTED_VERSION, Got: $INSTALLED_VERSION"
-          exit 1
+          echo "Skipping install test for cross-architecture wheel on this runner"
         fi
 
     - name: Upload wheel artifacts

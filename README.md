@@ -313,9 +313,9 @@ mypy .
 - Python 3.8+
 - No external dependencies
 - Supported platforms:
-  - Windows x64
+  - Windows x64 / ARM64
   - macOS (Intel & Apple Silicon)
-  - Linux x86_64
+  - Linux x86_64 / ARM64
 
 ## Version Information
 
