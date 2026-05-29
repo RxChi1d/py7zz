@@ -324,7 +324,7 @@ jobs:
   publish-pypi:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/')
+    if: startsWith(github.ref, 'refs/tags/') && vars.PUBLISH_PYPI == 'true'
     environment: pypi
     permissions:
       contents: read
@@ -420,7 +420,7 @@ jobs:
         verbose: true
 
   github-release:
-    needs: publish-pypi
+    needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:
