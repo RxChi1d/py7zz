@@ -313,9 +313,11 @@ mypy .
 - Python 3.8+
 - No external dependencies
 - Supported platforms:
-  - Windows x64
+  - Windows x64 / ARM64 (ARM64 requires Python 3.11+)
   - macOS (Intel & Apple Silicon)
-  - Linux x86_64
+  - Linux x86_64 / ARM64
+- Note: Windows ARM64 requires Python 3.11+ because native CPython builds for
+  Windows on ARM start at that version (python.org limitation).
 
 ## Version Information
 
