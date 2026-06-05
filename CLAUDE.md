@@ -119,7 +119,7 @@ SPDX-FileCopyrightText: 2025 py7zz contributors
 
 ## 專案概述
 
-py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 二進位檔案 (7-Zip) ，提供跨平台（macOS、Debian 系 Linux、Windows x64）提供一致的 Python API與命令接口。無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz 。
+py7zz 是一個 Python 套件，封裝了官方的 7zz CLI 二進位檔案 (7-Zip) ，跨平台（macOS Intel/Apple Silicon、Linux x86_64/ARM64、Windows x64/ARM64）提供一致的 Python API與命令接口。無需預先安裝 7-Zip，wheel 套件包含平台特定的 7zz（Windows ARM64 需 Python 3.11+）。
 
 - **Python 支援版本**：Python >= 3.8
 - **Python 套件管理工具**：uv

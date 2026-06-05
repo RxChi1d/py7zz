@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7zz Version Detection**: Automatically tracks and reports bundled 7zz version changes in release notes.
 
 ### Changed
-- **Linux x86_64 Wheel Platform Tag**: Corrected from `manylinux1_x86_64` to `manylinux2014_x86_64`. Systems with glibc older than 2.17 are no longer offered the wheel by pip; previously, pip would install the wheel on those systems but the bundled binary would fail at runtime.
+- **Linux Wheel Platform Tags**: Corrected the x86_64 wheel tag from `manylinux1_x86_64` to the dual `manylinux_2_17_x86_64.manylinux2014_x86_64` form (the new ARM64 wheel uses the matching aarch64 tags). Systems with glibc older than 2.17 are no longer offered the wheel by pip; previously, pip would install the wheel on those systems but the bundled binary would fail at runtime. Each release now verifies the bundled binary's actual glibc requirement against the wheel tag before publishing.
 - **Release Note Structure**: Adopted nested "Keep a Changelog" hierarchy for clearer section separation.
 - **Category Standardization**: Aligned categories with Conventional Changelog (Angular preset) standards.
 
