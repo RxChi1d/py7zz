@@ -69,6 +69,17 @@ jobs:
           # macOS: test intermediate version for additional platform validation
           - os: macos-latest
             python-version: "3.11"
+          # Linux ARM64: sampled coverage (minimum and maximum supported)
+          - os: ubuntu-24.04-arm
+            python-version: "3.8"
+          - os: ubuntu-24.04-arm
+            python-version: "3.13"
+          # Windows ARM64: sampled coverage. Native Windows ARM64 Python exists
+          # only for 3.11+, so the minimum sample is 3.11 instead of 3.8.
+          - os: windows-11-arm
+            python-version: "3.11"
+          - os: windows-11-arm
+            python-version: "3.13"
       fail-fast: false
 
     steps:
@@ -80,10 +91,33 @@ jobs:
         version: "latest"
         enable-cache: true
 
-    - name: Set up Python ${{ matrix.python-version }}
+    # Reason: windows-11-arm has no uv-managed native ARM64 Python builds via the
+    # default path used historically, so use actions/setup-python (native ARM64,
+    # Python 3.11+) and point uv at that system interpreter. All other runners
+    # keep the uv-managed Python install.
+    - name: Set up Python ${{ matrix.python-version }} (setup-python, ARM64)
+      if: matrix.os == 'windows-11-arm'
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Set up Python ${{ matrix.python-version }} (uv-managed)
+      if: matrix.os != 'windows-11-arm'
       run: uv python install ${{ matrix.python-version }}
 
+    # Reason: export via GITHUB_ENV so every subsequent uv invocation (sync,
+    # pytest, mypy) binds to the native ARM64 setup-python interpreter; per-step
+    # env would leave later 'uv run' steps free to resolve a different one.
+    - name: Configure uv to use system Python (windows-11-arm)
+      if: matrix.os == 'windows-11-arm'
+      shell: bash
+      run: |
+        echo "UV_PYTHON_PREFERENCE=only-system" >> "$GITHUB_ENV"
+        echo "UV_PYTHON_DOWNLOADS=never" >> "$GITHUB_ENV"
+        echo "UV_PYTHON=${pythonLocation}/python.exe" >> "$GITHUB_ENV"
+
     - name: Install dependencies
+      shell: bash
       run: |
         uv sync --dev
         uv pip install -e .
@@ -91,131 +125,52 @@ jobs:
     - name: Download 7zz binary for testing
       shell: bash
       run: |
-        # Use locked version from file
-        echo "Reading configured 7-Zip version..."
+        # Reason: download logic now has a single source of truth in get_7zz.sh.
+        # Platform/arch are passed explicitly from runner.os/runner.arch instead
+        # of relying on the script's uname-based auto-detection: on windows-11-arm
+        # the Git Bash toolchain is x64-emulated and 'uname -m' reports x86_64,
+        # which would silently download the x64 binary and fake the ARM coverage.
+        case "${{ runner.os }}" in
+          Linux)   OS_ARG="linux" ;;
+          Windows) OS_ARG="windows" ;;
+          macOS)   OS_ARG="macos" ;;
+          *) echo "Unsupported runner OS: ${{ runner.os }}"; exit 1 ;;
+        esac
+        if [[ "$OS_ARG" == "macos" ]]; then
+          ARCH_ARG="universal2"
+        elif [[ "${{ runner.arch }}" == "ARM64" ]]; then
+          ARCH_ARG="arm64"
+        else
+          ARCH_ARG="x86_64"
+        fi
+
         chmod +x scripts/get_7zz.sh
-        VERSION=$(./scripts/get_7zz.sh --get-current)
-        echo "Configured version: $VERSION"
-        VERSION_FOR_ASSET=$(echo "$VERSION" | sed 's/\.//g')  # e.g., 25.01 -> 2501
+        ./scripts/get_7zz.sh --os "$OS_ARG" --arch "$ARCH_ARG"
 
-        # Map platform to 7zz release naming (same logic as release.yml)
+        # Short fatal verification: the binary must exist and be runnable.
         if [[ "${{ runner.os }}" == "Windows" ]]; then
-          ASSET_NAME="7z${VERSION_FOR_ASSET}-x64.exe"
-          BINARY_NAME="7zz.exe"
-        elif [[ "${{ runner.os }}" == "macOS" ]]; then
-          ASSET_NAME="7z${VERSION_FOR_ASSET}-mac.tar.xz"
-          BINARY_NAME="7zz"
+          BINARY_PATH="py7zz/bin/7zz.exe"
+          HELP_FLAG="-h"
         else
-          ASSET_NAME="7z${VERSION_FOR_ASSET}-linux-x64.tar.xz"
-          BINARY_NAME="7zz"
+          BINARY_PATH="py7zz/bin/7zz"
+          HELP_FLAG="--help"
         fi
 
-        DOWNLOAD_URL="https://github.com/ip7z/7zip/releases/download/${VERSION}/${ASSET_NAME}"
-        echo "Downloading from: $DOWNLOAD_URL"
-
-        TEMP_DIR=$(mktemp -d)
-        curl -L -o "${TEMP_DIR}/${ASSET_NAME}" "$DOWNLOAD_URL"
-
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
-          # Windows installer - extract CLI components (same logic as release.yml)
-          echo "Downloading installer and extracting CLI components..."
-          echo "URL: $DOWNLOAD_URL"
-
-          # Create binary directory for testing
-          mkdir -p "py7zz/bin"
-
-          # GitHub Runner has built-in 7z.exe for extraction
-          7z x "${TEMP_DIR}/${ASSET_NAME}" -o"${TEMP_DIR}/out" > /dev/null
-
-          # Extract complete CLI with DLL for full format support (7z.exe + 7z.dll)
-          if [[ -f "${TEMP_DIR}/out/7z.exe" ]] && [[ -f "${TEMP_DIR}/out/7z.dll" ]]; then
-            # Rename 7z.exe to 7zz.exe for cross-platform consistency
-            cp "${TEMP_DIR}/out/7z.exe" "py7zz/bin/${BINARY_NAME}"
-            cp "${TEMP_DIR}/out/7z.dll" "py7zz/bin/"
-            echo "Windows CLI components (7z.exe + 7z.dll) extracted and copied successfully"
-          else
-            echo "Error: 7z.exe or 7z.dll not found in extracted files"
-            echo "Contents of extracted directory:"
-            ls -la "${TEMP_DIR}/out/"
-            exit 1
-          fi
-        else
-          # Unix tar.xz file (same logic as release.yml)
-          echo "Downloading and extracting Unix binary..."
-          echo "URL: $DOWNLOAD_URL"
-
-          # Create binary directory for testing
-          mkdir -p "py7zz/bin"
-
-          cd "${TEMP_DIR}"
-          tar -xf "${ASSET_NAME}"
-
-          # Find and copy the 7zz binary (search only in current extraction directory)
-          BINARY_PATH=$(find . -name "7zz" -type f | head -1)
-          if [ -n "$BINARY_PATH" ]; then
-            cp "$BINARY_PATH" "$GITHUB_WORKSPACE/py7zz/bin/${BINARY_NAME}"
-            echo "Binary found and copied: $BINARY_PATH -> py7zz/bin/${BINARY_NAME}"
-
-            # Return to workspace directory to set permissions
-            cd "$GITHUB_WORKSPACE"
-
-            # Make binary executable for Unix systems
-            if [[ "${{ runner.os }}" != "Windows" ]]; then
-              chmod +x "py7zz/bin/${BINARY_NAME}"
-              echo "Set executable permissions for Unix binary"
-            fi
-          else
-            echo "Error: 7zz binary not found in extracted files"
-            echo "Contents of extracted directory:"
-            ls -la .
-            exit 1
-          fi
-        fi
-
-        # Ensure we're in the workspace directory for verification
-        cd "$GITHUB_WORKSPACE"
-
-        # Verify the binary was placed correctly (same logic as release.yml)
-        echo "Verifying binary placement..."
-        if [[ -f "py7zz/bin/${BINARY_NAME}" ]]; then
-          echo "✓ Binary correctly placed at: py7zz/bin/${BINARY_NAME}"
-          ls -la "py7zz/bin/"
-        else
-          echo "✗ Binary not found at expected location: py7zz/bin/${BINARY_NAME}"
-          echo "Contents of py7zz/bin/:"
-          find py7zz/bin/ -type f -ls || echo "No files found"
+        if [[ ! -f "$BINARY_PATH" ]]; then
+          echo "Error: 7zz binary not found at $BINARY_PATH"
           exit 1
         fi
 
-        # Verify binary works (same logic as release.yml)
-        echo "Verifying binary functionality..."
-        BINARY_PATH="py7zz/bin/${BINARY_NAME}"
-
-        if [[ "${{ runner.os }}" == "Windows" ]]; then
-          # Windows binary verification - verify 7zz.exe (from 7z.exe) with 7z.dll works
-          if "$BINARY_PATH" -h > /dev/null 2>&1; then
-            echo "✓ Windows binary verification passed - 7zz.exe (from 7z.exe) with full format support"
-          else
-            echo "✗ Windows binary cannot run properly"
-            echo "Binary path: $BINARY_PATH"
-            echo "Binary exists: $(test -f "$BINARY_PATH" && echo "yes" || echo "no")"
-            echo "DLL exists: $(test -f "py7zz/bin/7z.dll" && echo "yes" || echo "no")"
-            echo "Binary size: $(stat -c%s "$BINARY_PATH" 2>/dev/null || stat -f%z "$BINARY_PATH" 2>/dev/null || echo "unknown")"
-            exit 1
-          fi
-        else
-          # Unix binary verification
-          if "$BINARY_PATH" --help > /dev/null 2>&1; then
-            echo "✓ Unix binary verification passed"
-          else
-            echo "✗ Unix binary verification failed for: $BINARY_PATH"
-            exit 1
-          fi
+        if [[ "${{ runner.os }}" == "Windows" ]] && [[ ! -f "py7zz/bin/7z.dll" ]]; then
+          echo "Error: 7z.dll not found alongside the Windows binary"
+          exit 1
         fi
 
-        # Clean up
-        cd "$GITHUB_WORKSPACE"
-        rm -rf "${TEMP_DIR}"
+        if ! "$BINARY_PATH" "$HELP_FLAG" > /dev/null 2>&1; then
+          echo "Error: 7zz binary at $BINARY_PATH failed to run"
+          exit 1
+        fi
+        echo "7zz binary verified at $BINARY_PATH"
 
     - name: Run pytest
       shell: bash

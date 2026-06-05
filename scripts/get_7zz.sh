@@ -5,7 +5,11 @@
 
 # Universal 7zz binary downloader for py7zz
 # Downloads 7zz binaries for different platforms and architectures
-# Supports: macOS (arm64, x86_64, universal2), Linux (x86_64), Windows (x64)
+# Supported combinations:
+#   macOS:   universal2 (arm64/x86_64 are accepted aliases; the universal2
+#            binary covers both)
+#   Linux:   x86_64, arm64
+#   Windows: x86_64, arm64
 
 set -euo pipefail
 
@@ -62,7 +66,8 @@ Usage: $0 [OPTIONS]
 
 Options:
   --os, --platform OS    Target OS: macos, linux, windows
-  --arch ARCH            Target architecture: universal2, x86_64
+  --arch ARCH            Target architecture: universal2, x86_64, arm64
+                         (aliases: aarch64/ARM64 -> arm64; amd64/x64 -> x86_64)
   --version VERSION      Specific 7-Zip version to download (overrides file)
   --output DIR           Output directory (default: $OUTPUT_DIR)
   --build-dir DIR        Build directory for temporary files (default: $BUILD_DIR)
@@ -77,32 +82,78 @@ Default Behavior:
   Reads version from $VERSION_FILE and downloads that version.
 
 Supported combinations:
-  macOS:   universal2 (official 7-Zip distribution supports both ARM64 and x86_64)
-  Linux:   x86_64
-  Windows: x86_64 (includes 7z.exe + 7z.dll for complete functionality)
+  macOS:   universal2 (arm64/x86_64 accepted as aliases; the universal2 binary
+           covers both architectures)
+  Linux:   x86_64, arm64
+  Windows: x86_64, arm64 (includes 7z.exe + 7z.dll for complete functionality)
 EOF
+}
+
+# Normalize an architecture string to one of: arm64, x86_64, universal2.
+#
+# Accepts the common spellings emitted by 'uname -m' and user input across
+# platforms and maps them onto py7zz's canonical names. Unknown values are
+# echoed back unchanged so callers can detect and reject them explicitly.
+#
+# Args:
+#   $1: Raw architecture string (e.g. "aarch64", "AMD64", "arm64").
+#
+# Outputs:
+#   The normalized architecture on stdout.
+normalize_arch() {
+    local raw="$1"
+    case "$raw" in
+        # Reason: 'uname -m' and CI inputs use several arm64 spellings.
+        aarch64|arm64|ARM64|Arm64) echo "arm64" ;;
+        # Reason: x86_64 appears as amd64/x64 on Windows and some toolchains.
+        x86_64|amd64|AMD64|x64|X64) echo "x86_64" ;;
+        # universal2 is a macOS-only passthrough; covers both architectures.
+        universal2) echo "universal2" ;;
+        # Unknown value: echo back unchanged so the caller can reject it.
+        *) echo "$raw" ;;
+    esac
 }
 
 # Auto-detect platform and architecture
 auto_detect_platform() {
-    local os_name=$(uname -s)
-    local arch_name=$(uname -m)
+    local os_name
+    local arch_name
+    os_name=$(uname -s)
+    arch_name=$(uname -m)
+
+    # Normalize the detected architecture up front so every branch works with
+    # py7zz's canonical names (arm64 / x86_64 / universal2).
+    local norm_arch
+    norm_arch=$(normalize_arch "$arch_name")
 
     case "$os_name" in
         Darwin)
             PLATFORM="macos"
-            ARCH="universal2"  # 7-Zip only provides universal2 for macOS
+            # 7-Zip only ships a universal2 binary for macOS; the detected
+            # architecture is irrelevant because universal2 covers both.
+            ARCH="universal2"
             ;;
         Linux)
             PLATFORM="linux"
-            case "$arch_name" in
-                x86_64) ARCH="x86_64" ;;
-                *) ARCH="x86_64" ;;  # Default fallback
+            case "$norm_arch" in
+                x86_64|arm64) ARCH="$norm_arch" ;;
+                *)
+                    # Reason: silently defaulting to x86_64 would download the
+                    # wrong binary on unsupported architectures.
+                    print_error "Unsupported Linux architecture: $arch_name"
+                    exit 1
+                    ;;
             esac
             ;;
         CYGWIN*|MINGW*|MSYS*)
             PLATFORM="windows"
-            ARCH="x64"
+            case "$norm_arch" in
+                x86_64|arm64) ARCH="$norm_arch" ;;
+                *)
+                    print_error "Unsupported Windows architecture: $arch_name"
+                    exit 1
+                    ;;
+            esac
             ;;
         *)
             print_error "Unsupported platform: $os_name"
@@ -184,21 +235,37 @@ download_macos_universal2() {
 }
 
 # Download and extract 7zz for Linux
+#
+# Args:
+#   $1: Target architecture (x86_64 or arm64).
 download_linux() {
+    local target_arch="$1"
     local version_str="${SEVEN_ZIP_VERSION//./}"
-    local url="${BASE_URL}/7z${version_str}-linux-x64.tar.xz"
-    local archive="${BUILD_DIR}/linux/7z-linux-x64.tar.xz"
-    local extract_dir="${BUILD_DIR}/linux/x86_64"
+
+    # Map py7zz's canonical architecture onto 7-Zip's asset suffix.
+    local asset_arch
+    case "$target_arch" in
+        x86_64) asset_arch="x64" ;;
+        arm64) asset_arch="arm64" ;;
+        *)
+            print_error "Unsupported Linux architecture: $target_arch"
+            return 1
+            ;;
+    esac
+
+    local url="${BASE_URL}/7z${version_str}-linux-${asset_arch}.tar.xz"
+    local archive="${BUILD_DIR}/linux/7z-linux-${asset_arch}.tar.xz"
+    local extract_dir="${BUILD_DIR}/linux/${target_arch}"
 
     mkdir -p "$extract_dir"
 
-    print_status "Downloading Linux x86_64 from: $url"
+    print_status "Downloading Linux ${target_arch} from: $url"
     if ! curl -fsSL "$url" -o "$archive"; then
-        print_error "Failed to download Linux x86_64 version"
+        print_error "Failed to download Linux ${target_arch} version"
         return 1
     fi
 
-    print_status "Extracting Linux x86_64..."
+    print_status "Extracting Linux ${target_arch}..."
     if ! tar -xf "$archive" -C "$extract_dir"; then
         print_error "Failed to extract Linux archive"
         return 1
@@ -215,21 +282,37 @@ download_linux() {
 }
 
 # Download and extract 7zz for Windows
+#
+# Args:
+#   $1: Target architecture (x86_64 or arm64).
 download_windows() {
+    local target_arch="$1"
     local version_str="${SEVEN_ZIP_VERSION//./}"
-    local url="${BASE_URL}/7z${version_str}-x64.exe"
-    local archive="${BUILD_DIR}/windows/7z-windows-x64.exe"
-    local extract_dir="${BUILD_DIR}/windows/x64"
+
+    # Map py7zz's canonical architecture onto 7-Zip's installer suffix.
+    local asset_arch
+    case "$target_arch" in
+        x86_64) asset_arch="x64" ;;
+        arm64) asset_arch="arm64" ;;
+        *)
+            print_error "Unsupported Windows architecture: $target_arch"
+            return 1
+            ;;
+    esac
+
+    local url="${BASE_URL}/7z${version_str}-${asset_arch}.exe"
+    local archive="${BUILD_DIR}/windows/7z-windows-${asset_arch}.exe"
+    local extract_dir="${BUILD_DIR}/windows/${target_arch}"
 
     mkdir -p "$extract_dir"
 
-    print_status "Downloading Windows x64 from: $url"
+    print_status "Downloading Windows ${target_arch} from: $url"
     if ! curl -fsSL "$url" -o "$archive"; then
-        print_error "Failed to download Windows x64 version"
+        print_error "Failed to download Windows ${target_arch} version"
         return 1
     fi
 
-    print_status "Extracting Windows x64..."
+    print_status "Extracting Windows ${target_arch}..."
 
     # Try different extraction methods
     if command -v 7z &> /dev/null; then
@@ -263,7 +346,10 @@ download_windows() {
     print_status "Found Windows binary: $(basename "$exe_binary")"
 
     if [ -z "$dll_file" ]; then
-        print_warning "7z.dll not found - Windows functionality may be limited"
+        # Reason: 7z.exe cannot run without 7z.dll, so a missing DLL is a hard
+        # failure rather than a warning. The caller must propagate this.
+        print_error "7z.dll not found in Windows installer - cannot continue"
+        return 1
     fi
 
     # Return both files separated by space
@@ -280,11 +366,17 @@ download_7zz() {
     rm -rf "$BUILD_DIR"
     mkdir -p "$BUILD_DIR"
 
+    # Declared here so they can be assigned separately from declaration below.
+    # Reason: 'local var=$(fn)' swallows the function's exit status, so each
+    # download result is captured on its own line to preserve set -e semantics.
+    local binary=""
+    local files=""
+
     case "$PLATFORM" in
         macos)
             case "$ARCH" in
                 universal2)
-                    local binary=$(download_macos_universal2)
+                    binary=$(download_macos_universal2)
                     if [ -z "$binary" ]; then
                         print_error "Failed to download macOS universal2 binary"
                         return 1
@@ -303,8 +395,8 @@ download_7zz() {
             ;;
         linux)
             case "$ARCH" in
-                x86_64)
-                    local binary=$(download_linux)
+                x86_64|arm64)
+                    binary=$(download_linux "$ARCH")
                     if [ -z "$binary" ]; then
                         print_error "Failed to download Linux binary"
                         return 1
@@ -323,15 +415,17 @@ download_7zz() {
             ;;
         windows)
             case "$ARCH" in
-                x86_64)
-                    local files=$(download_windows)
+                x86_64|arm64)
+                    files=$(download_windows "$ARCH")
                     if [ -z "$files" ]; then
                         print_error "Failed to download Windows files"
                         return 1
                     fi
 
-                    local exe_file=$(echo $files | cut -d' ' -f1)
-                    local dll_file=$(echo $files | cut -d' ' -f2)
+                    local exe_file
+                    local dll_file
+                    exe_file=$(echo "$files" | cut -d' ' -f1)
+                    dll_file=$(echo "$files" | cut -d' ' -f2)
 
                     mkdir -p "$OUTPUT_DIR"
 
@@ -339,9 +433,14 @@ download_7zz() {
                     cp "$exe_file" "$output_file"
                     print_status "Copied $(basename "$exe_file") as 7zz.exe"
 
-                    if [ -n "$dll_file" ] && [ "$dll_file" != "null" ] && [ -f "$dll_file" ]; then
+                    # download_windows guarantees a non-empty dll path on success,
+                    # so a missing file here is a hard failure.
+                    if [ -n "$dll_file" ] && [ -f "$dll_file" ]; then
                         cp "$dll_file" "${OUTPUT_DIR}/7z.dll"
                         print_status "Copied 7z.dll for complete Windows functionality"
+                    else
+                        print_error "7z.dll missing after extraction - cannot continue"
+                        return 1
                     fi
                     ;;
                 *)
@@ -494,6 +593,28 @@ fi
 if [ -z "$PLATFORM" ] || [ -z "$ARCH" ]; then
     print_status "Auto-detecting platform and architecture..."
     auto_detect_platform
+fi
+
+# Normalize the architecture for both user-supplied and auto-detected values.
+# Auto-detection already normalizes, so this is idempotent there; it primarily
+# canonicalizes user input such as aarch64/AMD64/x64.
+if [ -n "$ARCH" ]; then
+    ARCH=$(normalize_arch "$ARCH")
+fi
+
+# macOS ships only a universal2 binary. If the user explicitly requested
+# arm64/x86_64 for macOS, accept it but force universal2 and explain why.
+if [ "$PLATFORM" == "macos" ] && [ "$ARCH" != "universal2" ]; then
+    case "$ARCH" in
+        arm64|x86_64)
+            print_status "macOS provides a single universal2 binary covering both arm64 and x86_64; using universal2 instead of '$ARCH'."
+            ARCH="universal2"
+            ;;
+        *)
+            print_error "Unsupported macOS architecture: $ARCH"
+            exit 1
+            ;;
+    esac
 fi
 
 # Main execution
