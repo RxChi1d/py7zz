@@ -83,6 +83,32 @@ class TestPlatformInfo:
         with pytest.raises(UpdateError, match="Unsupported architecture"):
             get_platform_info()
 
+    @patch("platform.system")
+    @patch("platform.machine")
+    def test_get_platform_info_linux_aarch64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
+        """Test Linux aarch64 platform detection maps to arm64."""
+        mock_system.return_value = "Linux"
+        mock_machine.return_value = "aarch64"
+
+        platform, arch = get_platform_info()
+        assert platform == "linux"
+        assert arch == "arm64"
+
+    @patch("platform.system")
+    @patch("platform.machine")
+    def test_get_platform_info_windows_arm64(
+        self, mock_machine: Mock, mock_system: Mock
+    ) -> None:
+        """Test Windows ARM64 platform detection."""
+        mock_system.return_value = "Windows"
+        mock_machine.return_value = "ARM64"
+
+        platform, arch = get_platform_info()
+        assert platform == "windows"
+        assert arch == "arm64"
+
 
 class TestAssetName:
     """Test asset name generation."""
@@ -99,10 +125,28 @@ class TestAssetName:
         """Test Linux asset name generation."""
         assert get_asset_name("2408", "linux", "x64") == "7z2408-linux-x64.tar.xz"
 
+    def test_get_asset_name_windows_arm64(self) -> None:
+        """Test Windows arm64 asset name generation."""
+        assert get_asset_name("2408", "windows", "arm64") == "7z2408-arm64.exe"
+
+    def test_get_asset_name_linux_arm64(self) -> None:
+        """Test Linux arm64 asset name generation."""
+        assert get_asset_name("2408", "linux", "arm64") == "7z2408-linux-arm64.tar.xz"
+
     def test_get_asset_name_unsupported(self) -> None:
         """Test unsupported platform raises error."""
         with pytest.raises(UpdateError, match="Unsupported platform"):
             get_asset_name("2408", "freebsd", "x64")
+
+    def test_get_asset_name_linux_unsupported_arch(self) -> None:
+        """Test unsupported Linux architecture raises error with matching message."""
+        with pytest.raises(UpdateError, match="Unsupported Linux architecture: i386"):
+            get_asset_name("2408", "linux", "i386")
+
+    def test_get_asset_name_windows_unsupported_arch(self) -> None:
+        """Test unsupported Windows architecture raises error with matching message."""
+        with pytest.raises(UpdateError, match="Unsupported Windows architecture: arm"):
+            get_asset_name("2408", "windows", "arm")
 
 
 class TestLatestRelease:

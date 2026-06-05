@@ -56,26 +56,41 @@ def get_platform_info() -> Tuple[str, str]:
 
 
 def get_asset_name(version: str, platform: str, arch: str) -> str:
-    """Generate the correct asset name for a given version and platform.
+    """Generate the correct asset name for a given version, platform, and architecture.
 
     Args:
-        version: 7zz version string (e.g., "24.07" or "2408")
-        platform: Platform name ("mac", "linux", "windows")
-        arch: Architecture ("x64", "arm64")
+        version: 7zz version string (e.g., "24.07" or "2408").
+        platform: Platform name ("mac", "linux", "windows").
+        arch: Architecture ("x64", "arm64").
 
     Returns:
         Asset filename for downloading from GitHub releases.
+
+    Raises:
+        UpdateError: If the platform is unsupported, or if the architecture is
+            unsupported for the given platform.
     """
     # Convert version format if needed (24.07 -> 2407)
     if "." in version:
         version = version.replace(".", "")
 
     if platform == "windows":
-        return f"7z{version}-x64.exe"
+        if arch == "x64":
+            return f"7z{version}-x64.exe"
+        elif arch == "arm64":
+            return f"7z{version}-arm64.exe"
+        else:
+            raise UpdateError(f"Unsupported Windows architecture: {arch}")
     elif platform == "mac":
+        # Reason: the official macOS archive is a universal binary covering both x64 and arm64.
         return f"7z{version}-mac.tar.xz"
     elif platform == "linux":
-        return f"7z{version}-linux-x64.tar.xz"
+        if arch == "x64":
+            return f"7z{version}-linux-x64.tar.xz"
+        elif arch == "arm64":
+            return f"7z{version}-linux-arm64.tar.xz"
+        else:
+            raise UpdateError(f"Unsupported Linux architecture: {arch}")
     else:
         raise UpdateError(f"Unsupported platform: {platform}")
 
@@ -150,7 +165,11 @@ def download_and_extract_binary(
         response.raise_for_status()
 
         if platform == "windows":
-            # Windows .exe file - direct download
+            # NOTE: the official Windows .exe asset is a 7z SFX installer, not a
+            # standalone CLI binary, so saving it as 7zz.exe yields a non-working
+            # binary. This module is currently disconnected from runtime (see
+            # core.find_7z_binary); fixing the Windows extraction is tracked for
+            # the updater-reconnection work and is intentionally out of scope here.
             with open(target_path, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
