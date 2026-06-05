@@ -18,7 +18,15 @@ jobs:
             platform: linux
             arch: x86_64
             binary_name: 7zz
-            wheel_tag: manylinux1_x86_64
+            # Reason: corrected from manylinux1 (glibc 2.17 floor, verified below
+            # before publish). Dual tag: PEP 600 form for modern pip (>=20.3) plus
+            # the legacy manylinux2014 alias so pip 19.3-20.2 still accepts the wheel.
+            wheel_tag: manylinux_2_17_x86_64.manylinux2014_x86_64
+          - os: ubuntu-24.04-arm
+            platform: linux
+            arch: arm64
+            binary_name: 7zz
+            wheel_tag: manylinux_2_17_aarch64.manylinux2014_aarch64
           - os: macos-latest  # Universal2 runner
             platform: macos
             arch: universal2
@@ -29,6 +37,11 @@ jobs:
             arch: x86_64
             binary_name: 7zz.exe
             wheel_tag: win_amd64
+          - os: windows-11-arm
+            platform: windows
+            arch: arm64
+            binary_name: 7zz.exe
+            wheel_tag: win_arm64
 
     steps:
     - uses: actions/checkout@v4
@@ -73,7 +86,29 @@ jobs:
         version: "latest"  # Use latest version for better lock file support
       timeout-minutes: 3  # Add timeout to prevent hanging
 
+    # Reason: windows-11-arm has no uv-managed native ARM64 Python and its
+    # pre-installed interpreter is x86_64 (emulated); actions/setup-python ships a
+    # native ARM64 build. It auto-detects arch from the host (os.arch() -> arm64),
+    # so no explicit architecture input is required.
+    - name: Set up Python (native ARM64 via setup-python)
+      if: matrix.os == 'windows-11-arm'
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.11'
+
+    # Reason: force uv to use the setup-python interpreter on PATH and never
+    # attempt to download a managed Python, so 'uv sync --dev' / 'uv pip install'
+    # bind to the native ARM64 interpreter rather than an emulated/managed one.
+    - name: Configure uv to use system Python (windows-11-arm)
+      if: matrix.os == 'windows-11-arm'
+      shell: bash
+      run: |
+        echo "UV_PYTHON_PREFERENCE=only-system" >> "$GITHUB_ENV"
+        echo "UV_PYTHON_DOWNLOADS=never" >> "$GITHUB_ENV"
+        echo "UV_PYTHON=${pythonLocation}/python.exe" >> "$GITHUB_ENV"
+
     - name: Set up Python
+      if: matrix.os != 'windows-11-arm'
       run: uv python install 3.11
 
     - name: Validate tag format and determine release type
@@ -172,23 +207,73 @@ jobs:
           exit 1
         fi
 
-        # Test binary functionality
+        # Test binary functionality (fatal: the wheel is useless if the bundled
+        # binary cannot execute on its own native architecture)
+        # Reason: same per-platform help flag as ci.yml — the Windows binary is
+        # the renamed 7z.exe, whose canonical help switch is -h.
+        if [[ "$PLATFORM" == "windows" ]]; then
+          HELP_FLAG="-h"
+        else
+          HELP_FLAG="--help"
+        fi
         echo "Testing binary functionality..."
-        if "py7zz/bin/${BINARY_NAME}" --help > /dev/null 2>&1; then
+        if "py7zz/bin/${BINARY_NAME}" "$HELP_FLAG" > /dev/null 2>&1; then
           echo "✓ Binary functionality test passed"
         else
-          echo "✗ Binary functionality test failed"
-          echo "This may be normal for some platforms due to dependencies or signing requirements"
+          echo "✗ Binary functionality test failed - the bundled 7zz binary does not run"
+          exit 1
         fi
 
-        # For Windows, verify both 7zz.exe and 7z.dll are present
+        # For Windows, both 7zz.exe and 7z.dll are required (fatal if missing:
+        # 7z.dll backs archive-format support and the wheel ships incomplete without it)
         if [[ "$PLATFORM" == "windows" ]]; then
           if [[ -f "py7zz/bin/7z.dll" ]]; then
             echo "✓ Windows 7z.dll found for complete functionality"
           else
-            echo "⚠️ Windows 7z.dll not found - some formats may not be supported"
+            echo "✗ Windows 7z.dll not found - aborting build"
+            exit 1
           fi
         fi
+
+    # Reason: the manylinux2014 wheel tag promises the bundled binary requires at
+    # most GLIBC 2.17. This step backs that tag with evidence by measuring the
+    # binary's actual maximum required GLIBC symbol version and failing the build
+    # if it exceeds the floor, preventing a mislabeled wheel from reaching PyPI.
+    - name: Verify glibc floor for manylinux2014 (linux rows only)
+      if: matrix.platform == 'linux'
+      shell: bash
+      run: |
+        BINARY="py7zz/bin/${{ matrix.binary_name }}"
+        FLOOR="2.17"  # glibc floor implied by the manylinux2014 wheel tag
+
+        echo "Verifying glibc floor for: $BINARY"
+
+        # Extract the maximum required GLIBC_* symbol version from the binary.
+        # sort -V (version sort) is mandatory: plain sort orders 2.14 after 2.5.
+        MAX_GLIBC=$(objdump -T "$BINARY" \
+          | grep -oP 'GLIBC_\d+\.\d+(\.\d+)?' \
+          | sort -uV \
+          | tail -1 \
+          | sed 's/^GLIBC_//')
+
+        if [ -z "$MAX_GLIBC" ]; then
+          echo "✗ Could not determine required GLIBC version from $BINARY"
+          exit 1
+        fi
+
+        echo "Maximum required GLIBC: $MAX_GLIBC (floor: $FLOOR)"
+
+        # Compare MAX_GLIBC against FLOOR using version sort. If the highest of the
+        # two is the measured value and it differs from the floor, it exceeds it.
+        HIGHEST=$(printf '%s\n%s\n' "$MAX_GLIBC" "$FLOOR" | sort -V | tail -1)
+        if [ "$HIGHEST" != "$FLOOR" ] && [ "$MAX_GLIBC" != "$FLOOR" ]; then
+          echo "✗ Binary requires GLIBC_$MAX_GLIBC which exceeds the $FLOOR floor"
+          echo "  The wheel tag '${{ matrix.wheel_tag }}' would be inaccurate."
+          echo "  Adjust the tag to the matching manylinux_2_XX value."
+          exit 1
+        fi
+
+        echo "✓ Binary GLIBC requirement is within the manylinux2014 floor"
 
     - name: Install dependencies
       timeout-minutes: 5  # Add timeout for dependency installation
