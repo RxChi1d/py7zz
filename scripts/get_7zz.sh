@@ -208,6 +208,10 @@ refresh_checksums() {
     tmpdir=$(mktemp -d)
     local out="${tmpdir}/7zz_checksums.txt"
 
+    # The literals below are written INTO the generated checksum file; the
+    # REUSE-Ignore markers stop the compliance scanner from parsing them as
+    # this script's own (then seemingly duplicated/invalid) SPDX tags.
+    # REUSE-IgnoreStart
     {
         echo "# SPDX-License-Identifier: MIT"
         echo "# SPDX-FileCopyrightText: 2025 py7zz contributors"
@@ -217,6 +221,7 @@ refresh_checksums() {
         echo "# (byte-identical to the https://7-zip.org/a/ mirrors)"
         echo "# Regenerate with: ./scripts/get_7zz.sh --refresh-checksums"
     } > "$out"
+    # REUSE-IgnoreEnd
 
     local asset digest
     for asset in "${assets[@]}"; do
