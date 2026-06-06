@@ -8,6 +8,7 @@ This module holds the platform-specific download/extract routines used by
 placement into the per-user cache.
 """
 
+import hashlib
 import os
 import shutil
 import subprocess
@@ -17,6 +18,8 @@ from pathlib import Path
 from typing import Optional
 
 import requests
+
+from ._pinned import read_pinned_checksums
 
 # Reason: import from .updater at module load is safe because updater imports
 # this module only inside function bodies, avoiding a circular import at import
@@ -42,6 +45,74 @@ def download_to_file(url: str, dest: Path) -> None:
                 f.write(chunk)
     except requests.RequestException as e:
         raise UpdateError(f"Failed to download {url}: {e}") from e
+
+
+def verify_checksum(path: Path, asset_name: str) -> None:
+    """Verify a downloaded file against the pinned SHA-256 checksum.
+
+    Args:
+        path: Downloaded file to verify.
+        asset_name: Release asset filename used to look up the pinned digest
+            in ``py7zz/7zz_checksums.txt``.
+
+    Raises:
+        UpdateError: If no checksum is pinned for the asset (fail closed), or
+            if the computed digest does not match the pinned one.
+
+    Note:
+        Verification happens after download and BEFORE any extraction or
+        execution of the file. # Reason: a compromised upstream asset must be
+        rejected before tarfile/7zr.exe ever touch it.
+    """
+    expected = read_pinned_checksums().get(asset_name)
+    if expected is None:
+        raise UpdateError(
+            f"No pinned SHA-256 checksum for {asset_name}; refusing to use the "
+            "downloaded file. The py7zz installation may be corrupt or the "
+            "checksum file out of sync with 7zz_version.txt."
+        )
+
+    sha256 = hashlib.sha256()
+    try:
+        with open(path, "rb") as f:
+            for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                sha256.update(chunk)
+    except OSError as e:
+        raise UpdateError(
+            f"Failed to read {path} for checksum verification: {e}"
+        ) from e
+
+    actual = sha256.hexdigest()
+    if actual != expected:
+        raise UpdateError(
+            f"SHA-256 mismatch for {asset_name}: expected {expected}, got "
+            f"{actual}. The download may be corrupted or tampered with; "
+            "refusing to use it."
+        )
+
+
+def _find_extracted_member(extract_dir: Path, name: str) -> Optional[Path]:
+    """Locate an extracted installer member deterministically.
+
+    Prefers the exact top-level path (the layout official installers ship),
+    falling back to a sorted recursive search so the choice stays
+    deterministic even if a future installer layout nests or duplicates
+    files.
+
+    Args:
+        extract_dir: Directory the installer was extracted into.
+        name: Member filename to locate (e.g. ``"7z.exe"``).
+
+    Returns:
+        Path to the member, or ``None`` if not found.
+    """
+    direct = extract_dir / name
+    if direct.is_file():
+        return direct
+    # Reason: sorted() pins the selection order; bare next(rglob()) depends on
+    # filesystem iteration order and could silently pick a different copy.
+    matches = sorted(p for p in extract_dir.rglob(name) if p.is_file())
+    return matches[0] if matches else None
 
 
 def atomic_place(source: Path, target: Path, mode: Optional[int] = None) -> None:
@@ -114,6 +185,7 @@ def extract_unix_binary(
     extracted_tmp = Path(extract_name)
     try:
         download_to_file(download_url, tmp_archive)
+        verify_checksum(tmp_archive, asset_name)
         with tarfile.open(str(tmp_archive), "r:xz") as tar:
             for member in tar.getmembers():
                 if member.name.endswith("/7zz") or member.name == "7zz":
@@ -185,10 +257,14 @@ def extract_windows_binary(
     extract_tmpdir = tempfile.TemporaryDirectory(dir=str(target_dir))
     extract_dir = Path(extract_tmpdir.name)
     try:
-        # a. Download the version-pinned bootstrap extractor.
+        # a. Download and verify the version-pinned bootstrap extractor.
+        # Reason: 7zr.exe is EXECUTED below, so its checksum must be verified
+        # before it ever runs.
         download_to_file(bootstrap_url, bootstrap_path)
-        # b. Download the SFX installer.
+        verify_checksum(bootstrap_path, "7zr.exe")
+        # b. Download and verify the SFX installer.
         download_to_file(sfx_url, sfx_path)
+        verify_checksum(sfx_path, asset_name)
 
         # c. Let 7zr.exe unpack the SFX installer natively.
         try:
@@ -219,8 +295,8 @@ def extract_windows_binary(
             )
 
         # d. Locate 7z.exe and 7z.dll; both are required to run.
-        exe_src = next(extract_dir.rglob("7z.exe"), None)
-        dll_src = next(extract_dir.rglob("7z.dll"), None)
+        exe_src = _find_extracted_member(extract_dir, "7z.exe")
+        dll_src = _find_extracted_member(extract_dir, "7z.dll")
         if exe_src is None:
             raise UpdateError(
                 f"7z.exe not found in extracted {asset_name}. Install a bundled "

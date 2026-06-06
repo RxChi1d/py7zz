@@ -47,7 +47,7 @@ PyPI wheels bundle the 7zz binary for all supported platforms — no extra downl
 pip install git+https://github.com/RxChi1d/py7zz.git
 ```
 
-Source installs do not include a bundled binary. On first use, py7zz automatically downloads the version-pinned 7zz binary to `~/.cache/py7zz/` (network access required). To disable this behavior — for example in air-gapped or CI environments — set the environment variable before running:
+Source installs do not include a bundled binary. On first use, py7zz automatically downloads the version-pinned 7zz binary to `~/.cache/py7zz/` (network access required). Every download is verified against SHA-256 checksums pinned in the package before it is extracted or executed. To disable auto-download — for example in air-gapped or CI environments — set the environment variable before running:
 
 ```bash
 PY7ZZ_NO_AUTODOWNLOAD=1 python your_script.py

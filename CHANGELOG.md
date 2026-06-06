@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Checksum-Verified Downloads**: All 7zz binaries downloaded at runtime (source installs) and at build time are now verified against SHA-256 checksums pinned in the package before extraction or execution. A corrupted or tampered download is rejected with a clear error.
+
+### Changed
+- **Faster Repeated Operations on Source Installs**: The downloaded 7zz binary location is now resolved once per process instead of on every archive operation.
+- **Cache Hygiene**: Leftover binaries from the pre-1.3.0 cache layout under `~/.cache/py7zz/` are now cleaned up automatically.
+
+### Fixed
+- **Command-Line Pass-Through**: The `py7zz` command failed with an internal error for every operation except `--version`. All 7zz commands now pass through to the bundled binary correctly.
+
 ## [1.3.0] - 2026-06-06
 
 ### Added

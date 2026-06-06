@@ -70,6 +70,13 @@ jobs:
 
           echo "$NEW_VERSION" > py7zz/7zz_version.txt
 
+          # Refresh the pinned SHA-256 checksums for the new version BEFORE
+          # the download verification below, which verifies against them.
+          if ! ./scripts/get_7zz.sh --refresh-checksums --version "$NEW_VERSION"; then
+            echo "::error::Failed to refresh pinned checksums for 7zz $NEW_VERSION"
+            exit 1
+          fi
+
           # Verify the new version can be downloaded (no artifacts committed; bin is gitignored)
           if ! ./scripts/get_7zz.sh --version "$NEW_VERSION"; then
             echo "::error::Failed to verify 7zz $NEW_VERSION download"
@@ -89,7 +96,9 @@ jobs:
           title: "chore: bump bundled 7zz to ${{ steps.check.outputs.new_version }}"
           commit-message: "chore: bump bundled 7zz to ${{ steps.check.outputs.new_version }}"
           labels: dependencies, automated, chore
-          add-paths: py7zz/7zz_version.txt
+          add-paths: |
+            py7zz/7zz_version.txt
+            py7zz/7zz_checksums.txt
           body: |
             ## Summary
             Detected a new 7-Zip release: **${{ steps.check.outputs.new_version }}**.
@@ -98,6 +107,7 @@ jobs:
 
             ## Changes
             - Update `py7zz/7zz_version.txt`: ${{ env.CURRENT_VERSION }} → ${{ steps.check.outputs.new_version }}
+            - Refresh `py7zz/7zz_checksums.txt` with the SHA-256 digests of the ${{ steps.check.outputs.new_version }} release assets
 
             ## Changelog Category
             - chore (dependency maintenance)

@@ -2,27 +2,22 @@
 # SPDX-FileCopyrightText: 2025 py7zz contributors
 """Tests for the updater module."""
 
-import json
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-import requests
 
 import py7zz._download as dl
 from py7zz.updater import (
     UpdateError,
     _is_cache_complete,
-    check_for_updates,
     cleanup_old_versions,
     ensure_7zz_available,
     get_asset_name,
     get_cached_binary,
-    get_latest_release,
     get_pinned_7zz_version,
     get_platform_info,
-    get_version_from_binary,
 )
 
 
@@ -152,84 +147,6 @@ class TestAssetName:
         """Test unsupported Windows architecture raises error with matching message."""
         with pytest.raises(UpdateError, match="Unsupported Windows architecture: arm"):
             get_asset_name("2408", "windows", "arm")
-
-
-class TestLatestRelease:
-    """Test GitHub API release fetching."""
-
-    @patch("requests.get")
-    def test_get_latest_release_success(self, mock_get: Mock) -> None:
-        """Test successful release fetching."""
-        mock_response = Mock()
-        mock_response.json.return_value = {"tag_name": "2408", "name": "7-Zip 24.08"}
-        mock_response.raise_for_status.return_value = None
-        mock_get.return_value = mock_response
-
-        with tempfile.TemporaryDirectory() as tmpdir, patch(
-            "py7zz.updater.CACHE_DIR", Path(tmpdir)
-        ):
-            result = get_latest_release(use_cache=False)
-            assert result["tag_name"] == "2408"
-            assert result["name"] == "7-Zip 24.08"
-
-    @patch("requests.get")
-    def test_get_latest_release_network_error(self, mock_get: Mock) -> None:
-        """Test network error handling."""
-        mock_get.side_effect = requests.RequestException("Network error")
-
-        with pytest.raises(UpdateError, match="Failed to fetch release information"):
-            get_latest_release(use_cache=False)
-
-    def test_get_latest_release_cache_hit(self) -> None:
-        """Test cache hit scenario."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            cache_dir = Path(tmpdir)
-            cache_file = cache_dir / "latest_release.json"
-
-            # Create cache file
-            cache_data = {"tag_name": "2408", "name": "7-Zip 24.08"}
-            with open(cache_file, "w") as f:
-                json.dump(cache_data, f)
-
-            with patch("py7zz.updater.CACHE_DIR", cache_dir):
-                result = get_latest_release(use_cache=True)
-                assert result["tag_name"] == "2408"
-
-
-class TestVersionChecking:
-    """Test version checking and comparison."""
-
-    @patch("py7zz.updater.get_latest_release")
-    def test_check_for_updates_newer_available(self, mock_get_release: Mock) -> None:
-        """Test when newer version is available."""
-        mock_get_release.return_value = {"tag_name": "2409"}
-
-        result = check_for_updates("2408")
-        assert result == "2409"
-
-    @patch("py7zz.updater.get_latest_release")
-    def test_check_for_updates_no_update_needed(self, mock_get_release: Mock) -> None:
-        """Test when no update is needed."""
-        mock_get_release.return_value = {"tag_name": "2408"}
-
-        result = check_for_updates("2408")
-        assert result is None
-
-    @patch("py7zz.updater.get_latest_release")
-    def test_check_for_updates_current_none(self, mock_get_release: Mock) -> None:
-        """Test when current version is None."""
-        mock_get_release.return_value = {"tag_name": "2408"}
-
-        result = check_for_updates(None)
-        assert result == "2408"
-
-    @patch("py7zz.updater.get_latest_release")
-    def test_check_for_updates_error(self, mock_get_release: Mock) -> None:
-        """Test error handling in version checking."""
-        mock_get_release.side_effect = UpdateError("API error")
-
-        result = check_for_updates("2408")
-        assert result is None
 
 
 class TestCachedBinary:
@@ -399,38 +316,6 @@ class TestCachedBinary:
         mock_cleanup.assert_not_called()
 
 
-class TestVersionFromBinary:
-    """Test version extraction from binary."""
-
-    @patch("subprocess.run")
-    def test_get_version_from_binary_success(self, mock_run: Mock) -> None:
-        """Test successful version extraction."""
-        mock_result = Mock()
-        mock_result.stdout = "7-Zip 24.08 (x64) : Copyright (c) 1999-2024 Igor Pavlov"
-        mock_run.return_value = mock_result
-
-        result = get_version_from_binary(Path("/fake/path/7zz"))
-        assert result == "2408"
-
-    @patch("subprocess.run")
-    def test_get_version_from_binary_error(self, mock_run: Mock) -> None:
-        """Test error handling in version extraction."""
-        mock_run.side_effect = OSError("Binary not found")
-
-        result = get_version_from_binary(Path("/fake/path/7zz"))
-        assert result is None
-
-    @patch("subprocess.run")
-    def test_get_version_from_binary_no_version(self, mock_run: Mock) -> None:
-        """Test when version cannot be parsed."""
-        mock_result = Mock()
-        mock_result.stdout = "Invalid output"
-        mock_run.return_value = mock_result
-
-        result = get_version_from_binary(Path("/fake/path/7zz"))
-        assert result is None
-
-
 class TestPinnedVersion:
     """Test reading the pinned 7zz version file (auto-download source of truth)."""
 
@@ -446,8 +331,8 @@ class TestPinnedVersion:
     def test_get_pinned_7zz_version_missing_file(self) -> None:
         """Test a missing version file raises UpdateError."""
         fake = Path("/nonexistent/py7zz/7zz_version.txt")
-        with patch("py7zz.updater.PINNED_VERSION_FILE", fake), pytest.raises(
-            UpdateError, match="not found"
+        with patch("py7zz._pinned.PINNED_VERSION_FILE", fake), pytest.raises(
+            UpdateError, match="missing or empty"
         ):
             get_pinned_7zz_version()
 
@@ -456,8 +341,8 @@ class TestPinnedVersion:
         with tempfile.TemporaryDirectory() as tmpdir:
             empty = Path(tmpdir) / "7zz_version.txt"
             empty.write_text("   \n", encoding="utf-8")
-            with patch("py7zz.updater.PINNED_VERSION_FILE", empty), pytest.raises(
-                UpdateError, match="empty"
+            with patch("py7zz._pinned.PINNED_VERSION_FILE", empty), pytest.raises(
+                UpdateError, match="missing or empty"
             ):
                 get_pinned_7zz_version()
 
@@ -613,7 +498,11 @@ class TestDownloadUrls:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             target_dir = Path(tmpdir)
-            with patch.object(dl, "download_to_file", side_effect=fake_download):
+            # Reason: this test asserts URL construction only, so checksum
+            # verification of the canned bytes is bypassed.
+            with patch.object(
+                dl, "download_to_file", side_effect=fake_download
+            ), patch.object(dl, "verify_checksum"):
                 with pytest.raises(UpdateError):
                     dl.extract_windows_binary(
                         "26.01", "x64", target_dir, target_dir / "7zz.exe"
@@ -658,3 +547,40 @@ class TestCleanupNestedLayout:
 
             assert (cache_dir / "not_a_version").exists()
             assert (cache_dir / "2601").exists()
+
+    def test_cleanup_purges_flat_layout_orphans(self) -> None:
+        """Test pre-nested-layout binaries directly under {ver}/ are removed."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            # Old flat layout: binary directly under the version dir.
+            version_dir = cache_dir / "2601"
+            version_dir.mkdir()
+            (version_dir / "7zz").write_bytes(b"OLD")
+            (version_dir / "7z.dll").write_bytes(b"OLD")
+            # Plus a current nested entry that must survive.
+            leaf = version_dir / "linux-x64"
+            leaf.mkdir()
+            (leaf / "7zz").write_bytes(b"NEW")
+
+            with patch("py7zz.updater.CACHE_DIR", cache_dir):
+                cleanup_old_versions(keep_count=3)
+
+            # Flat orphans are gone; the nested entry is untouched.
+            assert not (version_dir / "7zz").exists()
+            assert not (version_dir / "7z.dll").exists()
+            assert (leaf / "7zz").read_bytes() == b"NEW"
+
+    def test_cleanup_does_not_remove_subdirectories(self) -> None:
+        """Test orphan purging never touches nested arch directories."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cache_dir = Path(tmpdir)
+            version_dir = cache_dir / "2601"
+            # An arch dir whose name collides with nothing; plus a dir that
+            # happens to be named like a binary must NOT be removed.
+            (version_dir / "mac-universal").mkdir(parents=True)
+            (version_dir / "mac-universal" / "7zz").touch()
+
+            with patch("py7zz.updater.CACHE_DIR", cache_dir):
+                cleanup_old_versions(keep_count=3)
+
+            assert (version_dir / "mac-universal" / "7zz").exists()
