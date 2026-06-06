@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: MIT
+# SPDX-FileCopyrightText: 2025 py7zz contributors
+#
 # SHA-256 checksums for the pinned 7-Zip 26.01 release assets.
 # Source: https://github.com/ip7z/7zip/releases/tag/26.01
 # (byte-identical to the https://7-zip.org/a/ mirrors)

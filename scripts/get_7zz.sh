@@ -209,6 +209,9 @@ refresh_checksums() {
     local out="${tmpdir}/7zz_checksums.txt"
 
     {
+        echo "# SPDX-License-Identifier: MIT"
+        echo "# SPDX-FileCopyrightText: 2025 py7zz contributors"
+        echo "#"
         echo "# SHA-256 checksums for the pinned 7-Zip ${version} release assets."
         echo "# Source: https://github.com/ip7z/7zip/releases/tag/${version}"
         echo "# (byte-identical to the https://7-zip.org/a/ mirrors)"
