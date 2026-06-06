@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-06-06
+
 ### Added
 - **Source Install Support**: py7zz now works when installed from source (e.g., `pip install git+...`). On first use, the version-pinned 7zz binary is automatically downloaded to `~/.cache/py7zz/` on all supported platforms (Windows x64/ARM64, macOS, Linux x86_64/ARM64). Set `PY7ZZ_NO_AUTODOWNLOAD=1` to opt out in air-gapped or CI environments.
 
@@ -160,7 +162,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/rxchi1d/py7zz/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/rxchi1d/py7zz/compare/v1.1.4...v1.2.0
 [1.2.0a1]: https://github.com/rxchi1d/py7zz/compare/v1.1.4...v1.2.0a1
 [1.1.4]: https://github.com/rxchi1d/py7zz/compare/v1.1.3...v1.1.4
