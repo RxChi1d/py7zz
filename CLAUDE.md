@@ -180,6 +180,10 @@ uv run pytest              # 4. 執行單元測試
 - **不准在未經允許的情況下，擅自在任何的文檔、訊息等文字中，包含 AI 編輯器或是 AI 模型的名稱**，例如:
   - Generated with [Claude Code]
   - Co-Authored-By: Claude
+- **同樣禁止任何「間接暗示 AI 參與」的用語**出現在對外內容（commit 訊息、PR 標題與內容、issue、changelog、文檔、程式碼註解）中，例如:
+  - "cross-model reviewer"、"LLM"、"agent"、"AI-assisted" 等暗示性詞彙
+  - 描述審查或開發流程時，使用中性措辭（如 "multi-angle review"、"independent reviewers"）
+- **發布任何對外內容前，必須先掃描檢查**（不分大小寫）：`claude|anthropic|gpt|codex|openai|copilot|llm|co-authored|generated with|cross-model|agent`，確認無洩漏後才可提交。
 
 
 ## Shell 工具使用指引
