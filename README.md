@@ -39,6 +39,24 @@ A Python wrapper for 7zz CLI tool providing cross-platform archive operations wi
 pip install py7zz
 ```
 
+PyPI wheels bundle the 7zz binary for all supported platforms — no extra download needed after `pip install`.
+
+### Install from source
+
+```bash
+pip install git+https://github.com/RxChi1d/py7zz.git
+```
+
+Source installs do not include a bundled binary. On first use, py7zz automatically downloads the version-pinned 7zz binary to `~/.cache/py7zz/` (network access required). To disable this behavior — for example in air-gapped or CI environments — set the environment variable before running:
+
+```bash
+PY7ZZ_NO_AUTODOWNLOAD=1 python your_script.py
+```
+
+Auto-download is disabled **only** when `PY7ZZ_NO_AUTODOWNLOAD` is set to an explicit truthy value: `1`, `true`, `yes`, or `on` (case-insensitive). Any other value — including unset, empty, `0`, or `false` — leaves auto-download enabled.
+
+When auto-download is disabled and no binary is available, py7zz raises a `RuntimeError` with instructions on how to supply a binary manually via the `PY7ZZ_BINARY` environment variable.
+
 For development:
 ```bash
 git clone https://github.com/rxchi1d/py7zz.git
