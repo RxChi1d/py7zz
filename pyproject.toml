@@ -20,6 +20,7 @@ packages = ["py7zz"]
 artifacts = [
     "py7zz/bin/*",
     "py7zz/7zz_version.txt",
+    "py7zz/7zz_checksums.txt",
 ]
 
 # Include license and legal files

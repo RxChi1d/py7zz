@@ -14,6 +14,8 @@ import warnings
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Union
 
+from ._platform_spec import binary_name_for_system
+
 # Python 3.8 compatibility - use string annotation for subprocess.CompletedProcess
 from .archive_info import ArchiveInfo
 from .config import Config, Presets
@@ -37,6 +39,12 @@ from .logging_config import get_logger
 
 # Get logger for this module
 logger = get_logger(__name__)
+
+# Memoized result of the tier-3 auto-download resolution (source installs).
+# Reason: on a warm cache, every run_7z call would otherwise re-read
+# 7zz_version.txt and re-stat the cache entry. Tiers 1 and 2 stay live so
+# PY7ZZ_BINARY changes and bundled wheels are unaffected.
+_cached_downloaded_binary: Optional[str] = None
 
 
 def get_version() -> str:
@@ -82,9 +90,7 @@ def find_7z_binary() -> str:
 
     # Platform-specific binary name but unified location
     system = platform.system().lower()
-    binary_name = "7zz.exe" if system == "windows" else "7zz"
-
-    binary_path = binaries_dir / binary_name
+    binary_path = binaries_dir / binary_name_for_system(system)
 
     if binary_path.exists():
         return str(binary_path)
@@ -93,7 +99,16 @@ def find_7z_binary() -> str:
     # Reason: air-gapped/CI users can opt out to avoid a ~30s network hang.
     # Only explicit truthy values disable auto-download, so PY7ZZ_NO_AUTODOWNLOAD=0
     # (or "false") leaves it enabled rather than disabling on any non-empty value.
+    global _cached_downloaded_binary
     if not _autodownload_disabled():
+        # Reason: the memo lives INSIDE the opt-out gate so setting
+        # PY7ZZ_NO_AUTODOWNLOAD mid-process disables this tier exactly as it
+        # did before memoization was added.
+        if (
+            _cached_downloaded_binary is not None
+            and Path(_cached_downloaded_binary).exists()
+        ):
+            return _cached_downloaded_binary
         try:
             # Local import keeps the updater off the import path for the common
             # bundled-wheel case and avoids any import-time circular dependency.
@@ -101,7 +116,8 @@ def find_7z_binary() -> str:
 
             cached = ensure_7zz_available()
             if cached.exists():
-                return str(cached)
+                _cached_downloaded_binary = str(cached)
+                return _cached_downloaded_binary
         except Exception as e:  # noqa: BLE001
             # Reason: any failure here (no network, extraction error) should fall
             # through to the actionable RuntimeError below, not crash callers.

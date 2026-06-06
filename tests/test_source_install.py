@@ -8,6 +8,7 @@ cover the Windows SFX extraction flow, atomic binary placement, the
 ``core.find_7z_binary`` tier-3 behavior, and the recursion regression guard.
 """
 
+import hashlib
 import io
 import subprocess
 import sys
@@ -20,6 +21,35 @@ import pytest
 
 import py7zz._download as dl
 from py7zz.updater import UpdateError, download_and_extract_binary
+
+
+@pytest.fixture(autouse=True)
+def _reset_tier3_memo():
+    """Reset core's memoized tier-3 binary path between tests.
+
+    Reason: find_7z_binary memoizes the auto-downloaded path at module level;
+    leaked state would let one test's temp path satisfy another test's lookup.
+    """
+    import py7zz.core as core
+
+    core._cached_downloaded_binary = None
+    yield
+    core._cached_downloaded_binary = None
+
+
+def _checksums_for(named_bytes: dict) -> dict:
+    """Build a pinned-checksums mapping for canned asset bytes.
+
+    Args:
+        named_bytes: Mapping of asset name -> bytes the fake download writes.
+
+    Returns:
+        Mapping of asset name -> SHA-256 hex digest, suitable for patching
+        ``read_pinned_checksums`` so live verification passes in tests.
+    """
+    return {
+        name: hashlib.sha256(data).hexdigest() for name, data in named_bytes.items()
+    }
 
 
 def _fake_download_factory(file_contents: dict):
@@ -62,9 +92,8 @@ class TestWindowsExtraction:
         target_dir.mkdir(parents=True)
         binary_path = target_dir / "7zz.exe"
 
-        fake_download = _fake_download_factory(
-            {"7zr.exe": b"BOOTSTRAP", "7z2601-x64.exe": b"SFX"}
-        )
+        canned = {"7zr.exe": b"BOOTSTRAP", "7z2601-x64.exe": b"SFX"}
+        fake_download = _fake_download_factory(canned)
         # Reason: pass the dotted release tag ("26.01"); the dotless asset name
         # ("7z2601-x64.exe") is derived internally by get_asset_name.
         release_tag = "26.01"
@@ -79,7 +108,12 @@ class TestWindowsExtraction:
                 (out_dir / "7z.dll").write_bytes(b"REAL7ZDLL")
             return run_return if run_return is not None else Mock(returncode=0)
 
+        # Reason: checksum verification stays LIVE in these tests; the pinned
+        # digests are simply swapped for the canned bytes' real digests.
         with patch.object(dl, "download_to_file", side_effect=fake_download), patch(
+            "py7zz._download.read_pinned_checksums",
+            return_value=_checksums_for(canned),
+        ), patch(
             "subprocess.run",
             side_effect=run_side_effect if run_side_effect else fake_run,
         ) as mock_run:
@@ -194,7 +228,10 @@ class TestAtomicPlacement:
                 # Copy the in-memory fixture to the requested download dest.
                 dest.write_bytes(fixture_bytes)
 
-            with patch.object(dl, "download_to_file", side_effect=fake_download):
+            with patch.object(dl, "download_to_file", side_effect=fake_download), patch(
+                "py7zz._download.read_pinned_checksums",
+                return_value=_checksums_for({"7z2601-linux-x64.tar.xz": fixture_bytes}),
+            ):
                 result = dl.extract_unix_binary(
                     "26.01", "linux", "x64", target_dir, binary_path
                 )
@@ -218,10 +255,17 @@ class TestAtomicPlacement:
             binary_path = target_dir / "7zz"
 
             # Simulate a download that writes an invalid (non-tar) archive.
-            def fake_download(url: str, dest: Path) -> None:
-                dest.write_bytes(b"not a tar archive")
+            # Reason: its checksum is pinned to match so the failure exercised
+            # here is the tar-extraction error path, not checksum rejection.
+            bad_bytes = b"not a tar archive"
 
-            with patch.object(dl, "download_to_file", side_effect=fake_download):
+            def fake_download(url: str, dest: Path) -> None:
+                dest.write_bytes(bad_bytes)
+
+            with patch.object(dl, "download_to_file", side_effect=fake_download), patch(
+                "py7zz._download.read_pinned_checksums",
+                return_value=_checksums_for({"7z2601-linux-x64.tar.xz": bad_bytes}),
+            ):
                 with pytest.raises(UpdateError):
                     dl.extract_unix_binary(
                         "2601", "linux", "x64", target_dir, binary_path
@@ -311,6 +355,79 @@ class TestCoreTier3:
             ):
                 with pytest.raises(RuntimeError, match="pip install py7zz"):
                     core.find_7z_binary()
+
+    def test_auto_download_result_is_memoized(self) -> None:
+        """Test the tier-3 resolution runs once per process on a warm cache."""
+        import py7zz.core as core
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cached = Path(tmpdir) / "7zz"
+            cached.touch()
+
+            real_exists = Path.exists
+
+            def selective_exists(self):
+                if str(self) == str(cached):
+                    return real_exists(self)
+                return False
+
+            with patch.dict("os.environ", {}, clear=False) as _env, patch.object(
+                core.Path, "exists", selective_exists
+            ):
+                _env.pop("PY7ZZ_NO_AUTODOWNLOAD", None)
+                _env.pop("PY7ZZ_BINARY", None)
+                with patch(
+                    "py7zz.updater.ensure_7zz_available", return_value=cached
+                ) as mock_ensure:
+                    first = core.find_7z_binary()
+                    second = core.find_7z_binary()
+
+            assert first == second == str(cached)
+            # Reason: the second call must hit the memo, not re-resolve.
+            mock_ensure.assert_called_once()
+
+    def test_memoized_path_revalidated_when_deleted(self) -> None:
+        """Test a stale memoized path (file deleted) triggers re-resolution."""
+        import py7zz.core as core
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cached = Path(tmpdir) / "7zz"
+            cached.touch()
+            core._cached_downloaded_binary = str(cached)
+            cached.unlink()  # the memoized file vanishes
+
+            with patch.dict("os.environ", {}, clear=False) as _env:
+                _env.pop("PY7ZZ_NO_AUTODOWNLOAD", None)
+                _env.pop("PY7ZZ_BINARY", None)
+                with patch.object(core.Path, "exists", return_value=False), patch(
+                    "py7zz.updater.ensure_7zz_available",
+                    side_effect=UpdateError("no network"),
+                ) as mock_ensure:
+                    with pytest.raises(RuntimeError):
+                        core.find_7z_binary()
+            # Reason: a dead memo must fall through to a fresh resolution.
+            mock_ensure.assert_called_once()
+
+    def test_opt_out_overrides_memoized_path(self) -> None:
+        """Test PY7ZZ_NO_AUTODOWNLOAD disables tier 3 even with a warm memo.
+
+        # Reason: the memo lives inside the opt-out gate, so setting the env
+        var mid-process restores the exact pre-memoization behavior.
+        """
+        import py7zz.core as core
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cached = Path(tmpdir) / "7zz"
+            cached.touch()
+            core._cached_downloaded_binary = str(cached)
+
+            with patch.dict(
+                "os.environ", {"PY7ZZ_NO_AUTODOWNLOAD": "1"}, clear=False
+            ) as _env:
+                _env.pop("PY7ZZ_BINARY", None)
+                with patch.object(core.Path, "exists", return_value=False):
+                    with pytest.raises(RuntimeError):
+                        core.find_7z_binary()
 
     def test_opt_out_skips_auto_download(self) -> None:
         """Test PY7ZZ_NO_AUTODOWNLOAD skips ensure_7zz_available entirely."""
@@ -417,7 +534,7 @@ class TestRecursionRegression:
 
         # Force the registry-miss fallback branch.
         with patch.object(bundled_info, "get_version", return_value="9.9.9"), patch(
-            "py7zz.bundled_info._read_pinned_7zz_version", return_value="26.01"
+            "py7zz.bundled_info.read_pinned_7zz_version", return_value="26.01"
         ) as mock_pinned, patch(
             "py7zz.core.find_7z_binary",
             side_effect=AssertionError("must not call find_7z_binary"),

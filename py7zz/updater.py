@@ -1,31 +1,24 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2025 py7zz contributors
-"""Auto-update module for py7zz.
+"""Auto-download module for py7zz.
 
-This module handles automatic downloading and caching of the latest 7zz binaries
-from GitHub releases, with 24-hour caching and platform-specific binary resolution.
+This module resolves the pinned 7zz binary for source installs, downloading
+and caching it from the official GitHub releases on first use. Downloads are
+verified against the SHA-256 checksums pinned in ``py7zz/7zz_checksums.txt``.
 """
 
-import json
-import os
 import platform
 import shutil
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple
+from typing import Optional, Tuple
 
-import requests
-from packaging.version import Version
-
+from ._pinned import read_pinned_7zz_version
+from ._platform_spec import MACHINE_TO_ARCH, PLATFORM_SPECS, SYSTEM_TO_PLATFORM
 from .logging_config import get_logger
 
-# GitHub API configuration
-GITHUB_API_URL = "https://api.github.com/repos/ip7z/7zip/releases"
+# GitHub release download configuration
 GITHUB_RELEASES_URL = "https://github.com/ip7z/7zip/releases/download"
 CACHE_DIR = Path.home() / ".cache" / "py7zz"
-CACHE_TIMEOUT = 24 * 60 * 60  # 24 hours in seconds
-
-# Pinned 7zz version file shipped alongside this module (git-tracked).
-PINNED_VERSION_FILE = Path(__file__).parent / "7zz_version.txt"
 
 logger = get_logger(__name__)
 
@@ -56,19 +49,12 @@ def get_pinned_7zz_version() -> str:
         (find_7z_binary -> get_bundled_7zz_version -> get_version_info ->
         detect_7zz_version -> find_7z_binary).
     """
-    try:
-        version = PINNED_VERSION_FILE.read_text(encoding="utf-8").strip()
-    except OSError as e:
+    version = read_pinned_7zz_version()
+    if version is None:
         raise UpdateError(
-            f"Pinned 7zz version file not found at {PINNED_VERSION_FILE}: {e}"
-        ) from e
-
-    if not version:
-        raise UpdateError(
-            f"Pinned 7zz version file {PINNED_VERSION_FILE} is empty; "
-            "cannot determine which 7zz version to download."
+            f"Pinned 7zz version file at {Path(__file__).parent / '7zz_version.txt'} "
+            "is missing or empty; cannot determine which 7zz version to download."
         )
-
     return version
 
 
@@ -114,19 +100,13 @@ def get_platform_info() -> Tuple[str, str]:
     system = platform.system().lower()
     machine = platform.machine().lower()
 
-    # Map Python platform names to 7zz release naming
-    platform_map = {"darwin": "mac", "linux": "linux", "windows": "windows"}
-
-    # Map architecture names
-    arch_map = {"x86_64": "x64", "amd64": "x64", "arm64": "arm64", "aarch64": "arm64"}
-
-    if system not in platform_map:
+    if system not in SYSTEM_TO_PLATFORM:
         raise UpdateError(f"Unsupported platform: {system}")
 
-    if machine not in arch_map:
+    if machine not in MACHINE_TO_ARCH:
         raise UpdateError(f"Unsupported architecture: {machine}")
 
-    return platform_map[system], arch_map[machine]
+    return SYSTEM_TO_PLATFORM[system], MACHINE_TO_ARCH[machine]
 
 
 def get_asset_name(version: str, platform: str, arch: str) -> str:
@@ -185,51 +165,14 @@ def _is_cache_complete(binary_path: Path, platform: str) -> bool:
         On Windows the binary cannot run without its sibling ``7z.dll``, so a
         lone ``7zz.exe`` (a torn or legacy cache entry) must be treated as a
         miss. # Reason: the exe is published last and acts as the publication
-        marker, so requiring the dll guards against exe-without-dll states.
+        marker, so requiring the extra files guards against torn states.
     """
     if not binary_path.exists():
         return False
-    if platform == "windows":
-        return (binary_path.parent / "7z.dll").exists()
-    return True
-
-
-def get_latest_release(use_cache: bool = True) -> Dict[str, Any]:
-    """Get the latest 7zz release information from GitHub API.
-
-    Args:
-        use_cache: Whether to use cached release information if available.
-
-    Returns:
-        Dictionary containing release information.
-    """
-    cache_file = CACHE_DIR / "latest_release.json"
-
-    # Check cache first
-    if use_cache and cache_file.exists():
-        cache_age = cache_file.stat().st_mtime
-        if (cache_age + CACHE_TIMEOUT) > os.path.getmtime(__file__):
-            try:
-                with open(cache_file) as f:
-                    return json.load(f)  # type: ignore[no-any-return]
-            except (json.JSONDecodeError, OSError):
-                pass  # Fall through to fetch from API
-
-    # Fetch from GitHub API
-    try:
-        response = requests.get(f"{GITHUB_API_URL}/latest", timeout=10)
-        response.raise_for_status()
-        release_data = response.json()
-
-        # Cache the response
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)
-        with open(cache_file, "w") as f:
-            json.dump(release_data, f, indent=2)
-
-        return release_data  # type: ignore[no-any-return]
-
-    except requests.RequestException as e:
-        raise UpdateError(f"Failed to fetch release information: {e}") from e
+    spec = PLATFORM_SPECS.get(platform)
+    if spec is None:
+        return False
+    return all((binary_path.parent / extra).exists() for extra in spec.extra_files)
 
 
 def download_and_extract_binary(
@@ -255,8 +198,9 @@ def download_and_extract_binary(
     # names from this module at its top level.
     from ._download import extract_unix_binary, extract_windows_binary
 
-    binary_name = "7zz.exe" if platform == "windows" else "7zz"
-    target_path = target_dir / binary_name
+    if platform not in PLATFORM_SPECS:
+        raise UpdateError(f"Unsupported platform: {platform}")
+    target_path = target_dir / PLATFORM_SPECS[platform].binary_name
 
     # Skip if the cache entry is complete (Windows also needs the sibling dll).
     if _is_cache_complete(target_path, platform):
@@ -289,7 +233,7 @@ def get_cached_binary(version: str, auto_update: bool = True) -> Optional[Path]:
         ``auto_update`` is ``False``, or if the download/cache is incomplete.
     """
     platform, arch = get_platform_info()
-    binary_name = "7zz.exe" if platform == "windows" else "7zz"
+    spec = PLATFORM_SPECS[platform]
 
     # Reason: the GitHub release tag is dotted ("26.01") for URLs, but the cache
     # dir must be digit-only ("2601") so cleanup_old_versions can sort it. A
@@ -309,9 +253,9 @@ def get_cached_binary(version: str, auto_update: bool = True) -> Optional[Path]:
 
     # Reason: the mac asset is a single universal binary covering x64 and arm64,
     # so a fixed 'universal' arch dir avoids duplicate per-arch downloads.
-    arch_dir_name = "universal" if platform == "mac" else arch
+    arch_dir_name = spec.arch_dir or arch
     arch_dir = CACHE_DIR / cache_tag / f"{platform}-{arch_dir_name}"
-    binary_path = arch_dir / binary_name
+    binary_path = arch_dir / spec.binary_name
 
     # Return cached binary only if the entry is complete for this platform.
     if _is_cache_complete(binary_path, platform):
@@ -331,34 +275,14 @@ def get_cached_binary(version: str, auto_update: bool = True) -> Optional[Path]:
     return None
 
 
-def check_for_updates(current_version: Optional[str] = None) -> Optional[str]:
-    """Check if a newer version of 7zz is available.
-
-    Args:
-        current_version: Current version string, or None to always return latest
-
-    Returns:
-        Latest version string if newer than current, otherwise None.
-    """
-    try:
-        release_data = get_latest_release()
-        latest_version: str = release_data["tag_name"]
-
-        if current_version is None:
-            return latest_version
-
-        # Compare versions
-        if Version(latest_version) > Version(current_version):
-            return latest_version
-
-        return None
-
-    except (UpdateError, ValueError):
-        return None
-
-
 def cleanup_old_versions(keep_count: int = 3) -> None:
     """Clean up old cached versions, keeping only the most recent ones.
+
+    Also removes leftovers from the pre-nested cache layout, which placed the
+    binary directly at ``CACHE_DIR/{ver}/7zz`` instead of inside a
+    ``{platform}-{arch}`` subdirectory. Those flat files are unreachable by
+    the current resolution logic but would otherwise occupy keep slots
+    forever.
 
     Args:
         keep_count: Number of versions to keep
@@ -376,38 +300,17 @@ def cleanup_old_versions(keep_count: int = 3) -> None:
     for old_dir in version_dirs[keep_count:]:
         shutil.rmtree(old_dir, ignore_errors=True)
 
-
-def get_version_from_binary(binary_path: Path) -> Optional[str]:
-    """Extract version string from 7zz binary output.
-
-    Args:
-        binary_path: Path to 7zz binary
-
-    Returns:
-        Version string if extractable, otherwise None.
-    """
-    try:
-        import subprocess
-
-        result = subprocess.run(
-            [str(binary_path), "--help"], capture_output=True, text=True, timeout=5
-        )
-
-        # Parse version from help output
-        for line in result.stdout.splitlines():
-            if "7-Zip" in line and "Igor Pavlov" in line:
-                # Extract version from line like "7-Zip 24.08 (x64) : Copyright (c) 1999-2024 Igor Pavlov"
-                parts = line.split()
-                if len(parts) >= 2:
-                    version_str = parts[1]
-                    # Convert "24.08" to "2408" format
-                    try:
-                        major, minor = version_str.split(".")
-                        return f"{major}{minor.zfill(2)}"
-                    except ValueError:
-                        pass
-
-        return None
-
-    except (subprocess.SubprocessError, OSError):
-        return None
+    # Purge flat-layout orphans from kept versions. Only the known binary
+    # filenames are removed, never subdirectories, so the nested entries and
+    # any in-flight staging directories are untouched.
+    flat_orphan_names = {"7zz", "7zz.exe", "7z.dll"}
+    for version_dir in version_dirs[:keep_count]:
+        for orphan_name in flat_orphan_names:
+            orphan = version_dir / orphan_name
+            try:
+                if orphan.is_file():
+                    orphan.unlink()
+            except OSError:
+                # Reason: cache hygiene is best-effort; a locked or
+                # permission-protected file must not break binary resolution.
+                pass

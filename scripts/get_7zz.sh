@@ -49,12 +49,17 @@ ARCH=""
 OUTPUT_DIR="py7zz/bin"
 BUILD_DIR="build"
 VERSION_FILE="py7zz/7zz_version.txt"
+CHECKSUM_FILE="py7zz/7zz_checksums.txt"
+# Canonical source for checksum refresh; byte-identical to the 7-zip.org
+# mirrors used by BASE_URL (verified), and matches the runtime download URLs.
+GITHUB_RELEASES_URL="https://github.com/ip7z/7zip/releases/download"
 
 # Modes
 MODE_DOWNLOAD="download"
 MODE_DETECT_ONLY="detect"
 MODE_UPDATE_CONFIG="update"
 MODE_GET_CURRENT="get_current"
+MODE_REFRESH_CHECKSUMS="refresh_checksums"
 CURRENT_MODE="$MODE_DOWNLOAD"
 
 # Show help
@@ -75,6 +80,8 @@ Options:
   --detect-latest        Detect latest version from website and exit (prints version)
   --get-current          Print currently configured version from file and exit
   --update-config        Detect latest version, update configuration file, and proceed
+  --refresh-checksums    Download all release assets for the configured (or
+                         --version) 7-Zip version and rewrite $CHECKSUM_FILE
 
   --help, -h             Show this help message
 
@@ -112,6 +119,129 @@ normalize_arch() {
         # Unknown value: echo back unchanged so the caller can reject it.
         *) echo "$raw" ;;
     esac
+}
+
+# Compute the SHA-256 digest of a file, portably across macOS, Linux, and
+# Git Bash on Windows.
+#
+# Args:
+#   $1: File path.
+#
+# Outputs:
+#   The lowercase hex digest on stdout.
+compute_sha256() {
+    local file="$1"
+    if command -v sha256sum &> /dev/null; then
+        sha256sum "$file" | awk '{print $1}'
+    elif command -v shasum &> /dev/null; then
+        shasum -a 256 "$file" | awk '{print $1}'
+    else
+        print_error "No SHA-256 tool found (need sha256sum or shasum)"
+        return 1
+    fi
+}
+
+# Verify a downloaded asset against the pinned checksum file.
+#
+# Fails closed: a missing checksum entry is treated as an error, the same as
+# a digest mismatch. This mirrors the runtime verification in
+# py7zz/_download.py so build-time and runtime share one trust anchor.
+#
+# Args:
+#   $1: Downloaded file path.
+#   $2: Release asset name to look up in $CHECKSUM_FILE.
+verify_asset_checksum() {
+    local file="$1"
+    local asset_name="$2"
+
+    if [ ! -f "$CHECKSUM_FILE" ]; then
+        print_error "Checksum file not found: $CHECKSUM_FILE"
+        return 1
+    fi
+
+    # Exact-match lookup on the asset-name column; '#' comments are skipped.
+    # Reason: sub() strips a trailing CR so a CRLF checkout (Git Bash on
+    # Windows with autocrlf) still matches the asset name.
+    local expected
+    expected=$(awk -v name="$asset_name" '{ sub(/\r$/, "") } $1 !~ /^#/ && $2 == name { print $1; exit }' "$CHECKSUM_FILE")
+    if [ -z "$expected" ]; then
+        print_error "No pinned SHA-256 checksum for $asset_name in $CHECKSUM_FILE"
+        print_error "Run '$0 --refresh-checksums' after bumping the 7zz version."
+        return 1
+    fi
+
+    local actual
+    if ! actual=$(compute_sha256 "$file"); then
+        return 1
+    fi
+
+    if [ "$actual" != "$expected" ]; then
+        print_error "SHA-256 mismatch for $asset_name: expected $expected, got $actual"
+        print_error "The download may be corrupted or tampered with; refusing to use it."
+        return 1
+    fi
+
+    print_status "Checksum verified for $asset_name"
+}
+
+# Regenerate the pinned checksum file for one 7-Zip version.
+#
+# Downloads every release asset py7zz can consume (all platform binaries plus
+# the 7zr.exe runtime bootstrap) from the canonical GitHub release and writes
+# their SHA-256 digests to $CHECKSUM_FILE in sha256sum format.
+#
+# Args:
+#   $1: Dotted 7-Zip version (e.g. "26.01").
+refresh_checksums() {
+    local version="$1"
+    local dotless="${version//./}"
+    local assets=(
+        "7z${dotless}-arm64.exe"
+        "7z${dotless}-linux-arm64.tar.xz"
+        "7z${dotless}-linux-x64.tar.xz"
+        "7z${dotless}-mac.tar.xz"
+        "7z${dotless}-x64.exe"
+        "7zr.exe"
+    )
+
+    local tmpdir
+    tmpdir=$(mktemp -d)
+    local out="${tmpdir}/7zz_checksums.txt"
+
+    # The literals below are written INTO the generated checksum file; the
+    # REUSE-Ignore markers stop the compliance scanner from parsing them as
+    # this script's own (then seemingly duplicated/invalid) SPDX tags.
+    # REUSE-IgnoreStart
+    {
+        echo "# SPDX-License-Identifier: MIT"
+        echo "# SPDX-FileCopyrightText: 2025 py7zz contributors"
+        echo "#"
+        echo "# SHA-256 checksums for the pinned 7-Zip ${version} release assets."
+        echo "# Source: https://github.com/ip7z/7zip/releases/tag/${version}"
+        echo "# (byte-identical to the https://7-zip.org/a/ mirrors)"
+        echo "# Regenerate with: ./scripts/get_7zz.sh --refresh-checksums"
+    } > "$out"
+    # REUSE-IgnoreEnd
+
+    local asset digest
+    for asset in "${assets[@]}"; do
+        local url="${GITHUB_RELEASES_URL}/${version}/${asset}"
+        print_status "Downloading ${asset} for checksum..."
+        if ! curl -fsSL "$url" -o "${tmpdir}/${asset}"; then
+            print_error "Failed to download $url"
+            rm -rf "$tmpdir"
+            return 1
+        fi
+        if ! digest=$(compute_sha256 "${tmpdir}/${asset}"); then
+            rm -rf "$tmpdir"
+            return 1
+        fi
+        echo "${digest}  ${asset}" >> "$out"
+    done
+
+    cp "$out" "$CHECKSUM_FILE"
+    rm -rf "$tmpdir"
+    print_success "Updated $CHECKSUM_FILE for 7-Zip $version"
 }
 
 # Auto-detect platform and architecture
@@ -218,6 +348,10 @@ download_macos_universal2() {
         return 1
     fi
 
+    if ! verify_asset_checksum "$archive" "7z${version_str}-mac.tar.xz"; then
+        return 1
+    fi
+
     print_status "Extracting macOS universal2..."
     if ! tar -xf "$archive" -C "$extract_dir"; then
         print_error "Failed to extract macOS universal2 archive"
@@ -265,6 +399,10 @@ download_linux() {
         return 1
     fi
 
+    if ! verify_asset_checksum "$archive" "7z${version_str}-linux-${asset_arch}.tar.xz"; then
+        return 1
+    fi
+
     print_status "Extracting Linux ${target_arch}..."
     if ! tar -xf "$archive" -C "$extract_dir"; then
         print_error "Failed to extract Linux archive"
@@ -309,6 +447,10 @@ download_windows() {
     print_status "Downloading Windows ${target_arch} from: $url"
     if ! curl -fsSL "$url" -o "$archive"; then
         print_error "Failed to download Windows ${target_arch} version"
+        return 1
+    fi
+
+    if ! verify_asset_checksum "$archive" "7z${version_str}-${asset_arch}.exe"; then
         return 1
     fi
 
@@ -509,6 +651,10 @@ while [[ $# -gt 0 ]]; do
             CURRENT_MODE="$MODE_UPDATE_CONFIG"
             shift
             ;;
+        --refresh-checksums)
+            CURRENT_MODE="$MODE_REFRESH_CHECKSUMS"
+            shift
+            ;;
         --output)
             OUTPUT_DIR="$2"
             shift 2
@@ -553,12 +699,36 @@ if [ "$CURRENT_MODE" == "$MODE_GET_CURRENT" ]; then
     fi
 fi
 
-# 3. Update Config Mode
+# 3. Refresh Checksums Mode
+if [ "$CURRENT_MODE" == "$MODE_REFRESH_CHECKSUMS" ]; then
+    if [ -z "$SEVEN_ZIP_VERSION" ]; then
+        if ! SEVEN_ZIP_VERSION=$(read_version_file); then
+            print_error "Configuration file not found: $VERSION_FILE (or pass --version)"
+            exit 1
+        fi
+    fi
+    if refresh_checksums "$SEVEN_ZIP_VERSION"; then
+        exit 0
+    else
+        print_error "Checksum refresh failed"
+        exit 1
+    fi
+fi
+
+# 4. Update Config Mode
 if [ "$CURRENT_MODE" == "$MODE_UPDATE_CONFIG" ]; then
     print_status "Checking for updates..."
     if detected_version=$(detect_latest_version_online); then
         print_status "Detected version: $detected_version"
         write_version_file "$detected_version"
+
+        # Reason: the download below verifies against the pinned checksums, so
+        # they must be refreshed for the new version first or verification
+        # would deterministically fail with the previous release's entries.
+        if ! refresh_checksums "$detected_version"; then
+            print_error "Checksum refresh failed for $detected_version"
+            exit 1
+        fi
 
         # Set version for download
         SEVEN_ZIP_VERSION="$detected_version"
@@ -570,7 +740,7 @@ if [ "$CURRENT_MODE" == "$MODE_UPDATE_CONFIG" ]; then
     fi
 fi
 
-# 4. Download Mode (Default)
+# 5. Download Mode (Default)
 if [ -z "$SEVEN_ZIP_VERSION" ]; then
     # Try to read from file first
     print_status "Checking configured version..."
