@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Source Install Support**: py7zz now works when installed from source (e.g., `pip install git+...`). On first use, the version-pinned 7zz binary is automatically downloaded to `~/.cache/py7zz/` on all supported platforms (Windows x64/ARM64, macOS, Linux x86_64/ARM64). Set `PY7ZZ_NO_AUTODOWNLOAD=1` to opt out in air-gapped or CI environments.
+
+### Fixed
+- **Windows Auto-Download**: The Windows auto-download path previously stored the raw SFX installer file instead of extracting the actual `7z.exe` and `7z.dll` binaries, making the cached entry unusable. The binary is now correctly extracted before caching.
+
 ## [1.2.0] - 2026-06-06
 
 ### Added

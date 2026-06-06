@@ -46,6 +46,21 @@ def get_version() -> str:
     return _get_version()
 
 
+def _autodownload_disabled() -> bool:
+    """Return whether source-install auto-download is disabled via env var.
+
+    Auto-download is disabled only when ``PY7ZZ_NO_AUTODOWNLOAD`` is set to an
+    explicit truthy value (``"1"``, ``"true"``, ``"yes"``, ``"on"``,
+    case-insensitive). Unset, empty, or falsey values (e.g. ``"0"``,
+    ``"false"``) leave auto-download enabled.
+
+    Returns:
+        ``True`` if auto-download should be skipped, otherwise ``False``.
+    """
+    value = os.environ.get("PY7ZZ_NO_AUTODOWNLOAD", "")
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def find_7z_binary() -> str:
     """
     Find 7zz binary in order of preference:
@@ -74,15 +89,31 @@ def find_7z_binary() -> str:
     if binary_path.exists():
         return str(binary_path)
 
-    # Auto-download binary for source installs
-    # Skip auto-download to prevent circular dependency with bundled_info
-    # This feature requires manual version specification to avoid loops
+    # Tier 3: auto-download binary for source installs (pip install git+...).
+    # Reason: air-gapped/CI users can opt out to avoid a ~30s network hang.
+    # Only explicit truthy values disable auto-download, so PY7ZZ_NO_AUTODOWNLOAD=0
+    # (or "false") leaves it enabled rather than disabling on any non-empty value.
+    if not _autodownload_disabled():
+        try:
+            # Local import keeps the updater off the import path for the common
+            # bundled-wheel case and avoids any import-time circular dependency.
+            from .updater import ensure_7zz_available
+
+            cached = ensure_7zz_available()
+            if cached.exists():
+                return str(cached)
+        except Exception as e:  # noqa: BLE001
+            # Reason: any failure here (no network, extraction error) should fall
+            # through to the actionable RuntimeError below, not crash callers.
+            logger.warning(f"Auto-download of 7zz binary failed: {e}")
 
     raise RuntimeError(
         "7zz binary not found. Please either:\n"
-        "1. Ensure internet connection for auto-download (source installs)\n"
-        "2. Set PY7ZZ_BINARY environment variable to point to your 7zz binary\n"
-        "3. Check that the binary was properly bundled during build process"
+        "1. Install a bundled wheel with 'pip install py7zz' (ships 7zz)\n"
+        "2. Set the PY7ZZ_BINARY environment variable to point to your 7zz binary\n"
+        "3. Ensure internet access so py7zz can auto-download 7zz for source "
+        "installs (auto-download was attempted and failed, or was disabled via "
+        "PY7ZZ_NO_AUTODOWNLOAD)"
     )
 
 

@@ -10,13 +10,13 @@ import json
 import os
 import platform
 import shutil
-import tarfile
-import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
 import requests
 from packaging.version import Version
+
+from .logging_config import get_logger
 
 # GitHub API configuration
 GITHUB_API_URL = "https://api.github.com/repos/ip7z/7zip/releases"
@@ -24,11 +24,85 @@ GITHUB_RELEASES_URL = "https://github.com/ip7z/7zip/releases/download"
 CACHE_DIR = Path.home() / ".cache" / "py7zz"
 CACHE_TIMEOUT = 24 * 60 * 60  # 24 hours in seconds
 
+# Pinned 7zz version file shipped alongside this module (git-tracked).
+PINNED_VERSION_FILE = Path(__file__).parent / "7zz_version.txt"
+
+logger = get_logger(__name__)
+
 
 class UpdateError(Exception):
     """Raised when update operations fail."""
 
     pass
+
+
+def get_pinned_7zz_version() -> str:
+    """Read the 7zz version pinned for this py7zz build.
+
+    The version is read from ``py7zz/7zz_version.txt`` (e.g. ``"26.01"``), a
+    git-tracked file shipped in both wheel and sdist distributions. This is the
+    single source of truth for the auto-download tier.
+
+    Returns:
+        Pinned 7zz version string in dotted form (e.g. ``"26.01"``).
+
+    Raises:
+        UpdateError: If the version file is missing or empty.
+
+    Note:
+        This function intentionally avoids importing ``bundled_info`` or any
+        binary-version detection. # Reason: the auto-download path must not
+        re-enter find_7z_binary, which previously caused a recursion loop
+        (find_7z_binary -> get_bundled_7zz_version -> get_version_info ->
+        detect_7zz_version -> find_7z_binary).
+    """
+    try:
+        version = PINNED_VERSION_FILE.read_text(encoding="utf-8").strip()
+    except OSError as e:
+        raise UpdateError(
+            f"Pinned 7zz version file not found at {PINNED_VERSION_FILE}: {e}"
+        ) from e
+
+    if not version:
+        raise UpdateError(
+            f"Pinned 7zz version file {PINNED_VERSION_FILE} is empty; "
+            "cannot determine which 7zz version to download."
+        )
+
+    return version
+
+
+def ensure_7zz_available() -> Path:
+    """Ensure a runnable 7zz binary is available, downloading it if needed.
+
+    This is the entry point for the auto-download tier used by source installs.
+    It reads the pinned 7zz version (dotted form, e.g. ``"26.01"``) and resolves
+    a cached binary, downloading and extracting it on a cache miss.
+
+    Returns:
+        Path to a ready-to-run 7zz binary in the per-user cache.
+
+    Raises:
+        UpdateError: If the pinned version cannot be read, or the binary cannot
+            be downloaded/extracted.
+
+    Note:
+        The pinned version is threaded through downstream helpers in its dotted
+        form. # Reason: the official ip7z/7zip release TAG used in download URLs
+        is dotted ("26.01"); asset names are dotless ("7z2601-...") and are
+        normalized only where filenames are built (get_asset_name).
+    """
+    pinned_version = get_pinned_7zz_version()
+
+    binary_path = get_cached_binary(pinned_version, auto_update=True)
+    if binary_path is None or not binary_path.exists():
+        raise UpdateError(
+            f"Failed to obtain 7zz {pinned_version} via auto-download. "
+            "Install a bundled wheel with 'pip install py7zz', or set "
+            "PY7ZZ_BINARY to point at a working 7zz binary."
+        )
+
+    return binary_path
 
 
 def get_platform_info() -> Tuple[str, str]:
@@ -95,6 +169,31 @@ def get_asset_name(version: str, platform: str, arch: str) -> str:
         raise UpdateError(f"Unsupported platform: {platform}")
 
 
+def _is_cache_complete(binary_path: Path, platform: str) -> bool:
+    """Check whether a cached binary entry is complete and runnable.
+
+    Args:
+        binary_path: Final path of the cached 7zz binary (``7zz`` or
+            ``7zz.exe``).
+        platform: Platform name (``"mac"``, ``"linux"``, ``"windows"``).
+
+    Returns:
+        ``True`` if the cache entry is complete for the platform, else
+        ``False``.
+
+    Note:
+        On Windows the binary cannot run without its sibling ``7z.dll``, so a
+        lone ``7zz.exe`` (a torn or legacy cache entry) must be treated as a
+        miss. # Reason: the exe is published last and acts as the publication
+        marker, so requiring the dll guards against exe-without-dll states.
+    """
+    if not binary_path.exists():
+        return False
+    if platform == "windows":
+        return (binary_path.parent / "7z.dll").exists()
+    return True
+
+
 def get_latest_release(use_cache: bool = True) -> Dict[str, Any]:
     """Get the latest 7zz release information from GitHub API.
 
@@ -134,106 +233,99 @@ def get_latest_release(use_cache: bool = True) -> Dict[str, Any]:
 
 
 def download_and_extract_binary(
-    version: str, platform: str, arch: str, target_dir: Path
+    release_tag: str, platform: str, arch: str, target_dir: Path
 ) -> Path:
-    """Download and extract 7zz binary for specified version and platform.
+    """Download and extract the 7zz binary for a version and platform.
 
     Args:
-        version: 7zz version string
-        platform: Platform name
-        arch: Architecture
-        target_dir: Directory to extract binary to
+        release_tag: GitHub release tag in dotted form (e.g. ``"26.01"``).
+            This is the URL path segment; asset names are normalized to the
+            dotless form internally.
+        platform: Platform name (``"mac"``, ``"linux"``, ``"windows"``).
+        arch: Architecture (``"x64"``, ``"arm64"``).
+        target_dir: Per-arch cache directory to place the binary in.
 
     Returns:
-        Path to the extracted binary.
+        Path to the ready-to-run 7zz binary.
+
+    Raises:
+        UpdateError: If the binary cannot be downloaded or extracted.
     """
-    asset_name = get_asset_name(version, platform, arch)
-    download_url = f"{GITHUB_RELEASES_URL}/{version}/{asset_name}"
+    # Reason: local import avoids a circular import, since _download imports
+    # names from this module at its top level.
+    from ._download import extract_unix_binary, extract_windows_binary
 
     binary_name = "7zz.exe" if platform == "windows" else "7zz"
     target_path = target_dir / binary_name
 
-    # Skip if already exists
-    if target_path.exists():
+    # Skip if the cache entry is complete (Windows also needs the sibling dll).
+    if _is_cache_complete(target_path, platform):
         return target_path
 
     target_dir.mkdir(parents=True, exist_ok=True)
 
-    try:
-        # Download asset
-        response = requests.get(download_url, timeout=30, stream=True)
-        response.raise_for_status()
-
-        if platform == "windows":
-            # NOTE: the official Windows .exe asset is a 7z SFX installer, not a
-            # standalone CLI binary, so saving it as 7zz.exe yields a non-working
-            # binary. This module is currently disconnected from runtime (see
-            # core.find_7z_binary); fixing the Windows extraction is tracked for
-            # the updater-reconnection work and is intentionally out of scope here.
-            with open(target_path, "wb") as f:
-                for chunk in response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-        else:
-            # Unix tar.xz file - extract binary
-            with tempfile.NamedTemporaryFile(
-                suffix=".tar.xz", delete=False
-            ) as tmp_file:
-                for chunk in response.iter_content(chunk_size=8192):
-                    tmp_file.write(chunk)
-                tmp_file.flush()
-
-                # Extract 7zz binary from tar.xz
-                with tarfile.open(tmp_file.name, "r:xz") as tar:
-                    # Find the 7zz binary in the archive
-                    for member in tar.getmembers():
-                        if member.name.endswith("/7zz") or member.name == "7zz":
-                            src = tar.extractfile(member)
-                            if src is not None:
-                                with src, open(target_path, "wb") as dst:
-                                    shutil.copyfileobj(src, dst)
-                            break
-                    else:
-                        raise UpdateError(f"Could not find 7zz binary in {asset_name}")
-
-                # Clean up temporary file
-                os.unlink(tmp_file.name)
-
-        # Make binary executable
-        target_path.chmod(0o755)
-
-        return target_path
-
-    except requests.RequestException as e:
-        raise UpdateError(f"Failed to download {asset_name}: {e}") from e
-    except (tarfile.TarError, OSError) as e:
-        raise UpdateError(f"Failed to extract {asset_name}: {e}") from e
+    if platform == "windows":
+        return extract_windows_binary(release_tag, arch, target_dir, target_path)
+    return extract_unix_binary(release_tag, platform, arch, target_dir, target_path)
 
 
 def get_cached_binary(version: str, auto_update: bool = True) -> Optional[Path]:
-    """Get cached binary for specified version, downloading if necessary.
+    """Get the cached 7zz binary for a version, downloading if necessary.
+
+    The cache layout is ``CACHE_DIR/{tag}/{platform}-{arch}/{binary_name}``,
+    where ``{tag}`` is the dotless, digit-only form (e.g. ``2601``) so the
+    pruning logic in ``cleanup_old_versions`` can sort versions numerically.
+    For macOS the official asset is a universal binary, so the literal arch
+    directory ``universal`` is used (``.../mac-universal/``).
 
     Args:
-        version: 7zz version string
-        auto_update: Whether to automatically download if not cached
+        version: 7zz version string, dotted (``"26.01"``) or dotless
+            (``"2601"``). The dotted form is used as the GitHub release tag for
+            download URLs; the dotless form names the cache directory.
+        auto_update: Whether to download the binary on a cache miss.
 
     Returns:
-        Path to cached binary, or None if not available and auto_update is False.
+        Path to the cached binary, or ``None`` if not available and
+        ``auto_update`` is ``False``, or if the download/cache is incomplete.
     """
     platform, arch = get_platform_info()
     binary_name = "7zz.exe" if platform == "windows" else "7zz"
 
-    version_dir = CACHE_DIR / version
-    binary_path = version_dir / binary_name
+    # Reason: the GitHub release tag is dotted ("26.01") for URLs, but the cache
+    # dir must be digit-only ("2601") so cleanup_old_versions can sort it. A
+    # dotless input is converted back to the dotted tag (the 7-Zip version
+    # format is always MAJOR.MINOR with two digits each); anything else would
+    # build a 404 download URL, so reject it early.
+    if "." in version:
+        release_tag = version
+    elif len(version) == 4 and version.isdigit():
+        release_tag = f"{version[:2]}.{version[2:]}"
+    else:
+        raise UpdateError(
+            f"Unrecognized 7zz version format: {version!r} "
+            '(expected dotted "26.01" or dotless "2601")'
+        )
+    cache_tag = release_tag.replace(".", "")
 
-    # Return cached binary if it exists
-    if binary_path.exists():
+    # Reason: the mac asset is a single universal binary covering x64 and arm64,
+    # so a fixed 'universal' arch dir avoids duplicate per-arch downloads.
+    arch_dir_name = "universal" if platform == "mac" else arch
+    arch_dir = CACHE_DIR / cache_tag / f"{platform}-{arch_dir_name}"
+    binary_path = arch_dir / binary_name
+
+    # Return cached binary only if the entry is complete for this platform.
+    if _is_cache_complete(binary_path, platform):
         return binary_path
 
-    # Download if auto_update is enabled
     if auto_update:
         try:
-            return download_and_extract_binary(version, platform, arch, version_dir)
-        except UpdateError:
+            result = download_and_extract_binary(release_tag, platform, arch, arch_dir)
+            # Reason: prune stale versions only after a successful download so a
+            # transient network failure never deletes a usable cached binary.
+            cleanup_old_versions(keep_count=3)
+            return result
+        except UpdateError as e:
+            logger.warning(f"Auto-download of 7zz {version} failed: {e}")
             return None
 
     return None
