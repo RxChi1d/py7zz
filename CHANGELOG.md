@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-06-06
+
 ### Added
 - **ARM64 Wheel Support**: Native wheels for Linux ARM64 and Windows ARM64 (Windows ARM64 requires Python 3.11+).
 - **7zz Version Detection**: Automatically tracks and reports bundled 7zz version changes in release notes.
@@ -23,6 +25,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - **Development Dependencies**: Removed unused `pyyaml` and `zstandard` packages and obsolete documentation.
+
+## [1.2.0a1] - 2026-06-06
+
+### Added
+- Pre-release validating the ARM64 release pipeline end to end: native Linux and Windows ARM64 wheels built, verified, and published alongside the existing platforms.
+
+## [1.1.4] - 2026-04-28
+
+### Changed
+- **Bundled 7-Zip**: Updated bundled 7zz from 26.00 to 26.01.
+
+## [1.1.3] - 2026-02-16
+
+### Changed
+- **Bundled 7-Zip**: Updated bundled 7zz to 26.00.
+- **Release Automation**: Tag creation moved to a dedicated owner-triggered workflow for more reliable release runs.
 
 ## [1.1.2] - 2025-12-13
 
@@ -136,7 +154,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/rxchi1d/py7zz/compare/v1.1.4...v1.2.0
+[1.2.0a1]: https://github.com/rxchi1d/py7zz/compare/v1.1.4...v1.2.0a1
+[1.1.4]: https://github.com/rxchi1d/py7zz/compare/v1.1.3...v1.1.4
+[1.1.3]: https://github.com/rxchi1d/py7zz/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/rxchi1d/py7zz/compare/v1.1.1...v1.1.2
 [1.1.1]: https://github.com/rxchi1d/py7zz/compare/v1.1.0...v1.1.1
 [1.1.0]: https://github.com/rxchi1d/py7zz/compare/v1.0.0...v1.1.0
