@@ -5,6 +5,10 @@
 requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
+# Reason: no explicit sdist include list. hatchling's default sdist ships all
+# git-tracked files (including py7zz/7zz_version.txt, tests/, CHANGELOG.md, docs,
+# and REUSE files); an explicit include list would silently drop them.
+
 [tool.hatch.build.targets.wheel]
 packages = ["py7zz"]
 # Include all files in py7zz package (including bin/ directory)

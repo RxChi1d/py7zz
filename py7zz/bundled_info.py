@@ -9,9 +9,28 @@ supporting the new PEP 440 compliant version system.
 
 import re
 import subprocess
-from typing import Dict, Union
+from pathlib import Path
+from typing import Dict, Optional, Union
 
 from .version import get_version, get_version_type
+
+# Pinned 7zz version file shipped alongside this module (git-tracked).
+_PINNED_VERSION_FILE = Path(__file__).parent / "7zz_version.txt"
+
+
+def _read_pinned_7zz_version() -> Optional[str]:
+    """Read the pinned 7zz version from the git-tracked version file.
+
+    Returns:
+        The dotted 7zz version string (e.g. ``"26.01"``), or ``None`` if the
+        file is missing, empty, or unreadable.
+    """
+    try:
+        version = _PINNED_VERSION_FILE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    return version or None
+
 
 # Version registry containing all version information
 VERSION_REGISTRY: Dict[str, Dict[str, Union[str, None]]] = {
@@ -104,14 +123,19 @@ def get_version_info() -> Dict[str, Union[str, None]]:
     # Use hybrid approach: registry first, then auto-detection
     bundled_7zz_version = info.get("7zz_version")
     if bundled_7zz_version is None:
-        # Not in registry, try auto-detection
-        try:
-            from .core import find_7z_binary
+        # Defense-in-depth: read the pinned version file first to avoid invoking
+        # find_7z_binary (which may itself trigger an auto-download). Only fall
+        # back to binary auto-detection when the file is absent.
+        # Reason: the version file is the cheap, side-effect-free source of truth.
+        bundled_7zz_version = _read_pinned_7zz_version()
+        if bundled_7zz_version is None:
+            try:
+                from .core import find_7z_binary
 
-            binary_path = find_7z_binary()
-            bundled_7zz_version = detect_7zz_version(binary_path)
-        except Exception:
-            bundled_7zz_version = "unknown"
+                binary_path = find_7z_binary()
+                bundled_7zz_version = detect_7zz_version(binary_path)
+            except Exception:
+                bundled_7zz_version = "unknown"
 
     # Determine release type: prefer registry, otherwise derive from version string
     release_type = info.get("release_type")
