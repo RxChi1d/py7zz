@@ -408,6 +408,27 @@ class TestCoreTier3:
             # Reason: a dead memo must fall through to a fresh resolution.
             mock_ensure.assert_called_once()
 
+    def test_opt_out_overrides_memoized_path(self) -> None:
+        """Test PY7ZZ_NO_AUTODOWNLOAD disables tier 3 even with a warm memo.
+
+        # Reason: the memo lives inside the opt-out gate, so setting the env
+        var mid-process restores the exact pre-memoization behavior.
+        """
+        import py7zz.core as core
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            cached = Path(tmpdir) / "7zz"
+            cached.touch()
+            core._cached_downloaded_binary = str(cached)
+
+            with patch.dict(
+                "os.environ", {"PY7ZZ_NO_AUTODOWNLOAD": "1"}, clear=False
+            ) as _env:
+                _env.pop("PY7ZZ_BINARY", None)
+                with patch.object(core.Path, "exists", return_value=False):
+                    with pytest.raises(RuntimeError):
+                        core.find_7z_binary()
+
     def test_opt_out_skips_auto_download(self) -> None:
         """Test PY7ZZ_NO_AUTODOWNLOAD skips ensure_7zz_available entirely."""
         import py7zz.core as core

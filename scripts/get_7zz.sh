@@ -160,8 +160,10 @@ verify_asset_checksum() {
     fi
 
     # Exact-match lookup on the asset-name column; '#' comments are skipped.
+    # Reason: sub() strips a trailing CR so a CRLF checkout (Git Bash on
+    # Windows with autocrlf) still matches the asset name.
     local expected
-    expected=$(awk -v name="$asset_name" '$1 !~ /^#/ && $2 == name {print $1; exit}' "$CHECKSUM_FILE")
+    expected=$(awk -v name="$asset_name" '{ sub(/\r$/, "") } $1 !~ /^#/ && $2 == name { print $1; exit }' "$CHECKSUM_FILE")
     if [ -z "$expected" ]; then
         print_error "No pinned SHA-256 checksum for $asset_name in $CHECKSUM_FILE"
         print_error "Run '$0 --refresh-checksums' after bumping the 7zz version."
@@ -711,6 +713,14 @@ if [ "$CURRENT_MODE" == "$MODE_UPDATE_CONFIG" ]; then
     if detected_version=$(detect_latest_version_online); then
         print_status "Detected version: $detected_version"
         write_version_file "$detected_version"
+
+        # Reason: the download below verifies against the pinned checksums, so
+        # they must be refreshed for the new version first or verification
+        # would deterministically fail with the previous release's entries.
+        if ! refresh_checksums "$detected_version"; then
+            print_error "Checksum refresh failed for $detected_version"
+            exit 1
+        fi
 
         # Set version for download
         SEVEN_ZIP_VERSION="$detected_version"

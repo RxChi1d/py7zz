@@ -100,12 +100,15 @@ def find_7z_binary() -> str:
     # Only explicit truthy values disable auto-download, so PY7ZZ_NO_AUTODOWNLOAD=0
     # (or "false") leaves it enabled rather than disabling on any non-empty value.
     global _cached_downloaded_binary
-    if (
-        _cached_downloaded_binary is not None
-        and Path(_cached_downloaded_binary).exists()
-    ):
-        return _cached_downloaded_binary
     if not _autodownload_disabled():
+        # Reason: the memo lives INSIDE the opt-out gate so setting
+        # PY7ZZ_NO_AUTODOWNLOAD mid-process disables this tier exactly as it
+        # did before memoization was added.
+        if (
+            _cached_downloaded_binary is not None
+            and Path(_cached_downloaded_binary).exists()
+        ):
+            return _cached_downloaded_binary
         try:
             # Local import keeps the updater off the import path for the common
             # bundled-wheel case and avoids any import-time circular dependency.
