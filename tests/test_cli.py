@@ -70,9 +70,12 @@ class TestPassThrough:
 
     def test_passthrough_does_not_raise_unbound_os(self, capsys) -> None:
         """Test pass-through never hits the unbound-local 'os' error."""
+        # Reason: force the POSIX branch so the test exercises the same code
+        # path on every CI platform; Windows would otherwise spawn a real
+        # subprocess against the fake binary path.
         with patch.object(sys, "argv", ["py7zz", "l", "x.7z"]), patch(
             "py7zz.cli.find_7z_binary", return_value="/fake/7zz"
-        ), patch.object(cli.os, "execv"):
+        ), patch.object(cli.os, "name", "posix"), patch.object(cli.os, "execv"):
             cli.main()
         err = capsys.readouterr().err
         assert "local variable 'os'" not in err
