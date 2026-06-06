@@ -10,6 +10,7 @@ cover the Windows SFX extraction flow, atomic binary placement, the
 
 import io
 import subprocess
+import sys
 import tarfile
 import tempfile
 from pathlib import Path
@@ -168,7 +169,10 @@ class TestAtomicPlacement:
             dl.atomic_place(src, target, mode=0o755)
 
             assert target.exists()
-            assert (target.stat().st_mode & 0o777) == 0o755
+            # Reason: Windows has no POSIX permission bits; chmod is a no-op
+            # there, so only assert the executable mode on POSIX platforms.
+            if sys.platform != "win32":
+                assert (target.stat().st_mode & 0o777) == 0o755
 
     def test_unix_extraction_happy_path_places_executable(self) -> None:
         """Test a real tar.xz containing 7zz lands at target with mode 0o755."""
@@ -198,7 +202,10 @@ class TestAtomicPlacement:
             assert result == binary_path
             assert binary_path.exists()
             assert binary_path.read_bytes() == payload
-            assert (binary_path.stat().st_mode & 0o777) == 0o755
+            # Reason: Windows has no POSIX permission bits; chmod is a no-op
+            # there, so only assert the executable mode on POSIX platforms.
+            if sys.platform != "win32":
+                assert (binary_path.stat().st_mode & 0o777) == 0o755
             # Only the published binary remains; temp staging is cleaned up.
             assert sorted(p.name for p in target_dir.iterdir()) == ["7zz"]
 
