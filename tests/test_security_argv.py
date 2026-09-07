@@ -10,6 +10,7 @@ keep archive passwords out of error messages.
 
 import contextlib
 import subprocess
+import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -17,6 +18,7 @@ import pytest
 
 from py7zz.core import SevenZipFile, find_7z_binary, run_7z
 from py7zz.exceptions import SecurityError
+from py7zz.filename_sanitizer import is_windows
 from py7zz.security import (
     build_7z_args,
     ensure_within_directory,
@@ -82,8 +84,6 @@ class TestValidateMemberPath:
             "dir/..",
             "..",
             "/etc/passwd",
-            "C:/Windows/System32/evil.dll",
-            "D:x",
             "//server/share/evil.txt",
             "\\\\server\\share\\evil.txt",
             "\\windows\\evil.txt",
@@ -109,6 +109,23 @@ class TestValidateMemberPath:
     )
     def test_accepts_ordinary_names(self, name):
         """Relative names, including ones that merely contain dots, pass."""
+        validate_member_path(name)
+
+    @pytest.mark.skipif(
+        not is_windows(), reason="drive prefixes only escape a path join on Windows"
+    )
+    @pytest.mark.parametrize("name", ["C:/Windows/System32/evil.dll", "D:x"])
+    def test_rejects_drive_prefixes_on_windows(self, name):
+        """A Windows drive prefix escapes the join and is refused there."""
+        with pytest.raises(SecurityError):
+            validate_member_path(name)
+
+    @pytest.mark.skipif(
+        is_windows(), reason="a colon is an ordinary filename character on POSIX"
+    )
+    @pytest.mark.parametrize("name", ["a:b.txt", "12:30.log", "dir/a:b.txt"])
+    def test_accepts_colon_names_off_windows(self, name):
+        """A colon in a POSIX name cannot escape the join, so it is allowed."""
         validate_member_path(name)
 
     def test_error_names_the_parameter(self):
@@ -353,6 +370,57 @@ class TestRealArchiveRegressions:
                 sz.read(name)
 
         assert victim.read_text() == "HOST-CONTENT"
+
+    def test_setpassword_encrypts_a_written_archive(self, tmp_path):
+        """setpassword() must reach the add path, not only the read path."""
+        _binary_or_skip()
+
+        source = tmp_path / "s.txt"
+        source.write_text("secret-payload")
+        archive = tmp_path / "encrypted.7z"
+
+        with SevenZipFile(archive, "w") as writer:
+            writer.setpassword(b"pw123")
+            writer.add(source, arcname="s.txt")
+
+        with SevenZipFile(archive, "r") as reader:
+            reader.setpassword(b"pw123")
+            assert reader.read("s.txt") == b"secret-payload"
+
+        # Without the password the member must not be readable
+        with SevenZipFile(archive, "r") as reader:
+            with pytest.raises(Exception):  # noqa: B017 - 7zz reports its own error
+                reader.read("s.txt")
+
+    def test_setpassword_rejects_non_utf8_bytes(self, tmp_path):
+        """A password that cannot be decoded is refused instead of mangled."""
+        sz = SevenZipFile(tmp_path / "archive.7z", "w")
+
+        with pytest.raises(ValueError):
+            sz.setpassword(b"\xff\xfe")
+
+    def test_individual_extraction_writes_the_member_content(self, tmp_path):
+        """The sanitization fallback must move the member, not a placeholder."""
+        _binary_or_skip()
+
+        staging = tmp_path / "staging" / "sub"
+        staging.mkdir(parents=True)
+        probe_name = "py7zz_probe_member.txt"
+        (staging / probe_name).write_text("REAL-CONTENT")
+
+        archive = tmp_path / "archive.7z"
+        with SevenZipFile(archive, "w") as writer:
+            writer.add(staging / probe_name, arcname=f"sub/{probe_name}")
+
+        target = tmp_path / "out"
+        sz = SevenZipFile(archive, "r")
+        sz._extract_files_individually(
+            target, {f"sub/{probe_name}": "sanitized.txt"}, True
+        )
+
+        assert (target / "sanitized.txt").read_text() == "REAL-CONTENT"
+        # The member must not be flattened into the shared temporary directory
+        assert not (Path(tempfile.gettempdir()) / probe_name).exists()
 
     def test_absolute_member_reads_the_extracted_copy(self, tmp_path):
         """read() must return archived bytes, never the host file's bytes."""

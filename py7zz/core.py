@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import warnings
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Union
 
@@ -730,6 +731,62 @@ class SevenZipFile:
                 shutil.move(str(source_file), str(target_file))
                 logger.debug(f"Moved {source_file} to {target_file}")
 
+    def _extract_member_to(
+        self, member_name: str, final_path: Path, overwrite: bool
+    ) -> bool:
+        """
+        Extract a single member into a private directory and move it into place.
+
+        Args:
+            member_name: Member name as stored in the archive
+            final_path: Destination path for the extracted file
+            overwrite: Whether to replace an existing destination file
+
+        Returns:
+            True if the member was extracted, False if an existing destination
+            file was kept
+
+        Raises:
+            subprocess.CalledProcessError: If 7zz could not extract the member
+            FileNotFoundError: If 7zz reported success but produced no single file
+        """
+        with tempfile.TemporaryDirectory() as extract_dir:
+            extract_path = Path(extract_dir)
+
+            # Reason: the "e" command flattens the member into the output
+            # directory, so a private directory per member keeps that output out
+            # of the shared system temp directory and away from other members
+            # that share the same base name.
+            run_7z(
+                build_7z_args(
+                    "e", [f"-o{extract_path}", "-y"], self.file, [member_name]
+                )
+            )
+
+            extracted_file = extract_path / Path(member_name).name
+            if not extracted_file.is_file():
+                # 7zz may have adjusted the base name for the local filesystem
+                produced = [item for item in extract_path.rglob("*") if item.is_file()]
+                if len(produced) != 1:
+                    raise FileNotFoundError(
+                        f"Extraction produced {len(produced)} files for member: "
+                        f"{member_name}"
+                    )
+                extracted_file = produced[0]
+
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if final_path.exists():
+                if not overwrite:
+                    logger.warning(f"Skipping existing file: {final_path}")
+                    return False
+
+                logger.warning(f"Overwriting existing file: {final_path}")
+                final_path.unlink()
+
+            shutil.move(str(extracted_file), str(final_path))
+            return True
+
     def _extract_files_individually(
         self, target_path: Path, sanitization_mapping: dict, overwrite: bool
     ) -> None:
@@ -746,41 +803,15 @@ class SevenZipFile:
 
         for original_name, sanitized_name in sanitization_mapping.items():
             try:
-                # Create a temporary file for this specific extraction
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_path = Path(temp_file.name)
-
-                # Try to extract this specific file
-                args = build_7z_args(
-                    "e",
-                    [f"-o{temp_path.parent}", "-y"],
-                    self.file,
-                    [original_name],
-                )
-
-                try:
-                    run_7z(args)
-
-                    # Move to final location with sanitized name
-                    final_path = target_path / sanitized_name
-                    final_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    if final_path.exists() and not overwrite:
-                        logger.warning(f"Skipping existing file: {final_path}")
-                        temp_path.unlink(missing_ok=True)
-                        continue
-
-                    shutil.move(str(temp_path), str(final_path))
+                if self._extract_member_to(
+                    original_name, target_path / sanitized_name, overwrite
+                ):
                     extracted_count += 1
                     logger.debug(
                         f"Individually extracted {original_name} as {sanitized_name}"
                     )
 
-                except subprocess.CalledProcessError:
-                    failed_files.append(original_name)
-                    temp_path.unlink(missing_ok=True)
-
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one bad member must not stop the rest
                 failed_files.append(original_name)
                 logger.error(f"Failed to extract {original_name}: {e}")
 
@@ -1079,40 +1110,16 @@ class SevenZipFile:
 
         for original_name, sanitized_name in selective_mapping.items():
             try:
-                # Create a temporary file for this specific extraction
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_path = Path(temp_file.name)
-
-                # Try to extract this specific file
-                args = build_7z_args(
-                    "e",
-                    [f"-o{temp_path.parent}", "-y"],
-                    self.file,
-                    [original_name],
-                )
-
-                try:
-                    run_7z(args)
-
-                    # Move to final location with sanitized name
-                    final_path = target_path / sanitized_name
-                    final_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    if final_path.exists():
-                        logger.warning(f"Overwriting existing file: {final_path}")
-                        final_path.unlink()
-
-                    shutil.move(str(temp_path), str(final_path))
+                # Selective extraction always replaces an existing destination
+                if self._extract_member_to(
+                    original_name, target_path / sanitized_name, True
+                ):
                     extracted_count += 1
                     logger.debug(
                         f"Individually extracted {original_name} as {sanitized_name}"
                     )
 
-                except subprocess.CalledProcessError:
-                    failed_files.append(original_name)
-                    temp_path.unlink(missing_ok=True)
-
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one bad member must not stop the rest
                 failed_files.append(original_name)
                 logger.error(f"Failed to extract {original_name}: {e}")
 
@@ -1410,11 +1417,31 @@ class SevenZipFile:
         Args:
             pwd: Password as bytes, or None to clear password
 
+        Raises:
+            ValueError: If the password is not valid UTF-8
+
         Note:
             This method sets the password for future operations.
         """
         # Store password for future use
         self._password = pwd
+
+        # Reason: read paths use _password directly, but the add paths build
+        # their switches from the config, so the config has to carry the
+        # password too or archives written after setpassword() stay unencrypted.
+        if pwd is None:
+            password_str = None
+        elif isinstance(pwd, bytes):
+            try:
+                password_str = pwd.decode("utf-8")
+            except UnicodeDecodeError as decode_error:
+                raise ValueError("Password must be valid UTF-8 bytes") from decode_error
+        else:
+            password_str = str(pwd)
+
+        # Replace rather than mutate, so a config supplied by the caller is left
+        # untouched
+        self.config = replace(self.config, password=password_str)
 
     def comment(self) -> bytes:
         """

@@ -11,6 +11,7 @@ from pathlib import Path, PureWindowsPath
 from typing import List, Optional, Sequence, Union
 
 from .exceptions import SecurityError, ZipBombError
+from .filename_sanitizer import is_windows
 from .logging_config import get_logger
 
 # Get logger for this module
@@ -292,9 +293,20 @@ def validate_member_path(name: str, parameter: str = "arcname") -> None:
 
     normalized = name.replace("\\", "/")
 
-    # Reason: PureWindowsPath detects both drive letters ("C:/x", "D:x") and UNC
-    # prefixes ("//server/share") on every platform, not only on Windows.
-    if normalized.startswith("/") or PureWindowsPath(name).drive:
+    # Reason: a leading separator covers POSIX absolute paths and UNC prefixes
+    # ("//server/share", "\\\\server\\share") on every platform.
+    if normalized.startswith("/"):
+        raise SecurityError(
+            f"Absolute paths are not allowed in {parameter}: {name!r}",
+            limit_type="path_traversal",
+        )
+
+    # Reason: a drive prefix ("C:/x", "D:x") only escapes on Windows, where the
+    # path join honours it. Checking it everywhere would reject legitimate POSIX
+    # names such as "a:b.txt", so this one test is platform-dependent while the
+    # rest of the validation is not. ensure_within_directory() remains the gate
+    # that catches an actual escape on either platform.
+    if is_windows() and PureWindowsPath(name).drive:
         raise SecurityError(
             f"Absolute paths are not allowed in {parameter}: {name!r}",
             limit_type="path_traversal",
