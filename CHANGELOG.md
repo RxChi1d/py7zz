@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-09-07
+
 ### Changed
 - **Bundled 7-Zip**: Updated bundled 7zz from 26.01 to 26.03.
 
@@ -187,7 +189,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **7-Zip Integration**: Bundled 7zz binary for seamless archive operations
 - **Python API**: Comprehensive Python interface for archive manipulation
 
-[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.3.1...HEAD
+[Unreleased]: https://github.com/rxchi1d/py7zz/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/rxchi1d/py7zz/compare/v1.3.1...v1.4.0
 [1.3.1]: https://github.com/rxchi1d/py7zz/compare/v1.3.0...v1.3.1
 [1.3.0]: https://github.com/rxchi1d/py7zz/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/rxchi1d/py7zz/compare/v1.1.4...v1.2.0
