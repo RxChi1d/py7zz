@@ -226,6 +226,11 @@ jobs:
         }
         echo "✅ All required license files found in sdist"
 
+    - name: Run twine check
+      run: |
+        echo "Running twine check on distribution artifacts..."
+        uv run twine check dist/*
+
     - name: Install and test wheel
       run: |
         WHL=$(ls dist/*.whl | head -n1)
