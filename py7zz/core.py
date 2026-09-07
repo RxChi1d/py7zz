@@ -34,6 +34,13 @@ from .filename_sanitizer import (
     needs_sanitization,
 )
 from .logging_config import get_logger
+from .security import (
+    build_7z_args,
+    ensure_within_directory,
+    is_within_directory,
+    redact_password_args,
+    validate_member_path,
+)
 
 # Removed updater imports - py7zz now only uses bundled binaries
 
@@ -159,9 +166,12 @@ def run_7z(
         )
         return result
     except subprocess.CalledProcessError as e:
-        raise subprocess.CalledProcessError(
-            e.returncode, cmd, e.output, e.stderr
-        ) from e
+        # Reason: str(CalledProcessError) renders the whole command list, so the
+        # password switch has to be masked before the error leaves this function.
+        # Masking in place rather than re-raising a copy keeps an unredacted
+        # command out of the __cause__ chain, which tracebacks also print.
+        e.cmd = redact_password_args(e.cmd)
+        raise
 
 
 def _is_filename_error(error_message: str) -> bool:
@@ -406,13 +416,7 @@ class SevenZipFile:
         Args:
             name: Path to file or directory to add
         """
-        args = ["a"]  # add command
-
-        # Add configuration arguments
-        args.extend(self.config.to_7z_args())
-
-        # Add file and archive paths
-        args.extend([str(self.file), str(name)])
+        args = build_7z_args("a", self.config.to_7z_args(), self.file, [name])
 
         try:
             run_7z(args)
@@ -427,6 +431,10 @@ class SevenZipFile:
             name: Path to file or directory to add
             arcname: Name to use in the archive
         """
+        # Reason: the arcname is staged on the filesystem before it is added, so
+        # an absolute or ".."-bearing name would write outside the temp directory.
+        validate_member_path(arcname)
+
         # For 7zz, we need to use a temporary directory structure
         # that matches the desired archive name
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -470,7 +478,9 @@ class SevenZipFile:
                 use_rename_approach = True
             else:
                 # Normal case: filename is reasonable length
-                temp_target = temp_base / original_arcname
+                temp_target = ensure_within_directory(
+                    temp_base, temp_base / original_arcname
+                )
                 use_rename_approach = False
 
             # Create parent directories if needed
@@ -493,43 +503,28 @@ class SevenZipFile:
                     shutil.copytree(name, temp_target)
 
             # Add the temporary file/directory to the archive
-            args = ["a"]  # add command
+            switches = list(self.config.to_7z_args())
 
-            # Add configuration arguments
-            args.extend(self.config.to_7z_args())
-
-            # Add archive path (use absolute path to avoid issues with cwd)
-            args.append(str(Path(self.file).resolve()))
+            # Use an absolute archive path to avoid issues with cwd
+            archive_path = str(Path(self.file).resolve())
 
             # Change to temp directory and add the file with relative path
             try:
                 if use_rename_approach:
                     # First add with temporary name
                     temp_rel_name = temp_target.name
-                    cmd = [find_7z_binary()] + args + [temp_rel_name]
-                    subprocess.run(
-                        cmd,
+                    run_7z(
+                        build_7z_args("a", switches, archive_path, [temp_rel_name]),
                         cwd=str(temp_base),
-                        capture_output=True,
-                        text=True,
-                        check=True,
                     )
 
                     # Then rename to desired name in archive using 7z rename command
                     # Note: 7z rename command format: 7z rn <archive> <old_name> <new_name>
                     try:
-                        rename_cmd = [
-                            find_7z_binary(),
-                            "rn",
-                            str(Path(self.file).resolve()),
-                            temp_rel_name,
-                            arcname,
-                        ]
-                        subprocess.run(
-                            rename_cmd,
-                            capture_output=True,
-                            text=True,
-                            check=True,
+                        run_7z(
+                            build_7z_args(
+                                "rn", [], archive_path, [temp_rel_name, arcname]
+                            )
                         )
                     except subprocess.CalledProcessError:
                         # If rename fails, the file is still added with temp name
@@ -542,13 +537,11 @@ class SevenZipFile:
                         )
                 else:
                     # Normal case: add with original name
-                    cmd = [find_7z_binary()] + args + [str(original_arcname)]
-                    subprocess.run(
-                        cmd,
+                    run_7z(
+                        build_7z_args(
+                            "a", switches, archive_path, [str(original_arcname)]
+                        ),
                         cwd=str(temp_base),
-                        capture_output=True,
-                        text=True,
-                        check=True,
                     )
 
                 logger.debug(f"Successfully added {name} as {arcname} to archive")
@@ -575,10 +568,10 @@ class SevenZipFile:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        args = ["x", str(self.file), f"-o{path}"]
+        switches = [f"-o{path}"]
 
         if overwrite:
-            args.append("-y")  # assume yes for all prompts
+            switches.append("-y")  # assume yes for all prompts
 
         # Add password if available
         if hasattr(self, "_password") and self._password is not None:
@@ -588,7 +581,9 @@ class SevenZipFile:
                 if isinstance(self._password, bytes)
                 else str(self._password)
             )
-            args.append(f"-p{password_str}")
+            switches.append(f"-p{password_str}")
+
+        args = build_7z_args("x", switches, self.file)
 
         try:
             # First attempt: direct extraction
@@ -661,9 +656,11 @@ class SevenZipFile:
             temp_path = Path(temp_dir)
 
             # Extract to temporary directory first
-            args = ["x", str(self.file), f"-o{temp_path}"]
+            switches = [f"-o{temp_path}"]
             if overwrite:
-                args.append("-y")
+                switches.append("-y")
+
+            args = build_7z_args("x", switches, self.file)
 
             try:
                 # This might still fail, but we'll handle it
@@ -749,13 +746,12 @@ class SevenZipFile:
                     temp_path = Path(temp_file.name)
 
                 # Try to extract this specific file
-                args = [
+                args = build_7z_args(
                     "e",
-                    str(self.file),
-                    f"-o{temp_path.parent}",
-                    original_name,
-                    "-y",
-                ]
+                    [f"-o{temp_path.parent}", "-y"],
+                    self.file,
+                    [original_name],
+                )
 
                 try:
                     run_7z(args)
@@ -984,10 +980,7 @@ class SevenZipFile:
             return  # Nothing to extract
 
         # Build 7z command for selective extraction
-        args = ["x", str(self.file), f"-o{target_path}", "-y"]
-
-        # Add specific file names to extract
-        args.extend(members)
+        args = build_7z_args("x", [f"-o{target_path}", "-y"], self.file, members)
 
         try:
             # First attempt: direct selective extraction
@@ -1086,13 +1079,12 @@ class SevenZipFile:
                     temp_path = Path(temp_file.name)
 
                 # Try to extract this specific file
-                args = [
+                args = build_7z_args(
                     "e",
-                    str(self.file),
-                    f"-o{temp_path.parent}",
-                    original_name,
-                    "-y",
-                ]
+                    [f"-o{temp_path.parent}", "-y"],
+                    self.file,
+                    [original_name],
+                )
 
                 try:
                     run_7z(args)
@@ -1199,7 +1191,7 @@ class SevenZipFile:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Extract specific file to temporary directory with full paths
-            args = ["x", str(self.file), f"-o{tmpdir}", actual_file_to_use, "-y"]
+            switches = [f"-o{tmpdir}", "-y"]
 
             # Add password if available
             if hasattr(self, "_password") and self._password is not None:
@@ -1209,7 +1201,9 @@ class SevenZipFile:
                     if isinstance(self._password, bytes)
                     else str(self._password)
                 )
-                args.append(f"-p{password_str}")
+                switches.append(f"-p{password_str}")
+
+            args = build_7z_args("x", switches, self.file, [actual_file_to_use])
 
             try:
                 run_7z(args)
@@ -1218,8 +1212,14 @@ class SevenZipFile:
                 tmpdir_path = Path(tmpdir)
 
                 # First try the direct path
+                # Reason: joining an absolute member name discards tmpdir, which
+                # would return the host's file instead of the extracted copy, so
+                # fall through to the recursive search when the join escapes.
                 extracted_file = tmpdir_path / actual_file_to_use
-                if extracted_file.exists():
+                if (
+                    is_within_directory(tmpdir_path, extracted_file)
+                    and extracted_file.exists()
+                ):
                     return extracted_file.read_bytes()
 
                 # If not found, search recursively in the temp directory
@@ -1260,9 +1260,16 @@ class SevenZipFile:
         if isinstance(data, str):
             data = data.encode("utf-8")
 
+        # Reason: the name is staged on the filesystem before it is added, so an
+        # absolute or ".."-bearing name would write outside the temp directory.
+        validate_member_path(filename, "filename")
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # Write data to temporary file
-            temp_file = Path(tmpdir) / filename
+            temp_dir_path = Path(tmpdir)
+            temp_file = ensure_within_directory(
+                temp_dir_path, temp_dir_path / filename, "filename"
+            )
             temp_file.parent.mkdir(parents=True, exist_ok=True)
             temp_file.write_bytes(data)
 
@@ -1280,7 +1287,7 @@ class SevenZipFile:
         if not self.file.exists():
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
-        args = ["t", str(self.file)]
+        switches = []
 
         # Add password if available
         if hasattr(self, "_password") and self._password is not None:
@@ -1290,7 +1297,9 @@ class SevenZipFile:
                 if isinstance(self._password, bytes)
                 else str(self._password)
             )
-            args.append(f"-p{password_str}")
+            switches.append(f"-p{password_str}")
+
+        args = build_7z_args("t", switches, self.file)
 
         try:
             run_7z(args)

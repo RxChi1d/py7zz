@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Archive Member Names No Longer Parsed as Options**: Member names and archive paths are now passed to 7-Zip behind an option terminator. A crafted archive containing a member named like a 7-Zip option can no longer redirect extraction outside the target directory.
+- **Path Traversal Blocked When Staging Members**: `writestr()` and `add(arcname=...)` now reject absolute paths, Windows drive and UNC prefixes, and `..` components on every platform. Previously these names were only checked on Windows, so repacking an untrusted archive could write outside the working directory.
+- **Reading a Member Cannot Reach Host Files**: `read()` now always returns the extracted copy, even when a member is stored with an absolute path. Previously such a member could return the contents of the host file at that path.
+- **Passwords Masked in Errors**: Archive passwords no longer appear in log records, exception messages, or tracebacks when a 7-Zip command fails.
+
 ## [1.3.1] - 2026-06-06
 
 ### Added
