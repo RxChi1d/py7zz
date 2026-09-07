@@ -326,6 +326,7 @@ def get_detailed_archive_info(
         RuntimeError: If binary not found or parsing fails
     """
     from .core import run_7z
+    from .security import build_7z_args
 
     archive_path = Path(archive_path)
 
@@ -333,7 +334,7 @@ def get_detailed_archive_info(
         raise FileNotFoundError(f"Archive not found: {archive_path}")
 
     # Execute 7zz list command with technical information
-    args = ["l", "-slt", str(archive_path)]
+    switches = ["-slt"]
 
     # Add password if provided
     if password is not None:
@@ -341,7 +342,9 @@ def get_detailed_archive_info(
         password_str = (
             password.decode("utf-8") if isinstance(password, bytes) else str(password)
         )
-        args.append(f"-p{password_str}")
+        switches.append(f"-p{password_str}")
+
+    args = build_7z_args("l", switches, archive_path)
 
     try:
         result = run_7z(args)

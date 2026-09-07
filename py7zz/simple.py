@@ -463,6 +463,7 @@ def get_archive_format(archive_path: Union[str, Path]) -> str:
         >>> print(f"Archive format: {format_type}")
     """
     from .core import run_7z
+    from .security import build_7z_args
 
     # Check if file exists first
     if not Path(archive_path).exists():
@@ -470,7 +471,7 @@ def get_archive_format(archive_path: Union[str, Path]) -> str:
 
     try:
         # Use 7z to detect archive format
-        result = run_7z(["l", str(archive_path)])
+        result = run_7z(build_7z_args("l", [], archive_path))
         if result.returncode == 0:
             # Parse output to extract archive type
             output = result.stdout.lower()

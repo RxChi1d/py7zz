@@ -25,6 +25,7 @@ from .filename_sanitizer import (
     needs_sanitization,
 )
 from .logging_config import get_logger
+from .security import build_7z_args, redact_password_args
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -151,7 +152,7 @@ class AsyncSevenZipFile:
 
         # Build 7z command
         binary = find_7z_binary()
-        args = [binary, "a", str(self.file), str(name)]
+        args = [binary, *build_7z_args("a", [], self.file, [name])]
 
         try:
             await self._run_with_progress(
@@ -184,10 +185,12 @@ class AsyncSevenZipFile:
         path.mkdir(parents=True, exist_ok=True)
 
         binary = find_7z_binary()
-        args = [binary, "x", str(self.file), f"-o{path}"]
+        switches = [f"-o{path}"]
 
         if overwrite:
-            args.append("-y")
+            switches.append("-y")
+
+        args = [binary, *build_7z_args("x", switches, self.file)]
 
         try:
             await self._run_with_progress(
@@ -436,7 +439,10 @@ class AsyncSevenZipFile:
 
         try:
             binary = find_7z_binary()
-            args = [binary, "x", str(self.file), f"-o{target_path}", "-y"] + members
+            args = [
+                binary,
+                *build_7z_args("x", [f"-o{target_path}", "-y"], self.file, members),
+            ]
 
             await self._run_with_progress(args, "extract", progress_callback)
 
@@ -529,8 +535,13 @@ class AsyncSevenZipFile:
                 stdout, stderr = await process.communicate()
 
             if process.returncode != 0:
+                # Reason: mask the password switch before the argument list is
+                # rendered into log records and exception messages.
                 raise subprocess.CalledProcessError(
-                    process.returncode or -1, args, stdout, stderr
+                    process.returncode or -1,
+                    redact_password_args(args),
+                    stdout,
+                    stderr,
                 )
 
         except asyncio.CancelledError:

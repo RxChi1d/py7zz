@@ -19,6 +19,7 @@ from typing import Any, BinaryIO, Dict, List, Optional, Union
 from .config import Config, Presets
 from .core import run_7z
 from .exceptions import CompressionError, ConfigurationError
+from .security import build_7z_args
 
 # Supported compression algorithms with their optimal settings
 ALGORITHM_PROFILES: Dict[str, Dict[str, Any]] = {
@@ -177,10 +178,7 @@ def compress(
 
             # Build compression arguments
             output_file = tmpdir_path / "output.7z"
-            args = [
-                "a",
-                str(output_file),
-                str(input_file),
+            switches = [
                 f"-mx{level}",
                 f"-m0={algorithm}",
                 "-ms=off",  # Disable solid mode for single-stream compression
@@ -193,9 +191,9 @@ def compress(
                 filtered_args = [
                     arg for arg in config_args if not arg.startswith(("-mx", "-m0="))
                 ]
-                args.extend(filtered_args)
+                switches.extend(filtered_args)
 
-            run_7z(args)
+            run_7z(build_7z_args("a", switches, output_file, [input_file]))
 
             # Read compressed result
             return output_file.read_bytes()
@@ -231,9 +229,7 @@ def decompress(data: bytes, expected_size: Optional[int] = None) -> bytes:
 
             # Decompress
             output_dir = tmpdir_path / "output"
-            args = ["x", str(input_file), f"-o{output_dir}", "-y"]
-
-            run_7z(args)
+            run_7z(build_7z_args("x", [f"-o{output_dir}", "-y"], input_file))
 
             # Find decompressed files
             output_files = list(output_dir.glob("*"))

@@ -11,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import warnings
+from dataclasses import replace
 from pathlib import Path
 from typing import Callable, Iterator, List, Optional, Union
 
@@ -34,6 +35,13 @@ from .filename_sanitizer import (
     needs_sanitization,
 )
 from .logging_config import get_logger
+from .security import (
+    build_7z_args,
+    ensure_within_directory,
+    is_within_directory,
+    redact_password_args,
+    validate_member_path,
+)
 
 # Removed updater imports - py7zz now only uses bundled binaries
 
@@ -159,9 +167,17 @@ def run_7z(
         )
         return result
     except subprocess.CalledProcessError as e:
-        raise subprocess.CalledProcessError(
-            e.returncode, cmd, e.output, e.stderr
-        ) from e
+        # Reason: str(CalledProcessError) renders the whole command list, so the
+        # password switch has to be masked before the error leaves this function.
+        # Masking in place rather than re-raising a copy keeps an unredacted
+        # command out of the __cause__ chain, which tracebacks also print.
+        e.cmd = redact_password_args(e.cmd)
+        # Reason: BaseException keeps the constructor positionals in .args, which
+        # repr() and error-reporting tools read independently of .cmd, so the
+        # masked command has to be written back there as well.
+        if len(e.args) > 1:
+            e.args = (e.args[0], e.cmd, *e.args[2:])
+        raise
 
 
 def _is_filename_error(error_message: str) -> bool:
@@ -406,13 +422,7 @@ class SevenZipFile:
         Args:
             name: Path to file or directory to add
         """
-        args = ["a"]  # add command
-
-        # Add configuration arguments
-        args.extend(self.config.to_7z_args())
-
-        # Add file and archive paths
-        args.extend([str(self.file), str(name)])
+        args = build_7z_args("a", self.config.to_7z_args(), self.file, [name])
 
         try:
             run_7z(args)
@@ -427,6 +437,10 @@ class SevenZipFile:
             name: Path to file or directory to add
             arcname: Name to use in the archive
         """
+        # Reason: the arcname is staged on the filesystem before it is added, so
+        # an absolute or ".."-bearing name would write outside the temp directory.
+        validate_member_path(arcname)
+
         # For 7zz, we need to use a temporary directory structure
         # that matches the desired archive name
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -470,7 +484,9 @@ class SevenZipFile:
                 use_rename_approach = True
             else:
                 # Normal case: filename is reasonable length
-                temp_target = temp_base / original_arcname
+                temp_target = ensure_within_directory(
+                    temp_base, temp_base / original_arcname
+                )
                 use_rename_approach = False
 
             # Create parent directories if needed
@@ -493,43 +509,28 @@ class SevenZipFile:
                     shutil.copytree(name, temp_target)
 
             # Add the temporary file/directory to the archive
-            args = ["a"]  # add command
+            switches = list(self.config.to_7z_args())
 
-            # Add configuration arguments
-            args.extend(self.config.to_7z_args())
-
-            # Add archive path (use absolute path to avoid issues with cwd)
-            args.append(str(Path(self.file).resolve()))
+            # Use an absolute archive path to avoid issues with cwd
+            archive_path = str(Path(self.file).resolve())
 
             # Change to temp directory and add the file with relative path
             try:
                 if use_rename_approach:
                     # First add with temporary name
                     temp_rel_name = temp_target.name
-                    cmd = [find_7z_binary()] + args + [temp_rel_name]
-                    subprocess.run(
-                        cmd,
+                    run_7z(
+                        build_7z_args("a", switches, archive_path, [temp_rel_name]),
                         cwd=str(temp_base),
-                        capture_output=True,
-                        text=True,
-                        check=True,
                     )
 
                     # Then rename to desired name in archive using 7z rename command
                     # Note: 7z rename command format: 7z rn <archive> <old_name> <new_name>
                     try:
-                        rename_cmd = [
-                            find_7z_binary(),
-                            "rn",
-                            str(Path(self.file).resolve()),
-                            temp_rel_name,
-                            arcname,
-                        ]
-                        subprocess.run(
-                            rename_cmd,
-                            capture_output=True,
-                            text=True,
-                            check=True,
+                        run_7z(
+                            build_7z_args(
+                                "rn", [], archive_path, [temp_rel_name, arcname]
+                            )
                         )
                     except subprocess.CalledProcessError:
                         # If rename fails, the file is still added with temp name
@@ -542,13 +543,11 @@ class SevenZipFile:
                         )
                 else:
                     # Normal case: add with original name
-                    cmd = [find_7z_binary()] + args + [str(original_arcname)]
-                    subprocess.run(
-                        cmd,
+                    run_7z(
+                        build_7z_args(
+                            "a", switches, archive_path, [str(original_arcname)]
+                        ),
                         cwd=str(temp_base),
-                        capture_output=True,
-                        text=True,
-                        check=True,
                     )
 
                 logger.debug(f"Successfully added {name} as {arcname} to archive")
@@ -575,10 +574,10 @@ class SevenZipFile:
         path = Path(path)
         path.mkdir(parents=True, exist_ok=True)
 
-        args = ["x", str(self.file), f"-o{path}"]
+        switches = [f"-o{path}"]
 
         if overwrite:
-            args.append("-y")  # assume yes for all prompts
+            switches.append("-y")  # assume yes for all prompts
 
         # Add password if available
         if hasattr(self, "_password") and self._password is not None:
@@ -588,7 +587,9 @@ class SevenZipFile:
                 if isinstance(self._password, bytes)
                 else str(self._password)
             )
-            args.append(f"-p{password_str}")
+            switches.append(f"-p{password_str}")
+
+        args = build_7z_args("x", switches, self.file)
 
         try:
             # First attempt: direct extraction
@@ -661,9 +662,11 @@ class SevenZipFile:
             temp_path = Path(temp_dir)
 
             # Extract to temporary directory first
-            args = ["x", str(self.file), f"-o{temp_path}"]
+            switches = [f"-o{temp_path}"]
             if overwrite:
-                args.append("-y")
+                switches.append("-y")
+
+            args = build_7z_args("x", switches, self.file)
 
             try:
                 # This might still fail, but we'll handle it
@@ -728,6 +731,64 @@ class SevenZipFile:
                 shutil.move(str(source_file), str(target_file))
                 logger.debug(f"Moved {source_file} to {target_file}")
 
+    def _extract_member_to(
+        self, member_name: str, final_path: Path, overwrite: bool
+    ) -> bool:
+        """
+        Extract a single member into a private directory and move it into place.
+
+        Args:
+            member_name: Member name as stored in the archive
+            final_path: Destination path for the extracted file
+            overwrite: Whether to replace an existing destination file
+
+        Returns:
+            True if the member was extracted, False if an existing destination
+            file was kept
+
+        Raises:
+            subprocess.CalledProcessError: If 7zz could not extract the member
+            FileNotFoundError: If 7zz reported success but produced no single file
+        """
+        with tempfile.TemporaryDirectory() as extract_dir:
+            extract_path = Path(extract_dir)
+
+            # Reason: the "e" command flattens the member into the output
+            # directory, so a private directory per member keeps that output out
+            # of the shared system temp directory and away from other members
+            # that share the same base name.
+            run_7z(
+                build_7z_args(
+                    "e", [f"-o{extract_path}", "-y"], self.file, [member_name]
+                )
+            )
+
+            # Reason: the extraction directory is private and holds exactly one
+            # member, so the produced file is found by listing it. Deriving a
+            # local path from the member name instead would touch names that are
+            # invalid on the local filesystem, which is precisely the case this
+            # fallback exists to handle.
+            produced = [item for item in extract_path.rglob("*") if item.is_file()]
+            if len(produced) != 1:
+                raise FileNotFoundError(
+                    f"Extraction produced {len(produced)} files for member: "
+                    f"{member_name}"
+                )
+            extracted_file = produced[0]
+
+            final_path.parent.mkdir(parents=True, exist_ok=True)
+
+            if final_path.exists():
+                if not overwrite:
+                    logger.warning(f"Skipping existing file: {final_path}")
+                    return False
+
+                logger.warning(f"Overwriting existing file: {final_path}")
+                final_path.unlink()
+
+            shutil.move(str(extracted_file), str(final_path))
+            return True
+
     def _extract_files_individually(
         self, target_path: Path, sanitization_mapping: dict, overwrite: bool
     ) -> None:
@@ -744,42 +805,15 @@ class SevenZipFile:
 
         for original_name, sanitized_name in sanitization_mapping.items():
             try:
-                # Create a temporary file for this specific extraction
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_path = Path(temp_file.name)
-
-                # Try to extract this specific file
-                args = [
-                    "e",
-                    str(self.file),
-                    f"-o{temp_path.parent}",
-                    original_name,
-                    "-y",
-                ]
-
-                try:
-                    run_7z(args)
-
-                    # Move to final location with sanitized name
-                    final_path = target_path / sanitized_name
-                    final_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    if final_path.exists() and not overwrite:
-                        logger.warning(f"Skipping existing file: {final_path}")
-                        temp_path.unlink(missing_ok=True)
-                        continue
-
-                    shutil.move(str(temp_path), str(final_path))
+                if self._extract_member_to(
+                    original_name, target_path / sanitized_name, overwrite
+                ):
                     extracted_count += 1
                     logger.debug(
                         f"Individually extracted {original_name} as {sanitized_name}"
                     )
 
-                except subprocess.CalledProcessError:
-                    failed_files.append(original_name)
-                    temp_path.unlink(missing_ok=True)
-
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one bad member must not stop the rest
                 failed_files.append(original_name)
                 logger.error(f"Failed to extract {original_name}: {e}")
 
@@ -984,10 +1018,7 @@ class SevenZipFile:
             return  # Nothing to extract
 
         # Build 7z command for selective extraction
-        args = ["x", str(self.file), f"-o{target_path}", "-y"]
-
-        # Add specific file names to extract
-        args.extend(members)
+        args = build_7z_args("x", [f"-o{target_path}", "-y"], self.file, members)
 
         try:
             # First attempt: direct selective extraction
@@ -1081,41 +1112,16 @@ class SevenZipFile:
 
         for original_name, sanitized_name in selective_mapping.items():
             try:
-                # Create a temporary file for this specific extraction
-                with tempfile.NamedTemporaryFile(delete=False) as temp_file:
-                    temp_path = Path(temp_file.name)
-
-                # Try to extract this specific file
-                args = [
-                    "e",
-                    str(self.file),
-                    f"-o{temp_path.parent}",
-                    original_name,
-                    "-y",
-                ]
-
-                try:
-                    run_7z(args)
-
-                    # Move to final location with sanitized name
-                    final_path = target_path / sanitized_name
-                    final_path.parent.mkdir(parents=True, exist_ok=True)
-
-                    if final_path.exists():
-                        logger.warning(f"Overwriting existing file: {final_path}")
-                        final_path.unlink()
-
-                    shutil.move(str(temp_path), str(final_path))
+                # Selective extraction always replaces an existing destination
+                if self._extract_member_to(
+                    original_name, target_path / sanitized_name, True
+                ):
                     extracted_count += 1
                     logger.debug(
                         f"Individually extracted {original_name} as {sanitized_name}"
                     )
 
-                except subprocess.CalledProcessError:
-                    failed_files.append(original_name)
-                    temp_path.unlink(missing_ok=True)
-
-            except Exception as e:
+            except Exception as e:  # noqa: BLE001 - one bad member must not stop the rest
                 failed_files.append(original_name)
                 logger.error(f"Failed to extract {original_name}: {e}")
 
@@ -1199,7 +1205,7 @@ class SevenZipFile:
 
         with tempfile.TemporaryDirectory() as tmpdir:
             # Extract specific file to temporary directory with full paths
-            args = ["x", str(self.file), f"-o{tmpdir}", actual_file_to_use, "-y"]
+            switches = [f"-o{tmpdir}", "-y"]
 
             # Add password if available
             if hasattr(self, "_password") and self._password is not None:
@@ -1209,7 +1215,9 @@ class SevenZipFile:
                     if isinstance(self._password, bytes)
                     else str(self._password)
                 )
-                args.append(f"-p{password_str}")
+                switches.append(f"-p{password_str}")
+
+            args = build_7z_args("x", switches, self.file, [actual_file_to_use])
 
             try:
                 run_7z(args)
@@ -1218,8 +1226,14 @@ class SevenZipFile:
                 tmpdir_path = Path(tmpdir)
 
                 # First try the direct path
+                # Reason: joining an absolute member name discards tmpdir, which
+                # would return the host's file instead of the extracted copy, so
+                # fall through to the recursive search when the join escapes.
                 extracted_file = tmpdir_path / actual_file_to_use
-                if extracted_file.exists():
+                if (
+                    is_within_directory(tmpdir_path, extracted_file)
+                    and extracted_file.exists()
+                ):
                     return extracted_file.read_bytes()
 
                 # If not found, search recursively in the temp directory
@@ -1260,9 +1274,16 @@ class SevenZipFile:
         if isinstance(data, str):
             data = data.encode("utf-8")
 
+        # Reason: the name is staged on the filesystem before it is added, so an
+        # absolute or ".."-bearing name would write outside the temp directory.
+        validate_member_path(filename, "filename")
+
         with tempfile.TemporaryDirectory() as tmpdir:
             # Write data to temporary file
-            temp_file = Path(tmpdir) / filename
+            temp_dir_path = Path(tmpdir)
+            temp_file = ensure_within_directory(
+                temp_dir_path, temp_dir_path / filename, "filename"
+            )
             temp_file.parent.mkdir(parents=True, exist_ok=True)
             temp_file.write_bytes(data)
 
@@ -1280,7 +1301,7 @@ class SevenZipFile:
         if not self.file.exists():
             raise FileNotFoundError(f"Archive not found: {self.file}")
 
-        args = ["t", str(self.file)]
+        switches = []
 
         # Add password if available
         if hasattr(self, "_password") and self._password is not None:
@@ -1290,7 +1311,9 @@ class SevenZipFile:
                 if isinstance(self._password, bytes)
                 else str(self._password)
             )
-            args.append(f"-p{password_str}")
+            switches.append(f"-p{password_str}")
+
+        args = build_7z_args("t", switches, self.file)
 
         try:
             run_7z(args)
@@ -1396,11 +1419,31 @@ class SevenZipFile:
         Args:
             pwd: Password as bytes, or None to clear password
 
+        Raises:
+            ValueError: If the password is not valid UTF-8
+
         Note:
             This method sets the password for future operations.
         """
         # Store password for future use
         self._password = pwd
+
+        # Reason: read paths use _password directly, but the add paths build
+        # their switches from the config, so the config has to carry the
+        # password too or archives written after setpassword() stay unencrypted.
+        if pwd is None:
+            password_str = None
+        elif isinstance(pwd, bytes):
+            try:
+                password_str = pwd.decode("utf-8")
+            except UnicodeDecodeError as decode_error:
+                raise ValueError("Password must be valid UTF-8 bytes") from decode_error
+        else:
+            password_str = str(pwd)
+
+        # Replace rather than mutate, so a config supplied by the caller is left
+        # untouched
+        self.config = replace(self.config, password=password_str)
 
     def comment(self) -> bytes:
         """

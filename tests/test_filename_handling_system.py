@@ -623,35 +623,36 @@ class TestSanitizedExtractionMethods:
     @patch("py7zz.filename_sanitizer.is_windows", return_value=True)
     @patch("py7zz.core.is_windows", return_value=True)
     def test_extract_files_individually_success(
-        self, mock_core_is_windows, mock_sanitizer_is_windows
+        self, mock_core_is_windows, mock_sanitizer_is_windows, tmp_path
     ):
         """Test individual file extraction with sanitization."""
         sanitization_mapping = {
             "file:name.txt": "file_name.txt",
             "CON.txt": "CON_file.txt",
         }
+        target_path = tmp_path / "output"
 
-        with patch("py7zz.core.run_7z") as mock_run_7z, patch(
-            "shutil.move"
-        ) as mock_move, patch("tempfile.NamedTemporaryFile") as mock_temp_file, patch(
-            "pathlib.Path.mkdir"
-        ), patch("pathlib.Path.exists", return_value=False):
-            # Mock temporary file
-            mock_temp_instance = MagicMock()
-            mock_temp_instance.name = "/tmp/temp_file"
-            mock_temp_file.return_value.__enter__.return_value = mock_temp_instance
+        def produce_member(args, cwd=None):
+            """Write the single file 7zz would leave in the output directory."""
+            output_dir = next(arg[2:] for arg in args if arg.startswith("-o"))
+            member_name = args[-1]
+            # The member names under test are invalid on Windows, so 7zz writes
+            # them under a name the local filesystem accepts
+            produced = Path(output_dir) / "extracted.bin"
+            produced.write_text(f"content of {member_name}")
+            return Mock()
 
-            # Mock successful extraction
-            mock_run_7z.return_value = Mock()
+        with patch("py7zz.core.run_7z", side_effect=produce_member) as mock_run_7z:
+            self.sz._extract_files_individually(target_path, sanitization_mapping, True)
 
-            self.sz._extract_files_individually(
-                Path("output"), sanitization_mapping, True
-            )
+        # Should have called run_7z for each file
+        assert mock_run_7z.call_count == 2
 
-            # Should have called run_7z for each file
-            assert mock_run_7z.call_count == 2
-            # Should have moved files
-            assert mock_move.call_count == 2
+        # Each extracted file must carry the member content, not an empty placeholder
+        assert (target_path / "file_name.txt").read_text() == (
+            "content of file:name.txt"
+        )
+        assert (target_path / "CON_file.txt").read_text() == "content of CON.txt"
 
     @patch("py7zz.filename_sanitizer.is_windows", return_value=True)
     @patch("py7zz.core.is_windows", return_value=True)

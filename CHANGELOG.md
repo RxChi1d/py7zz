@@ -12,6 +12,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Bundled 7-Zip**: Updated bundled 7zz from 26.01 to 26.03.
+
+### Fixed
+- **Passwords Now Applied When Writing**: `setpassword()` only affected read operations, so archives created after calling it were written unencrypted. They are now encrypted, and a password that is not valid UTF-8 is rejected instead of being silently altered.
+- **Filename Fallback No Longer Writes Empty Files**: When Windows filename compatibility handling fell back to extracting members one at a time, every output file was created empty and the real content was left behind in the system temporary directory. Members are now extracted into a private directory and moved into place intact.
+
+### Security
+- **Archive Member Names No Longer Parsed as Options**: Member names and archive paths are now passed to 7-Zip behind an option terminator. A crafted archive containing a member named like a 7-Zip option can no longer redirect extraction outside the target directory.
+- **Path Traversal Blocked When Staging Members**: `writestr()` and `add(arcname=...)` now reject absolute paths, UNC prefixes, and `..` components on every platform, and Windows drive prefixes on Windows, where a path join honours them. Previously these names were only checked on Windows, so repacking an untrusted archive could write outside the working directory.
+- **Reading a Member Cannot Reach Host Files**: `read()` now always returns the extracted copy, even when a member is stored with an absolute path. Previously such a member could return the contents of the host file at that path.
+- **Passwords Masked in Errors**: Archive passwords no longer appear in log records, exception messages, tracebacks, or serialized exception data when a 7-Zip command fails.
+
 ## [1.3.1] - 2026-06-06
 
 ### Added
