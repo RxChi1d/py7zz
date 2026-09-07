@@ -65,7 +65,8 @@ dependencies = [
     { name = "colorama", marker = "os_name == 'nt'" },
     { name = "importlib-metadata", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "importlib-metadata", version = "8.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and python_full_version < '3.10.2'" },
-    { name = "packaging" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pyproject-hooks" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
 ]
@@ -521,7 +522,7 @@ dependencies = [
     { name = "chardet", marker = "python_full_version < '3.9'" },
     { name = "cyclonedx-python-lib", version = "9.1.0", source = { registry = "https://pypi.org/simple" }, extra = ["validation"], marker = "python_full_version < '3.9'" },
     { name = "packageurl-python", marker = "python_full_version < '3.9'" },
-    { name = "packaging", marker = "python_full_version < '3.9'" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pip-requirements-parser", marker = "python_full_version < '3.9'" },
     { name = "tomli", marker = "python_full_version < '3.9'" },
 ]
@@ -532,7 +533,7 @@ wheels = [
 
 [[package]]
 name = "cyclonedx-bom"
-version = "7.0.0"
+version = "7.3.1"
 source = { registry = "https://pypi.org/simple" }
 resolution-markers = [
     "python_full_version >= '3.10'",
@@ -542,13 +543,13 @@ dependencies = [
     { name = "chardet", marker = "python_full_version >= '3.9'" },
     { name = "cyclonedx-python-lib", version = "10.5.0", source = { registry = "https://pypi.org/simple" }, extra = ["validation"], marker = "python_full_version >= '3.9'" },
     { name = "packageurl-python", marker = "python_full_version >= '3.9'" },
-    { name = "packaging", marker = "python_full_version >= '3.9'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pip-requirements-parser", marker = "python_full_version >= '3.9'" },
     { name = "tomli", marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f6/9d/9ad7c91fac539275367e72c9ff17cd4d09a01e70c65267de4112a54c504a/cyclonedx_bom-7.0.0.tar.gz", hash = "sha256:43395dd779092087a1ddc132b0c2025741b60224932e5f3baab817b8ac8c55b7", size = 3705358 }
+sdist = { url = "https://files.pythonhosted.org/packages/c7/a2/ab75601071afb20352758ef20fd7983cd290f807cabd672eaa28eed45018/cyclonedx_bom-7.3.1.tar.gz", hash = "sha256:ebd99dc2cf62a7067e327bef2b2ffada99d57ed3fda2db6c4c8f3004e5bfd3cf", size = 4420707 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/89/17/8ac1ee9db783f2459c9ebc68b6e1efac6a97f52e34c798bb1af77d7b24a6/cyclonedx_bom-7.0.0-py3-none-any.whl", hash = "sha256:3efeec32c099a5b05cc0f73ebd70bbab66549950f046be07da6efc3eae8cdaed", size = 60641 },
+    { url = "https://files.pythonhosted.org/packages/1a/8d/e464ae953209f1379e50f704fdc86b9695883e7d6f25464796981261bb1f/cyclonedx_bom-7.3.1-py3-none-any.whl", hash = "sha256:8c5adccefd593e89c0500463649c232625cee8e38dae1a433e057dfa495eff08", size = 60945 },
 ]
 
 [[package]]
@@ -1491,9 +1492,25 @@ wheels = [
 name = "packaging"
 version = "25.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.9'",
+]
 sdist = { url = "https://files.pythonhosted.org/packages/a1/d4/1fc4078c65507b51b96ca8f8c3ba19e6a61c8253c72794544580a7b6c24d/packaging-25.0.tar.gz", hash = "sha256:d443872c98d677bf60f6a1f2f8c1cb748e8fe762d2bf9d3148b5599295b0fc4f", size = 165727 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/20/12/38679034af332785aac8774540895e234f4d07f7545804097de4b666afd8/packaging-25.0-py3-none-any.whl", hash = "sha256:29572ef2b1f17581046b3a2227d5c611fb25ec70ca1ba8554b24b0e69331a484", size = 66469 },
+]
+
+[[package]]
+name = "packaging"
+version = "26.3"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.10'",
+    "python_full_version == '3.9.*'",
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7d/fa/3944b40b07da9ce895c0e6303a5ab7d53da063554f534556b134a54d6093/packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79", size = 313412 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/63/34/ba1c580383c9eada3711951fef0795c80b829a078d72188184bcab9dd527/packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c", size = 129956 },
 ]
 
 [[package]]
@@ -1543,7 +1560,8 @@ name = "pip-requirements-parser"
 version = "32.0.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pyparsing", version = "3.1.4", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pyparsing", version = "3.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
@@ -1697,7 +1715,8 @@ wheels = [
 name = "py7zz"
 source = { editable = "." }
 dependencies = [
-    { name = "packaging" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "requests" },
     { name = "rich" },
     { name = "typer" },
@@ -1707,7 +1726,7 @@ dependencies = [
 dev = [
     { name = "build" },
     { name = "cyclonedx-bom", version = "5.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "cyclonedx-bom", version = "7.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "cyclonedx-bom", version = "7.3.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "mypy", version = "1.14.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "mypy", version = "1.17.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pip-licenses", version = "4.5.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
@@ -1721,7 +1740,8 @@ dev = [
     { name = "pytest-cov", version = "5.0.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pytest-cov", version = "6.2.1", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "ruff" },
-    { name = "twine" },
+    { name = "twine", version = "6.1.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
+    { name = "twine", version = "6.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "types-requests", version = "2.32.0.20241016", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "types-requests", version = "2.32.4.20250611", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
@@ -1813,7 +1833,7 @@ dependencies = [
     { name = "colorama", marker = "python_full_version < '3.9' and sys_platform == 'win32'" },
     { name = "exceptiongroup", marker = "python_full_version < '3.9'" },
     { name = "iniconfig", marker = "python_full_version < '3.9'" },
-    { name = "packaging", marker = "python_full_version < '3.9'" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "pluggy", version = "1.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "tomli", marker = "python_full_version < '3.9'" },
 ]
@@ -1834,7 +1854,7 @@ dependencies = [
     { name = "colorama", marker = "python_full_version >= '3.9' and sys_platform == 'win32'" },
     { name = "exceptiongroup", marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
     { name = "iniconfig", marker = "python_full_version >= '3.9'" },
-    { name = "packaging", marker = "python_full_version >= '3.9'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pluggy", version = "1.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
     { name = "pygments", marker = "python_full_version >= '3.9'" },
     { name = "tomli", marker = "python_full_version >= '3.9' and python_full_version < '3.11'" },
@@ -2542,25 +2562,49 @@ wheels = [
 name = "twine"
 version = "6.1.0"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.9'",
+]
 dependencies = [
-    { name = "id" },
+    { name = "id", marker = "python_full_version < '3.9'" },
     { name = "importlib-metadata", version = "8.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "importlib-metadata", version = "8.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
     { name = "keyring", version = "25.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9' and platform_machine != 'ppc64le' and platform_machine != 's390x'" },
-    { name = "keyring", version = "25.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and platform_machine != 'ppc64le' and platform_machine != 's390x'" },
-    { name = "packaging" },
+    { name = "packaging", version = "25.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
     { name = "readme-renderer", version = "43.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "readme-renderer", version = "44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
-    { name = "requests" },
-    { name = "requests-toolbelt" },
-    { name = "rfc3986" },
-    { name = "rich" },
+    { name = "requests", marker = "python_full_version < '3.9'" },
+    { name = "requests-toolbelt", marker = "python_full_version < '3.9'" },
+    { name = "rfc3986", marker = "python_full_version < '3.9'" },
+    { name = "rich", marker = "python_full_version < '3.9'" },
     { name = "urllib3", version = "2.2.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.9'" },
-    { name = "urllib3", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/c8/a2/6df94fc5c8e2170d21d7134a565c3a8fb84f9797c1dd65a5976aaf714418/twine-6.1.0.tar.gz", hash = "sha256:be324f6272eff91d07ee93f251edf232fc647935dd585ac003539b42404a8dbd", size = 168404 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/7c/b6/74e927715a285743351233f33ea3c684528a0d374d2e43ff9ce9585b73fe/twine-6.1.0-py3-none-any.whl", hash = "sha256:a47f973caf122930bf0fbbf17f80b83bc1602c9ce393c7845f289a3001dc5384", size = 40791 },
+]
+
+[[package]]
+name = "twine"
+version = "6.2.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.10'",
+    "python_full_version == '3.9.*'",
+]
+dependencies = [
+    { name = "id", marker = "python_full_version >= '3.9'" },
+    { name = "importlib-metadata", version = "8.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version == '3.9.*'" },
+    { name = "keyring", version = "25.6.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9' and platform_machine != 'ppc64le' and platform_machine != 's390x'" },
+    { name = "packaging", version = "26.3", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "readme-renderer", version = "44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+    { name = "requests", marker = "python_full_version >= '3.9'" },
+    { name = "requests-toolbelt", marker = "python_full_version >= '3.9'" },
+    { name = "rfc3986", marker = "python_full_version >= '3.9'" },
+    { name = "rich", marker = "python_full_version >= '3.9'" },
+    { name = "urllib3", version = "2.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.9'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e0/a8/949edebe3a82774c1ec34f637f5dd82d1cf22c25e963b7d63771083bbee5/twine-6.2.0.tar.gz", hash = "sha256:e5ed0d2fd70c9959770dce51c8f39c8945c574e18173a7b81802dab51b4b75cf", size = 172262 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3a/7a/882d99539b19b1490cac5d77c67338d126e4122c8276bf640e411650c830/twine-6.2.0-py3-none-any.whl", hash = "sha256:418ebf08ccda9a8caaebe414433b0ba5e25eb5e4a927667122fbe8f829f985d8", size = 42727 },
 ]
 
 [[package]]

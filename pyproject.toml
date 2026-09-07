@@ -2,7 +2,12 @@
 # SPDX-FileCopyrightText: 2025 py7zz contributors
 
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+# Reason: hatchling >= 1.32.0 emits Metadata-Version: 2.5 (PEP 794), which
+# is rejected by twine < 7.0.0. Since py7zz supports Python >= 3.8, twine
+# is constrained to 6.x (twine 7+ dropped Python < 3.10). Pinning
+# hatchling < 1.32.0 keeps wheel metadata at 2.4 (PEP 639), ensuring
+# compatibility across all supported Python versions and tooling.
+requires = ["hatchling<1.32.0", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 # Reason: no explicit sdist include list. hatchling's default sdist ships all
