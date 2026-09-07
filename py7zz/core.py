@@ -171,6 +171,11 @@ def run_7z(
         # Masking in place rather than re-raising a copy keeps an unredacted
         # command out of the __cause__ chain, which tracebacks also print.
         e.cmd = redact_password_args(e.cmd)
+        # Reason: BaseException keeps the constructor positionals in .args, which
+        # repr() and error-reporting tools read independently of .cmd, so the
+        # masked command has to be written back there as well.
+        if len(e.args) > 1:
+            e.args = (e.args[0], e.cmd, *e.args[2:])
         raise
 
 

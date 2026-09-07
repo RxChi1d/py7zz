@@ -200,6 +200,11 @@ class TestRunSevenZipRedaction:
         assert "SuperSecret123" not in chained
         assert "-p***" in rendered
 
+        # Reason: repr() and error-reporting tools read .args rather than .cmd,
+        # so the masked command has to reach both.
+        assert "SuperSecret123" not in repr(excinfo.value)
+        assert "SuperSecret123" not in str(excinfo.value.args)
+
 
 class TestCallSitesShieldPositionals:
     """Test that each 7zz invocation puts positionals behind the terminator."""
