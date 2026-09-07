@@ -633,10 +633,12 @@ class TestSanitizedExtractionMethods:
         target_path = tmp_path / "output"
 
         def produce_member(args, cwd=None):
-            """Write the member 7zz would have flattened into the output dir."""
+            """Write the single file 7zz would leave in the output directory."""
             output_dir = next(arg[2:] for arg in args if arg.startswith("-o"))
             member_name = args[-1]
-            produced = Path(output_dir) / Path(member_name).name
+            # The member names under test are invalid on Windows, so 7zz writes
+            # them under a name the local filesystem accepts
+            produced = Path(output_dir) / "extracted.bin"
             produced.write_text(f"content of {member_name}")
             return Mock()
 

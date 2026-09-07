@@ -763,16 +763,18 @@ class SevenZipFile:
                 )
             )
 
-            extracted_file = extract_path / Path(member_name).name
-            if not extracted_file.is_file():
-                # 7zz may have adjusted the base name for the local filesystem
-                produced = [item for item in extract_path.rglob("*") if item.is_file()]
-                if len(produced) != 1:
-                    raise FileNotFoundError(
-                        f"Extraction produced {len(produced)} files for member: "
-                        f"{member_name}"
-                    )
-                extracted_file = produced[0]
+            # Reason: the extraction directory is private and holds exactly one
+            # member, so the produced file is found by listing it. Deriving a
+            # local path from the member name instead would touch names that are
+            # invalid on the local filesystem, which is precisely the case this
+            # fallback exists to handle.
+            produced = [item for item in extract_path.rglob("*") if item.is_file()]
+            if len(produced) != 1:
+                raise FileNotFoundError(
+                    f"Extraction produced {len(produced)} files for member: "
+                    f"{member_name}"
+                )
+            extracted_file = produced[0]
 
             final_path.parent.mkdir(parents=True, exist_ok=True)
 
