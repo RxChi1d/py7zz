@@ -113,7 +113,7 @@ uv run pytest --cov=py7zz
 ### Writing Tests
 
 - Add tests for all new functionality
-- Ensure tests work on Python 3.8-3.13
+- Ensure tests work on Python 3.8-3.14
 - Use descriptive test names
 - Include both positive and negative test cases
 
