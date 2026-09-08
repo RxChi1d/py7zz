@@ -24,7 +24,7 @@ Fixes #(issue)
 
 - [ ] Tests pass locally
 - [ ] New tests added for changes
-- [ ] Tested on Python 3.8-3.13
+- [ ] Tested on Python 3.8-3.14
 
 ## Checklist
 

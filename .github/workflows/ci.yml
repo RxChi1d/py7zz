@@ -12,10 +12,6 @@ on:
 jobs:
   lint:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12", "3.13"]
-      fail-fast: false
 
     steps:
     - uses: actions/checkout@v4
@@ -26,19 +22,19 @@ jobs:
         version: "latest"
         enable-cache: true
 
-    - name: Set up Python ${{ matrix.python-version }}
-      run: uv python install ${{ matrix.python-version }}
+    - name: Set up Python
+      run: |
+        uv python install 3.12
+        echo "UV_PYTHON=3.12" >> "$GITHUB_ENV"
 
     - name: Install dependencies
-      run: |
-        uv sync --dev
-        uv pip install -e .
+      run: uv sync --locked --only-group lint --python 3.12
 
     - name: Run ruff check
-      run: uv run ruff check . --output-format=github
+      run: uv run --no-sync ruff check . --output-format=github
 
     - name: Run ruff format check
-      run: uv run ruff format --check --diff .
+      run: uv run --no-sync ruff format --check --diff .
 
     - name: REUSE compliance check
       run: pipx run reuse lint
@@ -61,25 +57,27 @@ jobs:
             python-version: "3.12"
           - os: ubuntu-latest
             python-version: "3.13"
+          - os: ubuntu-latest
+            python-version: "3.14"
           # Windows: test key versions (minimum and maximum supported)
           - os: windows-latest
             python-version: "3.8"
           - os: windows-latest
-            python-version: "3.13"
-          # macOS: test intermediate version for additional platform validation
+            python-version: "3.14"
+          # macOS: test latest supported version for platform validation
           - os: macos-latest
-            python-version: "3.11"
+            python-version: "3.14"
           # Linux ARM64: sampled coverage (minimum and maximum supported)
           - os: ubuntu-24.04-arm
             python-version: "3.8"
           - os: ubuntu-24.04-arm
-            python-version: "3.13"
+            python-version: "3.14"
           # Windows ARM64: sampled coverage. Native Windows ARM64 Python exists
           # only for 3.11+, so the minimum sample is 3.11 instead of 3.8.
           - os: windows-11-arm
             python-version: "3.11"
           - os: windows-11-arm
-            python-version: "3.13"
+            python-version: "3.14"
       fail-fast: false
 
     steps:
@@ -103,7 +101,9 @@ jobs:
 
     - name: Set up Python ${{ matrix.python-version }} (uv-managed)
       if: matrix.os != 'windows-11-arm'
-      run: uv python install ${{ matrix.python-version }}
+      run: |
+        uv python install ${{ matrix.python-version }}
+        echo "UV_PYTHON=${{ matrix.python-version }}" >> "$GITHUB_ENV"
 
     # Reason: export via GITHUB_ENV so every subsequent uv invocation (sync,
     # pytest, mypy) binds to the native ARM64 setup-python interpreter; per-step
@@ -119,7 +119,7 @@ jobs:
     - name: Install dependencies
       shell: bash
       run: |
-        uv sync --dev
+        uv sync --locked --no-dev --group test
         uv pip install -e .
 
     - name: Download 7zz binary for testing
@@ -174,11 +174,11 @@ jobs:
 
     - name: Run pytest
       shell: bash
-      run: uv run pytest -v --tb=short
+      run: uv run --no-sync pytest -v --tb=short
 
     - name: Run mypy
       shell: bash
-      run: uv run mypy .
+      run: uv run --no-sync mypy .
 
   build-check:
     runs-on: ubuntu-latest
@@ -192,11 +192,13 @@ jobs:
         enable-cache: true
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: |
+        uv python install 3.11
+        echo "UV_PYTHON=3.11" >> "$GITHUB_ENV"
 
     - name: Install build dependencies
       run: |
-        uv sync --dev
+        uv sync --locked --dev
         uv pip install build
 
     - name: Build wheel and sdist
@@ -250,12 +252,12 @@ jobs:
         enable-cache: true
 
     - name: Set up Python
-      run: uv python install 3.11
+      run: |
+        uv python install 3.11
+        echo "UV_PYTHON=3.11" >> "$GITHUB_ENV"
 
     - name: Install SBOM and license tools
-      run: |
-        uv sync --dev
-        uv add --dev cyclonedx-bom pip-licenses
+      run: uv sync --locked --dev
 
     - name: Generate SBOM
       run: |

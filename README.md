@@ -6,7 +6,7 @@ SPDX-FileCopyrightText: 2025 py7zz contributors
 # py7zz
 
 [![PyPI](https://img.shields.io/pypi/v/py7zz)](https://pypi.org/project/py7zz/)
-[![Python](https://img.shields.io/pypi/pyversions/py7zz)](https://pypi.org/project/py7zz/)
+[![Python](https://img.shields.io/badge/python-3.8+-blue.svg?logo=python&logoColor=white)](https://pypi.org/project/py7zz/)
 [![License](https://img.shields.io/pypi/l/py7zz)](https://github.com/rxchi1d/py7zz/blob/main/LICENSE)
 [![CI](https://github.com/rxchi1d/py7zz/workflows/CI/badge.svg)](https://github.com/rxchi1d/py7zz/actions)
 
@@ -328,7 +328,7 @@ mypy .
 
 ## Requirements
 
-- Python 3.8+
+- Python 3.8+ (tested with Python 3.8–3.14)
 - No external dependencies
 - Supported platforms:
   - Windows x64 / ARM64 (ARM64 requires Python 3.11+)
