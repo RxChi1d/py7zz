@@ -30,9 +30,9 @@ jobs:
       # Official release notes for main branch (PR-based)
       - name: Update Release Draft (Main Branch)
         if: github.ref == 'refs/heads/main'
-        uses: release-drafter/release-drafter@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: release-drafter/release-drafter@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Draft release notes for development branches (commit-based)
       - name: Generate Development Release Notes
@@ -188,6 +188,13 @@ jobs:
       # Also update release draft for PRs (standard behavior)
       - name: Update Release Draft (Pull Request)
         if: github.event_name == 'pull_request'
-        uses: release-drafter/release-drafter@v6
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: release-drafter/release-drafter@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      # Reason: v7 moved autolabeling out of the drafter into its own action.
+      - name: Autolabel Pull Request
+        if: github.event_name == 'pull_request'
+        uses: release-drafter/release-drafter/autolabeler@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
