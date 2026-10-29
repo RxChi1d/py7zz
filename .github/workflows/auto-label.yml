@@ -19,7 +19,7 @@ jobs:
       has-conventional-label: ${{ steps.check-label.outputs.has-label }}
     steps:
       - name: Label PR based on title
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const title = context.payload.pull_request.title;
@@ -83,7 +83,7 @@ jobs:
     if: needs.conventional-label.outputs.has-conventional-label != 'true'
     steps:
       - name: Auto Label PR
-        uses: actions/labeler@v5
+        uses: actions/labeler@v6
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           configuration-path: .github/labeler.yml

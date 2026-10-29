@@ -44,7 +44,7 @@ jobs:
             wheel_tag: win_arm64
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Verify CI status
       shell: bash
@@ -81,7 +81,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Install uv
-      uses: astral-sh/setup-uv@v3
+      uses: astral-sh/setup-uv@v7
       with:
         version: "latest"  # Use latest version for better lock file support
       timeout-minutes: 3  # Add timeout to prevent hanging
@@ -382,7 +382,7 @@ jobs:
         fi
 
     - name: Upload wheel artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: wheels-${{ matrix.platform }}-${{ matrix.arch }}
         path: dist/*.whl
@@ -400,7 +400,7 @@ jobs:
 
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         path: dist/
         pattern: wheels-*
@@ -494,12 +494,12 @@ jobs:
       contents: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0  # Get full history for changelog
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v7
       with:
         path: dist/
         pattern: wheels-*
@@ -543,9 +543,9 @@ jobs:
 
     - name: Get Release Draft
       id: get_release_draft
-      uses: release-drafter/release-drafter@v6
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      uses: release-drafter/release-drafter@v7
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
       # Only run for stable releases
       if: ${{ !contains(github.ref_name, 'a') && !contains(github.ref_name, 'b') && !contains(github.ref_name, 'rc') }}
 

@@ -43,15 +43,15 @@ print_header() {
 
 # Default values
 SEVEN_ZIP_VERSION=""
-BASE_URL="https://7-zip.org/a"
 PLATFORM=""
 ARCH=""
 OUTPUT_DIR="py7zz/bin"
 BUILD_DIR="build"
 VERSION_FILE="py7zz/7zz_version.txt"
 CHECKSUM_FILE="py7zz/7zz_checksums.txt"
-# Canonical source for checksum refresh; byte-identical to the 7-zip.org
-# mirrors used by BASE_URL (verified), and matches the runtime download URLs.
+# Single source for both downloads and checksum refresh. Reason: since 26.05
+# upstream publishes Linux/macOS assets only on GitHub Releases (7-zip.org/a/
+# returns 404), so mixing sources breaks verification.
 GITHUB_RELEASES_URL="https://github.com/ip7z/7zip/releases/download"
 
 # Modes
@@ -218,7 +218,6 @@ refresh_checksums() {
         echo "#"
         echo "# SHA-256 checksums for the pinned 7-Zip ${version} release assets."
         echo "# Source: https://github.com/ip7z/7zip/releases/tag/${version}"
-        echo "# (byte-identical to the https://7-zip.org/a/ mirrors)"
         echo "# Regenerate with: ./scripts/get_7zz.sh --refresh-checksums"
     } > "$out"
     # REUSE-IgnoreEnd
@@ -336,7 +335,7 @@ write_version_file() {
 # Download and extract 7zz for macOS universal2
 download_macos_universal2() {
     local version_str="${SEVEN_ZIP_VERSION//./}"
-    local url="${BASE_URL}/7z${version_str}-mac.tar.xz"
+    local url="${GITHUB_RELEASES_URL}/${SEVEN_ZIP_VERSION}/7z${version_str}-mac.tar.xz"
     local archive="${BUILD_DIR}/macos/7z-mac-universal2.tar.xz"
     local extract_dir="${BUILD_DIR}/macos/universal2"
 
@@ -387,7 +386,7 @@ download_linux() {
             ;;
     esac
 
-    local url="${BASE_URL}/7z${version_str}-linux-${asset_arch}.tar.xz"
+    local url="${GITHUB_RELEASES_URL}/${SEVEN_ZIP_VERSION}/7z${version_str}-linux-${asset_arch}.tar.xz"
     local archive="${BUILD_DIR}/linux/7z-linux-${asset_arch}.tar.xz"
     local extract_dir="${BUILD_DIR}/linux/${target_arch}"
 
@@ -438,7 +437,7 @@ download_windows() {
             ;;
     esac
 
-    local url="${BASE_URL}/7z${version_str}-${asset_arch}.exe"
+    local url="${GITHUB_RELEASES_URL}/${SEVEN_ZIP_VERSION}/7z${version_str}-${asset_arch}.exe"
     local archive="${BUILD_DIR}/windows/7z-windows-${asset_arch}.exe"
     local extract_dir="${BUILD_DIR}/windows/${target_arch}"
 

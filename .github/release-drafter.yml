@@ -4,74 +4,96 @@
 name-template: 'v$RESOLVED_VERSION'
 tag-template: 'v$RESOLVED_VERSION'
 categories:
+  # Reason: release-drafter v7 models exclusion and version bumps as
+  # categories; the top-level exclude-labels / version-resolver.*.labels
+  # fields are deprecated.
+  - type: 'pre-exclude'
+    when:
+      labels:
+        - 'skip-changelog'
+        - 'dependencies'
   # Order follows Conventional Changelog (Angular preset) specification
   - title: '🚀 Features'
-    labels:
-      - 'feat'
-      - 'feature'
-      - 'enhancement'
+    when:
+      labels:
+        - 'feat'
+        - 'feature'
+        - 'enhancement'
   - title: '🐛 Bug Fixes'
-    labels:
-      - 'fix'
-      - 'bug'
-      - 'bugfix'
+    when:
+      labels:
+        - 'fix'
+        - 'bug'
+        - 'bugfix'
   - title: '⚡ Performance Improvements'
-    labels:
-      - 'perf'
-      - 'performance'
+    when:
+      labels:
+        - 'perf'
+        - 'performance'
   - title: '↩️ Reverts'
-    labels:
-      - 'revert'
+    when:
+      labels:
+        - 'revert'
   - title: '📚 Documentation'
-    labels:
-      - 'docs'
-      - 'documentation'
+    when:
+      labels:
+        - 'docs'
+        - 'documentation'
   - title: '🎨 Styles'
-    labels:
-      - 'style'
+    when:
+      labels:
+        - 'style'
   - title: '♻️ Code Refactoring'
-    labels:
-      - 'refactor'
+    when:
+      labels:
+        - 'refactor'
   - title: '🧪 Tests'
-    labels:
-      - 'test'
-      - 'testing'
+    when:
+      labels:
+        - 'test'
+        - 'testing'
   - title: '🏗️ Build System'
-    labels:
-      - 'build'
-      - 'deps'
+    when:
+      labels:
+        - 'build'
+        - 'deps'
   - title: '🔄 Continuous Integration'
-    labels:
-      - 'ci'
-      - 'cd'
-      - 'workflow'
+    when:
+      labels:
+        - 'ci'
+        - 'cd'
+        - 'workflow'
   - title: '🔧 Maintenance'
-    labels:
-      - 'chore'
-      - 'maintenance'
+    when:
+      labels:
+        - 'chore'
+        - 'maintenance'
+  - type: 'version-resolver'
+    semver-increment: 'major'
+    when:
+      labels:
+        - 'major'
+        - 'breaking'
+  - type: 'version-resolver'
+    semver-increment: 'minor'
+    when:
+      labels:
+        - 'minor'
+        - 'feat'
+        - 'feature'
+  - type: 'version-resolver'
+    semver-increment: 'patch'
+    when:
+      labels:
+        - 'patch'
+        - 'fix'
+        - 'bug'
+        - 'bugfix'
 change-template: '- $TITLE @$AUTHOR (#$NUMBER)'
 category-template: '### $TITLE'
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 version-resolver:
-  major:
-    labels:
-      - 'major'
-      - 'breaking'
-  minor:
-    labels:
-      - 'minor'
-      - 'feat'
-      - 'feature'
-  patch:
-    labels:
-      - 'patch'
-      - 'fix'
-      - 'bug'
-      - 'bugfix'
   default: patch
-exclude-labels:
-  - 'skip-changelog'
-  - 'dependencies'
 autolabeler:
   - label: 'feat'
     title:
