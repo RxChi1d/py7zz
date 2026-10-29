@@ -3,7 +3,6 @@
 #
 # SHA-256 checksums for the pinned 7-Zip 26.04 release assets.
 # Source: https://github.com/ip7z/7zip/releases/tag/26.04
-# (byte-identical to the https://7-zip.org/a/ mirrors)
 # Regenerate with: ./scripts/get_7zz.sh --refresh-checksums
 d4117b95495b0e925334ae7b5bddf2853513274603de15dee6acf03999fbc09c  7z2604-arm64.exe
 5b0ac3aa91c1e3499f011d6af69d7f6b4de3ef2f011d9e2ff44c58ebd04aa388  7z2604-linux-arm64.tar.xz

@@ -44,7 +44,7 @@ jobs:
             wheel_tag: win_arm64
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Verify CI status
       shell: bash
@@ -494,7 +494,7 @@ jobs:
       contents: write
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0  # Get full history for changelog
 

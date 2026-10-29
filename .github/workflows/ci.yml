@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -81,7 +81,7 @@ jobs:
       fail-fast: false
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -183,7 +183,7 @@ jobs:
   build-check:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
@@ -243,7 +243,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'release' || github.ref == 'refs/heads/main'
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
 
     - name: Install uv
       uses: astral-sh/setup-uv@v6
