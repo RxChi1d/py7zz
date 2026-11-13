@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: MIT
 # SPDX-FileCopyrightText: 2025 py7zz contributors
 #
-# SHA-256 checksums for the pinned 7-Zip 26.05 release assets.
-# Source: https://github.com/ip7z/7zip/releases/tag/26.05
+# SHA-256 checksums for the pinned 7-Zip 26.06 release assets.
+# Source: https://github.com/ip7z/7zip/releases/tag/26.06
 # Regenerate with: ./scripts/get_7zz.sh --refresh-checksums
-86d5790d5dd84cab4636c3bb7fab10d3ed7cd3e57e6119401bd2769e28165268  7z2605-arm64.exe
-0b71f6cfc34669b3bf69f2347efd3429f77020665003a13b9cdc53b784270421  7z2605-linux-arm64.tar.xz
-22cf82fcc6eb7474f1d5bb4f02c0f8ebd573a718089d6833dc30f8350a3b232e  7z2605-linux-x64.tar.xz
-12ef6830317743cfd3f0ab1724bde43fcc270d8b6d8564f8c12c2a2b7f993570  7z2605-mac.tar.xz
-fd99e86f57d8f429ef5ed045bf98315af962e2309b0f1ba87a147a44c71647d0  7z2605-x64.exe
-9bf582b894dfa665f852d7e9112b02290a1c303c2d95a21fcdc41ffcb03143b7  7zr.exe
+036a00d478ef81f4b4b85fb37b0f934d558341f3f51aa7d36d2a26454740e625  7z2606-arm64.exe
+edcc408aacce77da5223728f2eceb5e9f6dc713b8a9df934ad21e2a7f7560627  7z2606-linux-arm64.tar.xz
+2b539cf067b2ad48e1baa5093dbaa8818b73542d1222a0ffde9dc5f2922ea62e  7z2606-linux-x64.tar.xz
+b6f17920b4240940461dac8ef4009891881ac44d2a5ead625ede2ec8472185dd  7z2606-mac.tar.xz
+9b697f65ecc2d9b0152f5ee96d72dde522a7827690349d9307935dacf40f42ec  7z2606-x64.exe
+e80db2dad715a6c5adabe292d31ed54e11f4e9b99ca349827b50573b175891bc  7zr.exe
